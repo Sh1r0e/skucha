@@ -1,59 +1,105 @@
 # skucha
 
-Static site prepared for Azure Static Web Apps.
+Website for renting climbing crash pads in Wroclaw.
 
-## What Is Deployed
+This project is intentionally lightweight:
 
-- `index.html` - launcher entrypoint (auto-redirects to mobile or desktop variant)
-- `skucha-mobile.html` - mobile page (copied from Claude export)
-- `skucha-desktop.html` - desktop page (copied from Claude export)
-- `skucha-print.html` - print variant page
-- `support.js` - runtime required by Claude-generated pages
-- `config/config.json` - single source of truth for pricing, contact and addresses
-- `config/config-loader.js` - loads config and injects values into pages
-- `source/claude-exports/` - original Claude export sources (kept for reference)
+- Azure Static Web Apps
+- static HTML/CSS/JavaScript frontend
+- Azure Functions integrated in `/api`
+- no bundlers
 
-Legacy mockup files were removed during cleanup. The deployed entrypoint is `index.html`.
+## Architecture
 
-## Local Check
+Frontend responsibilities:
 
-Open `index.html` in browser and verify:
+- render UI
+- perform basic form validation
+- call API endpoints
 
-1. On desktop width, it redirects to `skucha-desktop.html`.
-2. On mobile width, it redirects to `skucha-mobile.html`.
-3. `skucha-print.html` loads directly.
-4. Changes in `config/config.json` are visible after page refresh.
+Backend responsibilities:
 
-## Configure Business Data
+- validate reservation payloads
+- check availability
+- prevent double booking (currently in-memory, phase 3 will move to Azure Table Storage)
+- send reservation notifications (phase 1: log-only placeholder)
 
-Edit only this file:
+Never trust frontend input. Reservation acceptance is backend-controlled.
 
-- `config/config.json`
+## Endpoints
 
-Key sections:
+- `GET /api/availability`
+- `POST /api/reservation`
 
-- `contact.phone` and `contact.whatsapp` - phone and WhatsApp number
-- `contact.email` - business email
-- `pricing.weekday`, `pricing.weekend`, `pricing.deliveryPerPad` - prices
-- `pickupPoints[0]` and `pickupPoints[1]` - pickup names and addresses
-- `branding.accent` and `branding.ink` - main colors
+Planned:
 
-All page variants (`skucha-mobile.html`, `skucha-desktop.html`, `skucha-print.html`) consume these values through `config/config-loader.js`.
+- `GET /api/config`
+- `POST /api/admin/availability`
 
-## Push To Git
+## Repository Layout
 
-```powershell
-git add .
-git commit -m "Assemble Claude pages for Azure Static Web Apps deployment"
-git push
+```text
+/
+	index.html
+	styles.css
+	script.js
+
+	config/
+		config.json
+		config-loader.js
+
+	assets/
+	images/
+
+	api/
+		host.json
+		package.json
+
+		reservation/
+			index.js
+			function.json
+
+		availability/
+			index.js
+			function.json
+
+		services/
+			ReservationService.js
+			AvailabilityService.js
+			MailService.js
+			ConfigService.js
+
+		models/
+			Reservation.js
 ```
 
-## Azure Static Web Apps Settings
+## Configuration
 
-Use these values in Azure:
+Editable business data is in `config/config.json`, including:
 
-- App location: `/`
-- API location: `(leave empty)`
-- Output location: `(leave empty)`
+- pricing
+- contact data
+- pickup locations
+- FAQ
+- business name/city
+- total pads for availability
 
-This repository is already plain static HTML/CSS/JS, so no build step is required.
+Frontend loads config through `config/config-loader.js`.
+
+Backend also reads `config/config.json` through `api/services/ConfigService.js`.
+
+## Azure Static Web Apps Workflow
+
+Current GitHub Actions workflow uses:
+
+- `app_location: "/"`
+- `api_location: "api"`
+- `output_location: "/"`
+
+## Roadmap
+
+1. Static website + reservation endpoint (mail placeholder)
+2. Availability endpoint
+3. Azure Table Storage persistence
+4. Admin page
+5. Online payments

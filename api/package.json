@@ -1,0 +1,13 @@
+{
+  "name": "skucha-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Azure Functions backend for Skucha reservations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

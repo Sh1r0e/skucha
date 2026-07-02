@@ -165,10 +165,32 @@
         <div style="font-size:34px; font-weight:800; letter-spacing:-0.03em; line-height:0.9;">{{ totalLabel }}<span style="font-size:16px; font-weight:700; color:#9a968e;"> zł</span></div>
       </div>
 
-      <a href="{{ waLink }}" target="_blank" rel="noopener" style="margin-top:14px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:16px; padding:16px; border-radius:var(--r-md); letter-spacing:-0.01em;">
+      <div style="margin-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <label style="display:block;">
+          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Imię</span>
+          <input type="text" value="{{ firstName }}" onInput="{{ setFirstName }}" placeholder="Jan" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+        </label>
+        <label style="display:block;">
+          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Nazwisko</span>
+          <input type="text" value="{{ lastName }}" onInput="{{ setLastName }}" placeholder="Kowalski" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+        </label>
+      </div>
+      <div style="margin-top:8px; display:grid; grid-template-columns:1fr; gap:8px;">
+        <label style="display:block;">
+          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Email</span>
+          <input type="email" value="{{ email }}" onInput="{{ setEmail }}" placeholder="jan@email.com" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+        </label>
+        <label style="display:block;">
+          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
+          <input type="tel" value="{{ phoneInput }}" onInput="{{ setPhoneInput }}" placeholder="+48 500 600 700" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+        </label>
+      </div>
+
+      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" style="margin-top:14px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:16px; padding:16px; border-radius:var(--r-md); letter-spacing:-0.01em;">
         Rezerwuj<span style="font-size: 18px;">→</span>
       </a>
       <div style="text-align:center; font-family:var(--font-mono); font-size:11.5px; font-weight:400; color:#6b6862; margin-top:9px;">Kaucja płatna gotówką przy odbiorze</div>
+      <div style="{{ reservationStatusStyle }}">{{ reservationStatus }}</div>
 
       <!-- notify -->
       <div style="{{ notifyWrapStyle }}">
@@ -396,36 +418,88 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:880},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FB5A12&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1a1916&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Bricolage Grotesque&quot;,&quot;options&quot;:[&quot;Archivo&quot;,&quot;Space Grotesk&quot;,&quot;Sora&quot;,&quot;Bricolage Grotesque&quot;,&quot;Hanken Grotesk&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;labelFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Space Mono&quot;,&quot;options&quot;:[&quot;Space Mono&quot;,&quot;JetBrains Mono&quot;,&quot;IBM Plex Mono&quot;,&quot;DM Mono&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;corners&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Zaokrąglone&quot;,&quot;options&quot;:[&quot;Ostre&quot;,&quot;Zaokrąglone&quot;,&quot;Mocno zaokrąglone&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;logo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Wariant 1&quot;,&quot;options&quot;:[&quot;Wariant 1&quot;,&quot;Wariant 2&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;priceWeekday&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;priceWeekend&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;deliveryFee&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;whatsappNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;48600123456&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;stickyBar&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
 class Component extends DCLogic {
-  state = { od:'2026-06-22', dod:'2026-06-23', pads:2, loc:'Stabłowice', dowoz:false, openFaq:0, calYear:2026, calMonth:5, notifyOpen:false, notifyOd:'', notifyDod:'' };
+  state = (() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const iso = now.getFullYear() + '-' + month + '-' + day;
+    return {
+      od: iso,
+      dod: iso,
+      pads: 1,
+      loc: 'Stabłowice',
+      dowoz: false,
+      openFaq: 0,
+      calYear: now.getFullYear(),
+      calMonth: now.getMonth(),
+      notifyOpen: false,
+      notifyOd: '',
+      notifyDod: '',
+      availabilityByDate: {},
+      loadedMonths: {},
+      firstName: '',
+      lastName: '',
+      email: '',
+      phoneInput: '',
+      reservationStatus: '',
+      reservationStatusColor: '#6b6862'
+    };
+  })();
 
-  mk(str){ if(!str) return null; const p=str.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
+  mk(str){ if(!str) return null; const p=str.split('-').map(Number); const d=new Date(p[0],p[1]-1,p[2]); d.setHours(0,0,0,0); return d; }
   fmt(str){ if(!str) return '—'; const p=str.split('-'); return p[2]+'.'+p[1]; }
   key(d){ const m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
-  // wolne pady danego dnia: -1 = przeszłość, 0 = brak, 1..4 = wolne
+  todayIso(){ const t=new Date(); t.setHours(0,0,0,0); return this.key(t); }
+  horizonMonths(){ return 6; }
+
   freeFor(str){
-    const TOTAL = 4;
-    const today = this.mk('2026-06-20');
+    const today = this.mk(this.todayIso());
     const d = this.mk(str);
     if(!d || d < today) return -1;
-    const booked = {
-      '2026-06-20':2, '2026-06-21':3, '2026-06-24':4, '2026-06-25':4, '2026-06-26':3,
-      '2026-06-27':4, '2026-06-28':2, '2026-07-03':3, '2026-07-04':4, '2026-07-05':4,
-      '2026-07-10':2, '2026-07-11':4, '2026-07-12':3, '2026-07-17':1, '2026-07-18':2, '2026-07-19':3
-    };
-    if(str in booked) return TOTAL - booked[str];
-    const dow = d.getDay();
-    if(dow===6 || dow===0) return 3;
+    const fromApi = this.state.availabilityByDate[str];
+    if(typeof fromApi === 'number') return Math.max(0, Math.min(4, fromApi));
     return 4;
   }
+
   maxAvail(){
     const od = this.state.od, dod = this.state.dod || this.state.od;
     if(!od) return 4;
     let s=this.mk(od), e=this.mk(dod);
     if(e<s){ const t=s; s=e; e=t; }
-    let m=4; const cur=new Date(s);
+    let m=4;
+    const cur=new Date(s);
     while(cur<=e){ const f=this.freeFor(this.key(cur)); if(f>=0) m=Math.min(m,f); cur.setDate(cur.getDate()+1); }
     return Math.max(0,m);
   }
+
+  async loadMonthAvailability(year, month){
+    const monthKey = year + '-' + String(month + 1).padStart(2, '0');
+    if (this.state.loadedMonths[monthKey]) return;
+
+    const from = this.key(new Date(year, month, 1));
+    const to = this.key(new Date(year, month + 1, 0));
+
+    try {
+      const response = await fetch('/api/availability?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const payload = await response.json();
+      if (!response.ok || !payload || typeof payload.days !== 'object') return;
+
+      this.setState((s) => {
+        const mergedDays = Object.assign({}, s.availabilityByDate, payload.days || {});
+        const mergedMonths = Object.assign({}, s.loadedMonths, { [monthKey]: true });
+        let nextPads = s.pads;
+        const maxForSelection = this.maxAvail();
+        if (maxForSelection > 0) {
+          nextPads = Math.min(nextPads, maxForSelection);
+        }
+        return { availabilityByDate: mergedDays, loadedMonths: mergedMonths, pads: Math.max(1, nextPads) };
+      });
+    } catch (error) {
+      // Keep optimistic defaults when API is temporarily unavailable.
+    }
+  }
+
   selectDay(str){
     const f=this.freeFor(str);
     if(f<=0) return;
@@ -439,15 +513,30 @@ class Component extends DCLogic {
     if(!ok){ this.setState({ od:str, dod:null, pads:Math.min(this.state.pads, Math.max(1,f)) }); return; }
     this.setState({ dod:str, pads:Math.min(this.state.pads, Math.max(1,m)) });
   }
+
   shiftMonth(delta){
     let m=this.state.calMonth+delta, y=this.state.calYear;
     if(m<0){ m+=12; y--; } if(m>11){ m-=12; y++; }
     const idx=y*12+m;
-    if(idx < 2026*12+5 || idx > 2026*12+11) return;
+    const now = new Date();
+    const minIdx = now.getFullYear() * 12 + now.getMonth();
+    const maxIdx = minIdx + this.horizonMonths() - 1;
+    if(idx < minIdx || idx > maxIdx) return;
     this.setState({ calYear:y, calMonth:m });
   }
-  componentDidMount(){ this.applyTheme(); }
-  componentDidUpdate(){ this.applyTheme(); }
+
+  componentDidMount(){
+    this.applyTheme();
+    this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
+  }
+
+  componentDidUpdate(prevProps, prevState){
+    this.applyTheme();
+    if (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth) {
+      this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
+    }
+  }
+
   applyTheme(){
     const el=this._root||document.getElementById('skucha-root'); if(!el) return;
     const fonts={Archivo:"'Archivo',system-ui,sans-serif",'Space Grotesk':"'Space Grotesk',sans-serif",Sora:"'Sora',sans-serif",'Bricolage Grotesque':"'Bricolage Grotesque',sans-serif",'Hanken Grotesk':"'Hanken Grotesk',sans-serif"};
@@ -491,6 +580,86 @@ class Component extends DCLogic {
     return "display:flex; align-items:center; justify-content:center; gap:6px; padding:13px 8px; border-radius:var(--r-sm); font-weight:700; font-size:15px; cursor:not-allowed; background:#f3f1ee; color:#b0aca4; border:1px solid #e7e5e1;";
   }
 
+  async reserveClick(e){
+    e.preventDefault();
+    const firstName = this.state.firstName.trim();
+    const lastName = this.state.lastName.trim();
+    const email = this.state.email.trim();
+    const phone = this.state.phoneInput.trim();
+
+    if (!firstName || !lastName || !email || !phone) {
+      this.setState({ reservationStatus: 'Uzupełnij imię, nazwisko, email i telefon.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      this.setState({ reservationStatus: 'Podaj poprawny adres email.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
+    if (this.maxAvail() < this.state.pads) {
+      this.setState({ reservationStatus: 'Brak wystarczającej liczby padów w wybranym terminie.', reservationStatusColor: '#b42318' });
+      return;
+    }
+
+    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862' });
+
+    const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
+    const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
+    const locName = this.state.loc==='Stabłowice' ? pickupName1 : (this.state.loc==='Brochów' ? pickupName2 : this.state.loc);
+
+    const payload = {
+      firstName: firstName,
+      lastName: lastName,
+      fullName: firstName + ' ' + lastName,
+      email: email,
+      phone: phone,
+      dateFrom: this.state.od,
+      dateTo: this.state.dod || this.state.od,
+      padsCount: this.state.pads,
+      deliveryMethod: this.state.dowoz ? 'delivery' : 'pickup',
+      pickupPoint: this.state.dowoz ? '' : locName,
+      notes: ''
+    };
+
+    try {
+      const response = await fetch('/api/reservation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        this.setState({ reservationStatus: (result && result.message) || 'Nie udało się przyjąć rezerwacji.', reservationStatusColor: '#b42318' });
+        return;
+      }
+
+      this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b' });
+      window.open(this.buildWaLink(), '_blank', 'noopener');
+    } catch (error) {
+      this.setState({ reservationStatus: 'Błąd połączenia z API.', reservationStatusColor: '#b42318' });
+    }
+  }
+
+  buildWaLink(){
+    const phone = String(this.props.whatsappNumber ?? '48600123456');
+    const c = this.calc();
+    const dayWord = c.days===1 ? 'dzień' : 'dni';
+    const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
+    const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
+    const currentPickupName = this.state.loc==='Stabłowice' ? pickupName1 : (this.state.loc==='Brochów' ? pickupName2 : this.state.loc);
+    const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
+      + '• Imię i nazwisko: ' + this.state.firstName + ' ' + this.state.lastName + '\n'
+      + '• Email: ' + this.state.email + '\n'
+      + '• Telefon: ' + this.state.phoneInput + '\n'
+      + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
+      + '• Liczba padów: ' + this.state.pads + '\n'
+      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice) — koszt dowozu do ustalenia' : ('Odbiór osobisty — ' + currentPickupName)) + '\n'
+      + '• Szacowana cena: ' + c.total + ' zł' + (this.state.dowoz ? ' (bez kosztu dowozu)' : '');
+    return 'https://wa.me/' + phone.replace(/\D/g,'') + '?text=' + encodeURIComponent(msg);
+  }
+
   renderVals(){
     const pw = Number(this.props.priceWeekday ?? 40);
     const we = Number(this.props.priceWeekend ?? 45);
@@ -514,12 +683,7 @@ class Component extends DCLogic {
         ? (this.props.pickupPoint2Name ?? 'Brochów')
         : this.state.loc);
 
-    const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
-      + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
-      + '• Liczba padów: ' + this.state.pads + '\n'
-      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice) — koszt dowozu do ustalenia' : ('Odbiór osobisty — ' + currentPickupName)) + '\n'
-      + '• Szacowana cena: ' + c.total + ' zł' + (this.state.dowoz ? ' (bez kosztu dowozu)' : '');
-    const waLink = 'https://wa.me/' + phone.replace(/\D/g,'') + '?text=' + encodeURIComponent(msg);
+    const waLink = this.buildWaLink();
 
     const phoneDigits = phone.replace(/\D/g,'');
     const telHref = 'tel:+' + phoneDigits;
@@ -578,8 +742,11 @@ class Component extends DCLogic {
     }
     const navBase="width:34px; height:34px; border-radius:var(--r-sm); border:1px solid #e2e0db; background:#fff; font-size:18px; font-weight:700; color:var(--ink); line-height:1; display:flex; align-items:center; justify-content:center;";
     const curIdx=cy*12+cm;
-    const prevStyle=navBase+(curIdx>2026*12+5?'cursor:pointer;':'opacity:0.3; cursor:default;');
-    const nextStyle=navBase+(curIdx<2026*12+11?'cursor:pointer;':'opacity:0.3; cursor:default;');
+    const now = new Date();
+    const minIdx = now.getFullYear() * 12 + now.getMonth();
+    const maxIdx = minIdx + this.horizonMonths() - 1;
+    const prevStyle=navBase+(curIdx>minIdx?'cursor:pointer;':'opacity:0.3; cursor:default;');
+    const nextStyle=navBase+(curIdx<maxIdx?'cursor:pointer;':'opacity:0.3; cursor:default;');
     const rangeLabel = this.state.od ? (this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '')) : 'Wybierz daty';
     const maxAvailLabel = this.maxAvail();
 
@@ -596,7 +763,7 @@ class Component extends DCLogic {
     const locMapsLink = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(locAddress + ', Polska');
 
     // --- Powiadomienie o dostępności ---
-    const todayIso = '2026-06-20';
+    const todayIso = this.todayIso();
     const nOd = this.state.notifyOd;
     const nDod = this.state.notifyDod;
     const noAvail = maxAvailLabel === 0;
@@ -638,6 +805,18 @@ class Component extends DCLogic {
       pickDowoz: () => this.setState({ dowoz:true }),
       odbiorStyle: this.seg(!this.state.dowoz),
       dowozStyle: this.seg(this.state.dowoz),
+      firstName: this.state.firstName,
+      lastName: this.state.lastName,
+      email: this.state.email,
+      phoneInput: this.state.phoneInput,
+      setFirstName: (e) => this.setState({ firstName: e.target.value }),
+      setLastName: (e) => this.setState({ lastName: e.target.value }),
+      setEmail: (e) => this.setState({ email: e.target.value }),
+      setPhoneInput: (e) => this.setState({ phoneInput: e.target.value }),
+      reserveClick: (e) => this.reserveClick(e),
+      reservationStatus: this.state.reservationStatus,
+      reservationStatusColor: this.state.reservationStatusColor,
+      reservationStatusStyle: "margin-top:8px; min-height:18px; font-family:var(--font-mono); font-size:11px; color:" + this.state.reservationStatusColor + ";",
       showPoints: !this.state.dowoz,
       dowoz: this.state.dowoz,
       daysLabel, breakdown: bd,
