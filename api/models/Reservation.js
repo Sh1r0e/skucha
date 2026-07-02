@@ -4,7 +4,7 @@ class Reservation {
     this.lastName = String(input.lastName || "").trim();
     this.fullName = String(input.fullName || (this.firstName + " " + this.lastName)).trim();
     this.email = String(input.email || "").trim().toLowerCase();
-    this.phone = String(input.phone || "").trim();
+    this.phone = String(input.phone || "").replace(/\s+/g, "").trim();
     this.dateFrom = String(input.dateFrom || "").trim();
     this.dateTo = String(input.dateTo || "").trim();
     this.padsCount = Number.parseInt(input.padsCount, 10) || 1;

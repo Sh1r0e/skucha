@@ -10,6 +10,10 @@ function badRequest(message) {
 }
 
 function validateReservation(reservation, config) {
+  var namePattern = /^[A-Za-zÀ-ž\-\s']{2,60}$/;
+  var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  var datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
   if (!reservation.firstName) {
     throw badRequest("firstName is required");
   }
@@ -18,7 +22,15 @@ function validateReservation(reservation, config) {
     throw badRequest("lastName is required");
   }
 
-  if (!reservation.email || !reservation.email.includes("@")) {
+  if (!namePattern.test(reservation.firstName)) {
+    throw badRequest("firstName format is invalid");
+  }
+
+  if (!namePattern.test(reservation.lastName)) {
+    throw badRequest("lastName format is invalid");
+  }
+
+  if (!reservation.email || !emailPattern.test(reservation.email)) {
     throw badRequest("Valid email is required");
   }
 
@@ -26,12 +38,26 @@ function validateReservation(reservation, config) {
     throw badRequest("phone is required");
   }
 
+  var normalizedPhone = reservation.phone.replace(/[^\d+]/g, "");
+  if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
+    throw badRequest("phone format is invalid");
+  }
+  reservation.phone = normalizedPhone;
+
   if (!reservation.dateFrom || !reservation.dateTo) {
     throw badRequest("dateFrom and dateTo are required");
   }
 
+  if (!datePattern.test(reservation.dateFrom) || !datePattern.test(reservation.dateTo)) {
+    throw badRequest("dateFrom and dateTo must be in YYYY-MM-DD format");
+  }
+
   if (!Number.isInteger(reservation.padsCount) || reservation.padsCount < 1) {
     throw badRequest("padsCount must be a positive integer");
+  }
+
+  if (reservation.padsCount > 8) {
+    throw badRequest("padsCount is too high");
   }
 
   if (reservation.deliveryMethod !== "pickup" && reservation.deliveryMethod !== "delivery") {

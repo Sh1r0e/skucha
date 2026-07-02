@@ -16,7 +16,7 @@ module.exports = async function (context, req) {
     context.log.error("Reservation error", error);
 
     context.res = {
-      status: error.statusCode || 400,
+      status: error.statusCode || 500,
       headers: {
         "Content-Type": "application/json"
       },

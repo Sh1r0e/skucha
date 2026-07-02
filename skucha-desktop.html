@@ -190,21 +190,21 @@
       <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
         <label style="display:block;">
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Imię</span>
-          <input type="text" value="{{ firstName }}" onInput="{{ setFirstName }}" placeholder="Jan" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          <input type="text" value="{{ firstName }}" onInput="{{ setFirstName }}" placeholder="Jan" maxlength="60" autocomplete="given-name" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
         <label style="display:block;">
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Nazwisko</span>
-          <input type="text" value="{{ lastName }}" onInput="{{ setLastName }}" placeholder="Kowalski" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          <input type="text" value="{{ lastName }}" onInput="{{ setLastName }}" placeholder="Kowalski" maxlength="60" autocomplete="family-name" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
       </div>
       <div style="margin-top:8px; display:grid; grid-template-columns:1fr; gap:8px;">
         <label style="display:block;">
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Email</span>
-          <input type="email" value="{{ email }}" onInput="{{ setEmail }}" placeholder="jan@email.com" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          <input type="email" value="{{ email }}" onInput="{{ setEmail }}" placeholder="jan@email.com" maxlength="120" autocomplete="email" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
         <label style="display:block;">
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
-          <input type="tel" value="{{ phoneInput }}" onInput="{{ setPhoneInput }}" placeholder="+48 500 600 700" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          <input type="tel" value="{{ phoneInput }}" onInput="{{ setPhoneInput }}" placeholder="+48 500 600 700" maxlength="16" inputmode="tel" autocomplete="tel" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
       </div>
 
@@ -570,7 +570,7 @@ class Component extends DCLogic {
 
   componentDidUpdate(prevProps, prevState){
     this.applyTheme();
-    if (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth) {
+    if (prevState && (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth)) {
       this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
     }
   }
@@ -618,6 +618,19 @@ class Component extends DCLogic {
     return "display:flex; align-items:center; justify-content:center; gap:6px; padding:13px 8px; border-radius:var(--r-sm); font-weight:700; font-size:15px; cursor:not-allowed; background:#f3f1ee; color:#b0aca4; border:1px solid #e7e5e1;";
   }
 
+  sanitizeName(value){
+    return String(value || '').replace(/[^A-Za-zÀ-ž\-\s']/g, '').slice(0, 60);
+  }
+
+  sanitizePhone(value){
+    const cleaned = String(value || '').replace(/[^0-9+\s]/g, '');
+    const firstPlus = cleaned.indexOf('+');
+    const normalized = firstPlus > 0
+      ? cleaned.replace(/\+/g, '')
+      : (firstPlus === 0 ? '+' + cleaned.slice(1).replace(/\+/g, '') : cleaned);
+    return normalized.slice(0, 16);
+  }
+
   async reserveClick(e){
     e.preventDefault();
     const firstName = this.state.firstName.trim();
@@ -632,6 +645,17 @@ class Component extends DCLogic {
 
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       this.setState({ reservationStatus: 'Podaj poprawny adres email.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
+    if (!/^[A-Za-zÀ-ž\-\s']{2,60}$/.test(firstName) || !/^[A-Za-zÀ-ž\-\s']{2,60}$/.test(lastName)) {
+      this.setState({ reservationStatus: 'Imię i nazwisko mogą zawierać tylko litery i muszą mieć min. 2 znaki.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
+    const normalizedPhone = phone.replace(/\s+/g, '');
+    if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
+      this.setState({ reservationStatus: 'Podaj poprawny numer telefonu (9-15 cyfr).', reservationStatusColor: '#b54708' });
       return;
     }
 
@@ -651,7 +675,7 @@ class Component extends DCLogic {
       lastName: lastName,
       fullName: firstName + ' ' + lastName,
       email: email,
-      phone: phone,
+      phone: normalizedPhone,
       dateFrom: this.state.od,
       dateTo: this.state.dod || this.state.od,
       padsCount: this.state.pads,
@@ -841,10 +865,10 @@ class Component extends DCLogic {
       lastName: this.state.lastName,
       email: this.state.email,
       phoneInput: this.state.phoneInput,
-      setFirstName: (e) => this.setState({ firstName: e.target.value }),
-      setLastName: (e) => this.setState({ lastName: e.target.value }),
-      setEmail: (e) => this.setState({ email: e.target.value }),
-      setPhoneInput: (e) => this.setState({ phoneInput: e.target.value }),
+      setFirstName: (e) => this.setState({ firstName: this.sanitizeName(e.target.value) }),
+      setLastName: (e) => this.setState({ lastName: this.sanitizeName(e.target.value) }),
+      setEmail: (e) => this.setState({ email: String(e.target.value || '').trim().toLowerCase().slice(0, 120) }),
+      setPhoneInput: (e) => this.setState({ phoneInput: this.sanitizePhone(e.target.value) }),
       reserveClick: (e) => this.reserveClick(e),
       reservationStatus: this.state.reservationStatus,
       reservationStatusColor: this.state.reservationStatusColor,

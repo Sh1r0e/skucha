@@ -79,6 +79,15 @@ Model layer:
 5. `MailService` returns log-only notification result (placeholder for real transport).
 6. API returns accepted reservation summary.
 
+Validation strategy:
+
+- frontend sanitizes and constrains user input (name chars, phone chars/length, email length)
+- backend enforces canonical validation regardless of frontend behavior
+- phone must match `^\\+?[0-9]{9,15}$`
+- names must be 2-60 chars and match `^[A-Za-zÀ-ž\\-\\s']+$`
+- dates must be `YYYY-MM-DD`
+- pads count must be integer in safe range (currently 1-8)
+
 ## Configuration Model
 `config/config.json` currently controls:
 
