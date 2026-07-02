@@ -2,7 +2,19 @@ const ReservationService = require("../services/ReservationService");
 
 module.exports = async function (context, req) {
   try {
-    const payload = req.body || {};
+    const request = req || context.req || {};
+    let payload = request.body || {};
+
+    if (typeof payload === "string") {
+      try {
+        payload = JSON.parse(payload || "{}");
+      } catch (error) {
+        const parseError = new Error("Request body must be valid JSON");
+        parseError.statusCode = 400;
+        throw parseError;
+      }
+    }
+
     const result = await ReservationService.createReservation(payload);
 
     context.res = {
