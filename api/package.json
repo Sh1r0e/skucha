@@ -8,6 +8,6 @@
     "test": "echo \"No tests yet\""
   },
   "engines": {
-    "node": "20.x"
+    "node": "18.x"
   }
 }
