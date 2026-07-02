@@ -14,6 +14,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
+<script src="./config/config-loader.js"></script>
 </head>
 <body>
 <x-dc>
@@ -458,10 +459,16 @@ class Component extends DCLogic {
     else if(c.wknd) bd += ' · ' + c.wknd + ' weekend';
     if(this.state.dowoz) bd += ' · + dowóz';
 
+    const currentPickupName = this.state.loc==='Stabłowice'
+      ? (this.props.pickupPoint1Name ?? 'Stabłowice')
+      : (this.state.loc==='Brochów'
+        ? (this.props.pickupPoint2Name ?? 'Brochów')
+        : this.state.loc);
+
     const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
       + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
       + '• Liczba padów: ' + this.state.pads + '\n'
-      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice)' : ('Odbiór osobisty — ' + this.state.loc)) + '\n'
+      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice)' : ('Odbiór osobisty — ' + currentPickupName)) + '\n'
       + '• Szacowana cena: ' + c.total + ' zł';
     const waLink = 'https://wa.me/' + phone.replace(/\D/g,'') + '?text=' + encodeURIComponent(msg);
 
@@ -527,6 +534,9 @@ class Component extends DCLogic {
     const rangeLabel = this.state.od ? (this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '')) : 'Wybierz daty';
     const maxAvailLabel = this.maxAvail();
 
+    const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
+    const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
+
     return {
       od: this.state.od, dod: this.state.dod, pads: this.state.pads,
       monthLabel, calDays, prevStyle, nextStyle, rangeLabel, maxAvailLabel,
@@ -547,6 +557,8 @@ class Component extends DCLogic {
       daysLabel, breakdown: bd,
       totalLabel: c.total,
       waLink, telHref, phoneLabel,
+      pickupPoint1Name: pickupName1,
+      pickupPoint2Name: pickupName2,
       pwLabel: pw, weLabel: we, dfLabel: df,
       faqs,
       showSticky: (this.props.stickyBar ?? true)

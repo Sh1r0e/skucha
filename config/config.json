@@ -1,0 +1,33 @@
+{
+  "site": {
+    "name": "SKUCHA",
+    "city": "Wrocław"
+  },
+  "contact": {
+    "phone": "+48 213 767 420",
+    "whatsapp": "+48 213 767 420",
+    "email": "kontakt@skucha.pl"
+  },
+  "pricing": {
+    "weekday": 40,
+    "weekend": 45,
+    "deliveryPerPad": 15,
+    "currency": "PLN"
+  },
+  "pickupPoints": [
+    {
+      "name": "Stabłowice",
+      "address": "ul. Przykładowa 12, 54-100 Wrocław",
+      "enabled": true
+    },
+    {
+      "name": "Brochów",
+      "address": "ul. Przykładowa 8, 52-200 Wrocław",
+      "enabled": false
+    }
+  ],
+  "branding": {
+    "accent": "#FB5A12",
+    "ink": "#1a1916"
+  }
+}

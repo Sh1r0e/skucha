@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
+<script src="./config/config-loader.js"></script>
 </head>
 <body>
 <x-dc>
@@ -507,10 +508,16 @@ class Component extends DCLogic {
     else if(c.wknd) bd += ' · ' + c.wknd + ' weekend';
     if(this.state.dowoz) bd += ' · + dowóz';
 
+    const currentPickupName = this.state.loc==='Stabłowice'
+      ? (this.props.pickupPoint1Name ?? 'Stabłowice')
+      : (this.state.loc==='Brochów'
+        ? (this.props.pickupPoint2Name ?? 'Brochów')
+        : this.state.loc);
+
     const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
       + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
       + '• Liczba padów: ' + this.state.pads + '\n'
-      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice) — koszt dowozu do ustalenia' : ('Odbiór osobisty — ' + this.state.loc)) + '\n'
+      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice) — koszt dowozu do ustalenia' : ('Odbiór osobisty — ' + currentPickupName)) + '\n'
       + '• Szacowana cena: ' + c.total + ' zł' + (this.state.dowoz ? ' (bez kosztu dowozu)' : '');
     const waLink = 'https://wa.me/' + phone.replace(/\D/g,'') + '?text=' + encodeURIComponent(msg);
 
@@ -576,12 +583,16 @@ class Component extends DCLogic {
     const rangeLabel = this.state.od ? (this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '')) : 'Wybierz daty';
     const maxAvailLabel = this.maxAvail();
 
+    const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
+    const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
     const locData = {
-      'Stabłowice': 'ul. Przykładowa 12, 54-100 Wrocław',
-      'Brochów': 'ul. Przykładowa 8, 52-200 Wrocław'
+      [pickupName1]: this.props.pickupPoint1Address ?? 'ul. Przykładowa 12, 54-100 Wrocław',
+      [pickupName2]: this.props.pickupPoint2Address ?? 'ul. Przykładowa 8, 52-200 Wrocław'
     };
-    const locName = this.state.loc;
-    const locAddress = locData[this.state.loc] || '';
+    const locName = this.state.loc==='Stabłowice'
+      ? pickupName1
+      : (this.state.loc==='Brochów' ? pickupName2 : this.state.loc);
+    const locAddress = locData[locName] || '';
     const locMapsLink = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(locAddress + ', Polska');
 
     // --- Powiadomienie o dostępności ---
