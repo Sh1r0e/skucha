@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-print-defaults>
+@media print {
+  @page { margin: 0; }
+  body { padding: 0.5in; box-sizing: border-box; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+  figure, table, pre, blockquote, img, svg, tr, [class~="card" i] { break-inside: avoid; }
+  img, svg { max-width: 100%; }
+  p { orphans: 3; widows: 3; }
+}
+</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#f5f4f1; }
+  body{ font-family:'Archivo',system-ui,sans-serif; color:#1a1916; -webkit-font-smoothing:antialiased; }
+  input[type=date]{ font-family:'Space Mono',monospace; }
+  @keyframes scbob{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
+</style>
+</helmet>
+
+<div style="max-width:430px; margin:0 auto; background:#ffffff; min-height:100vh; overflow:hidden; position:relative; padding-bottom:84px;">
+
+  <!-- top bar -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 20px; position:sticky; top:0; z-index:30; background:rgba(255,255,255,0.92); backdrop-filter:blur(8px); border-bottom:1px solid #ededea;">
+    <div style="display:flex; align-items:baseline; gap:7px;">
+      <span style="font-weight:900; font-size:22px; letter-spacing:-0.04em;">SKUCHA</span>
+      <span style="width:8px; height:8px; border-radius:2px; background:#FB5A12; display:inline-block; transform:translateY(-1px);"></span>
+    </div>
+    <a href="{{ telHref }}" style="font-family:'Space Mono',monospace; font-size:12px; text-decoration:none; color:#1a1916; border:1px solid #e2e0db; padding:7px 12px; border-radius:999px; font-weight:700;">ZADZWOŃ</a>
+  </div>
+
+  <!-- HERO -->
+  <div style="padding:28px 20px 8px;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">Wrocław · crash pady na godziny</div>
+    <h1 style="margin:14px 0 0; font-size:38px; line-height:1.02; letter-spacing:-0.035em; font-weight:800;">Skucha się zdarza.<br>Miej co łapać.</h1>
+    <p style="margin:16px 0 0; font-size:16px; line-height:1.45; color:#6b6862; max-width:34ch;">Wypożycz crash pad we Wrocławiu. Odbierz w Stabłowicach albo na Brochowie — lub dowieziemy pod sektor.</p>
+  </div>
+
+  <!-- BOOKING CARD -->
+  <div style="padding:18px 20px 8px;">
+    <div style="border:1px solid #e7e5e1; border-radius:20px; padding:18px; box-shadow:0 12px 30px -18px rgba(0,0,0,0.25);">
+      <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:0.06em; color:#9a968e; font-weight:700; text-transform:uppercase;">Zarezerwuj w 30 sekund</div>
+
+      <!-- calendar -->
+      <div style="margin-top:14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <button onClick="{{ prevMonth }}" style="{{ prevStyle }}">‹</button>
+          <div style="font-size:15px; font-weight:800; letter-spacing:-0.01em;">{{ monthLabel }}</div>
+          <button onClick="{{ nextMonth }}" style="{{ nextStyle }}">›</button>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:5px;">
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">Pn</div>
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">Wt</div>
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">Śr</div>
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">Cz</div>
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">Pt</div>
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">So</div>
+          <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10px; color:#b0aca4; font-weight:700;">Nd</div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;">
+          <sc-for list="{{ calDays }}" as="c" hint-placeholder-count="30">
+            <div style="{{ c.cellStyle }}" onClick="{{ c.onClick }}">
+              <span>{{ c.day }}</span>
+              <span style="{{ c.dotStyle }}">{{ c.freeLabel }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex; align-items:center; gap:13px; margin-top:11px; flex-wrap:wrap;">
+          <span style="display:flex; align-items:center; gap:5px; font-family:'Space Mono',monospace; font-size:10px; color:#6b6862;"><span style="width:8px; height:8px; border-radius:50%; background:#1f8a5b;"></span>3–4 wolne</span>
+          <span style="display:flex; align-items:center; gap:5px; font-family:'Space Mono',monospace; font-size:10px; color:#6b6862;"><span style="width:8px; height:8px; border-radius:50%; background:#FB5A12;"></span>1–2 wolne</span>
+          <span style="display:flex; align-items:center; gap:5px; font-family:'Space Mono',monospace; font-size:10px; color:#6b6862;"><span style="width:8px; height:8px; border-radius:50%; background:#dcd9d3;"></span>brak</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding:10px 12px; background:#faf9f7; border:1px solid #e2e0db; border-radius:12px;">
+          <div>
+            <div style="font-family:'Space Mono',monospace; font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Termin</div>
+            <div style="font-size:14px; font-weight:700;">{{ rangeLabel }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:'Space Mono',monospace; font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Wolne pady</div>
+            <div style="font-size:14px; font-weight:700; color:#FB5A12;">{{ maxAvailLabel }} / 4</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- model -->
+      <div style="margin-top:14px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:7px;">Model pada</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:12px; border:1.5px solid #FB5A12; background:#fff7f2; border-radius:12px; padding:12px;">
+            <span style="width:20px; height:20px; border-radius:50%; background:#FB5A12; flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:700; line-height:1;">✓</span>
+            <div style="flex:1;">
+              <div style="font-size:15px; font-weight:700;">Black Diamond Circuit 2.0</div>
+              <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e;">121 × 91 × 10 cm · dostępny</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-family:'Space Mono',monospace; font-size:11px; color:#b0aca4; margin-top:8px;">Kolejne modele i większe pady — wkrótce.</div>
+      </div>
+
+      <!-- pads stepper -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; border:1px solid #e2e0db; background:#faf9f7; border-radius:12px; padding:10px 12px;">
+        <div>
+          <div style="font-size:15px; font-weight:700;">Liczba padów</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e;">{{ daysLabel }}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:14px;">
+          <button onClick="{{ decPad }}" style="width:38px; height:38px; border-radius:10px; border:1px solid #e2e0db; background:#fff; font-size:22px; font-weight:700; line-height:1; color:#1a1916; cursor:pointer;">−</button>
+          <span style="font-family:'Space Mono',monospace; font-size:20px; font-weight:700; min-width:22px; text-align:center;">{{ pads }}</span>
+          <button onClick="{{ incPad }}" style="width:38px; height:38px; border-radius:10px; border:1px solid #1a1916; background:#1a1916; color:#fff; font-size:22px; font-weight:700; line-height:1; cursor:pointer;">+</button>
+        </div>
+      </div>
+
+      <!-- delivery method -->
+      <div style="margin-top:14px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:7px;">Jak chcesz odebrać?</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <button onClick="{{ pickOdbior }}" style="{{ odbiorStyle }}">Odbiór osobisty</button>
+          <button onClick="{{ pickDowoz }}" style="{{ dowozStyle }}">Dowóz <span style="font-family:'Space Mono',monospace; font-size:11px; opacity:0.7;">+{{ dfLabel }} zł</span></button>
+        </div>
+      </div>
+
+      <!-- if odbior: pickup points -->
+      <sc-if value="{{ showPoints }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:10px;">
+          <div style="font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:7px;">Punkt odbioru</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <button onClick="{{ pickStab }}" style="{{ stabStyle }}">Stabłowice</button>
+            <button onClick="{{ pickBroch }}" style="{{ brochStyle }}">Brochów</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- if dowoz: delivery note -->
+      <sc-if value="{{ dowoz }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:10px; border:1px solid #ffd9c7; background:#fff7f2; border-radius:12px; padding:12px;">
+          <div style="font-size:14px; font-weight:700; color:#1a1916;">Dowóz pod sektor · +{{ dfLabel }} zł / pad</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e; margin-top:3px; line-height:1.5;">Wrocław i okolice. Miejsce i przedział godzin ustalamy na czacie.</div>
+        </div>
+      </sc-if>
+
+      <!-- total -->
+      <div style="margin-top:16px; display:flex; align-items:flex-end; justify-content:space-between;">
+        <div>
+          <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Razem szacunkowo</div>
+          <div style="font-family:'Space Mono',monospace; font-size:11.5px; color:#6b6862; margin-top:2px;">{{ breakdown }}</div>
+        </div>
+        <div style="font-size:34px; font-weight:800; letter-spacing:-0.03em; line-height:0.9;">{{ totalLabel }}<span style="font-size:16px; font-weight:700; color:#9a968e;"> zł</span></div>
+      </div>
+
+      <a href="{{ waLink }}" target="_blank" rel="noopener" style="margin-top:14px; display:flex; align-items:center; justify-content:center; gap:9px; background:#FB5A12; color:#fff; text-decoration:none; font-weight:800; font-size:16px; padding:16px; border-radius:14px; letter-spacing:-0.01em;">
+        Rezerwuj<span style="font-size: 18px;">→</span>
+      </a>
+      <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10.5px; color:#b0aca4; margin-top:9px;">Bez przedpłaty · potwierdzasz w czacie</div>
+    </div>
+  </div>
+
+  <!-- proof strip -->
+  <div style="display:flex; gap:18px; padding:18px 20px 6px; overflow-x:auto;">
+    <div style="flex:none;"><div style="font-size:22px; font-weight:800; letter-spacing:-0.02em;">2</div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em;">punkty odbioru</div></div>
+    <div style="flex:none;"><div style="font-size:22px; font-weight:800; letter-spacing:-0.02em;">40 zł</div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em;">od / pad / dzień</div></div>
+    <div style="flex:none;"><div style="font-size:22px; font-weight:800; letter-spacing:-0.02em;">10 cm</div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em;">grubość piany</div></div>
+  </div>
+
+  <!-- JAK TO DZIALA -->
+  <div style="padding:38px 20px 8px;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">01 · Jak to działa</div>
+    <h2 style="margin:10px 0 18px; font-size:27px; font-weight:800; letter-spacing:-0.03em; line-height:1.05;">Cztery kroki do miękkiego lądowania</h2>
+    <div style="display:flex; flex-direction:column; gap:0;">
+      <div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid #ededea;">
+        <span style="font-family:'Space Mono',monospace; font-weight:700; color:#FB5A12; font-size:13px; padding-top:2px;">01</span>
+        <div><div style="font-size:17px; font-weight:700;">Wybierz daty i liczbę padów</div><div style="font-size:14px; color:#6b6862; margin-top:3px;">W kalendarzu u góry. Cena liczy się sama — robocze i weekendowe dni osobno.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid #ededea;">
+        <span style="font-family:'Space Mono',monospace; font-weight:700; color:#FB5A12; font-size:13px; padding-top:2px;">02</span>
+        <div><div style="font-size:17px; font-weight:700;">Odbiór albo dowóz</div><div style="font-size:14px; color:#6b6862; margin-top:3px;">Wpadasz do Stabłowic lub na Brochów, albo dowozimy pod sektor za 15 zł / pad.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid #ededea;">
+        <span style="font-family:'Space Mono',monospace; font-weight:700; color:#FB5A12; font-size:13px; padding-top:2px;">03</span>
+        <div><div style="font-size:17px; font-weight:700;">Potwierdź na WhatsApp</div><div style="font-size:14px; color:#6b6862; margin-top:3px;">Wiadomość uzupełnia się sama. Dogadujemy miejsce i godzinę.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
+        <span style="font-family:'Space Mono',monospace; font-weight:700; color:#FB5A12; font-size:13px; padding-top:2px;">04</span>
+        <div><div style="font-size:17px; font-weight:700;">Łap projekty bez strachu</div><div style="font-size:14px; color:#6b6862; margin-top:3px;">Oddajesz pady w umówionym terminie. Tyle.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENNIK -->
+  <div style="margin:34px 12px 8px; background:#1a1916; border-radius:24px; padding:26px 22px; color:#fff;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">02 · Cennik</div>
+    <h2 style="margin:10px 0 20px; font-size:27px; font-weight:800; letter-spacing:-0.03em;">Prosto, za pad, za dzień</h2>
+    <div style="display:flex; flex-direction:column; gap:1px;">
+      <div style="display:flex; align-items:baseline; justify-content:space-between; padding:16px 0; border-top:1px solid #34322d;">
+        <div><div style="font-size:18px; font-weight:700;">Dzień roboczy</div><div style="font-family:'Space Mono',monospace; font-size:12px; color:#9a968e;">pon – pt</div></div>
+        <div style="font-family:'Space Mono',monospace; font-size:24px; font-weight:700;">{{ pwLabel }} zł</div>
+      </div>
+      <div style="display:flex; align-items:baseline; justify-content:space-between; padding:16px 0; border-top:1px solid #34322d;">
+        <div><div style="font-size:18px; font-weight:700;">Weekend</div><div style="font-family:'Space Mono',monospace; font-size:12px; color:#9a968e;">sob – niedz</div></div>
+        <div style="font-family:'Space Mono',monospace; font-size:24px; font-weight:700;">{{ weLabel }} zł</div>
+      </div>
+      <div style="display:flex; align-items:baseline; justify-content:space-between; padding:16px 0; border-top:1px solid #34322d; border-bottom:1px solid #34322d;">
+        <div><div style="font-size:18px; font-weight:700; color:#FB5A12;">Dowóz</div><div style="font-family:'Space Mono',monospace; font-size:12px; color:#9a968e;">Wrocław i okolice</div></div>
+        <div style="font-family:'Space Mono',monospace; font-size:24px; font-weight:700; color:#FB5A12;">+{{ dfLabel }} zł</div>
+      </div>
+    </div>
+    <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e; margin-top:14px; line-height:1.5;">Ceny za jeden pad. Kilka padów = wielokrotność. Dowóz liczony za każdy pad.</div>
+  </div>
+
+  <!-- NASZE PADY -->
+  <div style="padding:38px 20px 8px;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">03 · Sprzęt</div>
+    <h2 style="margin:10px 0 18px; font-size:27px; font-weight:800; letter-spacing:-0.03em;">Nasze crash pady</h2>
+
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="border:1px solid #e7e5e1; border-radius:18px; overflow:hidden;">
+        <div style="height:188px; background:repeating-linear-gradient(135deg,#f1efeb 0 12px,#e9e7e2 12px 24px); display:flex; align-items:center; justify-content:center;">
+          <span style="font-family:'Space Mono',monospace; font-size:11px; color:#a8a49b; letter-spacing:0.05em;">[ ZDJĘCIE — BLACK DIAMOND CIRCUIT ]</span>
+        </div>
+        <div style="padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
+            <div><div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em;">Black Diamond</div><div style="font-size:19px; font-weight:800; line-height:1.1;">Circuit Crash Pad 2.0</div></div>
+            <div style="font-family:'Space Mono',monospace; font-size:11px; color:#fff; background:#FB5A12; font-weight:700; padding:5px 9px; border-radius:999px; white-space:nowrap;">NASZ PAD</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px 12px; margin-top:14px;">
+            <div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">WYMIARY</div><div style="font-weight:700; font-size:14px;">121 × 91 cm</div></div>
+            <div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">GRUBOŚĆ</div><div style="font-weight:700; font-size:14px;">10 cm</div></div>
+            <div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">ZŁOŻONY</div><div style="font-weight:700; font-size:14px;">taco / zawias</div></div>
+            <div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">PIANA</div><div style="font-weight:700; font-size:14px;">PE + PU</div></div>
+            <div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">POKROWIEC</div><div style="font-weight:700; font-size:14px;">900D nylon</div></div>
+            <div><div style="font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">NOSZENIE</div><div style="font-weight:700; font-size:14px;">szelki + pas</div></div>
+          </div>
+          <div style="font-size:13.5px; color:#6b6862; margin-top:14px; line-height:1.5; border-top:1px solid #ededea; padding-top:12px;">Lekka, zamykana na zawias mata z metalowymi klamrami. Łączy się narożnikami z kolejnymi padami — bierzesz kilka i sklejasz większe lądowisko.</div>
+        </div>
+      </div>
+
+      <div style="border:1.5px dashed #d8d4cd; border-radius:18px; padding:20px; background:#faf9f7;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; color:#FB5A12; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Wkrótce więcej</div>
+        <div style="font-size:18px; font-weight:800; margin-top:6px; line-height:1.15;">Rozwijamy ofertę</div>
+        <p style="font-size:14px; color:#6b6862; line-height:1.5; margin:8px 0 14px;">Na start jeździmy na sprawdzonych Circuitach, ale flota rośnie — dokładamy kolejne pady i większe modele na highballe. Potrzebujesz konkretnego rozmiaru albo większej liczby sztuk na wyjazd? Napisz, dogadamy.</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span style="font-family:'Space Mono',monospace; font-size:11px; background:#fff; border:1px solid #e7e5e1; padding:7px 11px; border-radius:999px; font-weight:700;">+ WIĘKSZE PADY</span>
+          <span style="font-family:'Space Mono',monospace; font-size:11px; background:#fff; border:1px solid #e7e5e1; padding:7px 11px; border-radius:999px; font-weight:700;">+ WIĘKSZA FLOTA</span>
+          <span style="font-family:'Space Mono',monospace; font-size:11px; background:#fff; border:1px solid #e7e5e1; padding:7px 11px; border-radius:999px; font-weight:700;">+ AKCESORIA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PUNKTY ODBIORU -->
+  <div style="padding:38px 20px 8px;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">04 · Gdzie odbierzesz</div>
+    <h2 style="margin:10px 0 18px; font-size:27px; font-weight:800; letter-spacing:-0.03em;">Dwa punkty we Wrocławiu</h2>
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div style="border:1px solid #e7e5e1; border-radius:18px; overflow:hidden;">
+        <div style="height:120px; background:repeating-linear-gradient(45deg,#eef0ec 0 10px,#e6e9e3 10px 20px); position:relative;">
+          <span style="position:absolute; left:14px; top:12px; font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">[ MAPA ]</span>
+          <span style="position:absolute; left:50%; top:55%; transform:translate(-50%,-50%); width:18px; height:18px; background:#FB5A12; border:3px solid #fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.25);"></span>
+        </div>
+        <div style="padding:16px;">
+          <div style="font-size:19px; font-weight:800;">Stabłowice</div>
+          <div style="font-size:14px; color:#6b6862; margin-top:4px;">ul. Przykładowa 12, 54-100 Wrocław</div>
+          <div style="font-family:'Space Mono',monospace; font-size:12px; color:#9a968e; margin-top:8px;">ODBIÓR: PO USTALENIU · ZWYKLE 8–21</div>
+        </div>
+      </div>
+      <div style="border:1px solid #e7e5e1; border-radius:18px; overflow:hidden;">
+        <div style="height:120px; background:repeating-linear-gradient(45deg,#eef0ec 0 10px,#e6e9e3 10px 20px); position:relative;">
+          <span style="position:absolute; left:14px; top:12px; font-family:'Space Mono',monospace; font-size:10.5px; color:#9a968e;">[ MAPA ]</span>
+          <span style="position:absolute; left:45%; top:50%; transform:translate(-50%,-50%); width:18px; height:18px; background:#FB5A12; border:3px solid #fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.25);"></span>
+        </div>
+        <div style="padding:16px;">
+          <div style="font-size:19px; font-weight:800;">Brochów</div>
+          <div style="font-size:14px; color:#6b6862; margin-top:4px;">ul. Przykładowa 8, 52-200 Wrocław</div>
+          <div style="font-family:'Space Mono',monospace; font-size:12px; color:#9a968e; margin-top:8px;">ODBIÓR: PO USTALENIU · ZWYKLE 8–21</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOWOZ -->
+  <div style="margin:34px 12px 8px; background:#FB5A12; border-radius:24px; padding:26px 22px; color:#fff;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#ffe0d2; font-weight:700; text-transform:uppercase;">05 · Dowóz</div>
+    <h2 style="margin:10px 0 12px; font-size:27px; font-weight:800; letter-spacing:-0.03em;">Nie chce ci się jeździć?</h2>
+    <p style="margin:0; font-size:16px; line-height:1.45; color:#fff4ee;">Dowozimy pady na terenie Wrocławia i okolic za <strong>15 zł / pad</strong>. Umawiamy się w wyznaczonym miejscu i przedziale godzin — pod blok, pod ścianę, pod sektor.</p>
+    <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
+      <span style="font-family:'Space Mono',monospace; font-size:11.5px; background:rgba(255,255,255,0.18); padding:8px 12px; border-radius:999px; font-weight:700;">WROCŁAW</span>
+      <span style="font-family:'Space Mono',monospace; font-size:11.5px; background:rgba(255,255,255,0.18); padding:8px 12px; border-radius:999px; font-weight:700;">+ OKOLICE</span>
+      <span style="font-family:'Space Mono',monospace; font-size:11.5px; background:rgba(255,255,255,0.18); padding:8px 12px; border-radius:999px; font-weight:700;">UMÓWIONA GODZINA</span>
+    </div>
+  </div>
+
+  <!-- OPINIE -->
+  <div style="padding:38px 20px 8px;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">06 · Opinie</div>
+    <h2 style="margin:10px 0 18px; font-size:27px; font-weight:800; letter-spacing:-0.03em;">Co mówią wspinacze</h2>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="border:1px solid #e7e5e1; border-radius:16px; padding:16px;">
+        <div style="font-family:'Space Mono',monospace; color:#FB5A12; font-size:14px;">★★★★★</div>
+        <p style="margin:8px 0 0; font-size:15px; line-height:1.5;">„Dowieźli pady pod Sokoliki w sobotę rano. Zero stresu, pady jak nowe.”</p>
+        <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e; margin-top:8px;">— MARTA, V5 PROJEKT</div>
+      </div>
+      <div style="border:1px solid #e7e5e1; border-radius:16px; padding:16px;">
+        <div style="font-family:'Space Mono',monospace; color:#FB5A12; font-size:14px;">★★★★★</div>
+        <p style="margin:8px 0 0; font-size:15px; line-height:1.5;">„Brałem 3 pady na weekend wyjazdowy. Taniej niż własny sprzęt, który leży w piwnicy.”</p>
+        <div style="font-family:'Space Mono',monospace; font-size:11px; color:#9a968e; margin-top:8px;">— KUBA, BOULDER WRO</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div style="padding:38px 20px 8px;">
+    <div style="font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:0.08em; color:#FB5A12; font-weight:700; text-transform:uppercase;">07 · FAQ</div>
+    <h2 style="margin:10px 0 18px; font-size:27px; font-weight:800; letter-spacing:-0.03em;">Częste pytania</h2>
+    <div style="display:flex; flex-direction:column;">
+      <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="4">
+        <div style="border-top:1px solid #ededea;">
+          <button onClick="{{ f.onToggle }}" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; background:none; border:none; padding:16px 0; cursor:pointer; text-align:left;">
+            <span style="font-size:16px; font-weight:700; color:#1a1916;">{{ f.q }}</span>
+            <span style="{{ f.iconStyle }}">+</span>
+          </button>
+          <div style="{{ f.answerStyle }}"><div style="padding-bottom:16px; font-size:14px; line-height:1.5; color:#6b6862;">{{ f.a }}</div></div>
+        </div>
+      </sc-for>
+      <div style="border-top:1px solid #ededea;"></div>
+    </div>
+  </div>
+
+  <!-- KONTAKT -->
+  <div style="margin:34px 12px 24px; background:#f5f4f1; border-radius:24px; padding:28px 22px; text-align:center;">
+    <div style="font-size:30px; font-weight:900; letter-spacing:-0.04em;">SKUCHA<span style="color:#FB5A12;">.</span></div>
+    <p style="margin:8px 0 18px; font-size:15px; color:#6b6862;">Pisz albo dzwoń — odpisujemy szybko.</p>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#FB5A12; color:#fff; text-decoration:none; font-weight:800; font-size:16px; padding:15px; border-radius:14px;">Napisz na WhatsApp</a>
+      <a href="{{ telHref }}" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; border:1px solid #e2e0db; color:#1a1916; text-decoration:none; font-weight:700; font-size:16px; padding:15px; border-radius:14px;">{{ phoneLabel }}</a>
+    </div>
+    <div style="font-family:'Space Mono',monospace; font-size:11px; color:#b0aca4; margin-top:18px;">© 2026 SKUCHA · WROCŁAW</div>
+  </div>
+
+  <!-- STICKY CTA -->
+  <sc-if value="{{ showSticky }}" hint-placeholder-val="{{ true }}">
+    <div style="position:fixed; left:0; right:0; bottom:0; z-index:40; max-width:430px; margin:0 auto; background:rgba(255,255,255,0.94); backdrop-filter:blur(10px); border-top:1px solid #e7e5e1; padding:12px 16px; display:flex; align-items:center; gap:12px;">
+      <div style="flex:1;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">{{ daysLabel }}</div>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; line-height:1;">{{ totalLabel }} <span style="font-size:13px; color:#9a968e;">zł</span></div>
+      </div>
+      <a href="{{ waLink }}" target="_blank" rel="noopener" style="flex:none; background:#FB5A12; color:#fff; text-decoration:none; font-weight:800; font-size:15px; padding:14px 22px; border-radius:12px;">Rezerwuj →</a>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:880},&quot;priceWeekday&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;priceWeekend&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;deliveryFee&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;whatsappNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;48600123456&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;stickyBar&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { od:'2026-06-22', dod:'2026-06-23', pads:2, loc:'Stabłowice', dowoz:false, openFaq:0, calYear:2026, calMonth:5 };
+
+  mk(str){ if(!str) return null; const p=str.split('-').map(Number); return new Date(p[0],p[1]-1,p[2]); }
+  fmt(str){ if(!str) return '—'; const p=str.split('-'); return p[2]+'.'+p[1]; }
+  key(d){ const m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
+  // wolne pady danego dnia: -1 = przeszłość, 0 = brak, 1..4 = wolne
+  freeFor(str){
+    const TOTAL = 4;
+    const today = this.mk('2026-06-20');
+    const d = this.mk(str);
+    if(!d || d < today) return -1;
+    const booked = {
+      '2026-06-20':2, '2026-06-21':3, '2026-06-24':4, '2026-06-25':4, '2026-06-26':3,
+      '2026-06-27':4, '2026-06-28':2, '2026-07-03':3, '2026-07-04':4, '2026-07-05':4,
+      '2026-07-10':2, '2026-07-11':4, '2026-07-12':3, '2026-07-17':1, '2026-07-18':2, '2026-07-19':3
+    };
+    if(str in booked) return TOTAL - booked[str];
+    const dow = d.getDay();
+    if(dow===6 || dow===0) return 3;
+    return 4;
+  }
+  maxAvail(){
+    const od = this.state.od, dod = this.state.dod || this.state.od;
+    if(!od) return 4;
+    let s=this.mk(od), e=this.mk(dod);
+    if(e<s){ const t=s; s=e; e=t; }
+    let m=4; const cur=new Date(s);
+    while(cur<=e){ const f=this.freeFor(this.key(cur)); if(f>=0) m=Math.min(m,f); cur.setDate(cur.getDate()+1); }
+    return Math.max(0,m);
+  }
+  selectDay(str){
+    const f=this.freeFor(str);
+    if(f<=0) return;
+    const od=this.state.od, dod=this.state.dod;
+    if(!od || (od && dod)){ this.setState({ od:str, dod:null, pads:Math.min(this.state.pads, Math.max(1,f)) }); return; }
+    if(str===od){ this.setState({ dod:null }); return; }
+    if(str<od){ this.setState({ od:str, pads:Math.min(this.state.pads, Math.max(1,f)) }); return; }
+    let s=this.mk(od), e=this.mk(str), ok=true, m=4;
+    const cur=new Date(s);
+    while(cur<=e){ const ff=this.freeFor(this.key(cur)); if(ff<=0){ ok=false; break; } m=Math.min(m,ff); cur.setDate(cur.getDate()+1); }
+    if(!ok){ this.setState({ od:str, dod:null, pads:Math.min(this.state.pads, Math.max(1,f)) }); return; }
+    this.setState({ dod:str, pads:Math.min(this.state.pads, Math.max(1,m)) });
+  }
+  shiftMonth(delta){
+    let m=this.state.calMonth+delta, y=this.state.calYear;
+    if(m<0){ m+=12; y--; } if(m>11){ m-=12; y++; }
+    const idx=y*12+m;
+    if(idx < 2026*12+5 || idx > 2026*12+11) return;
+    this.setState({ calYear:y, calMonth:m });
+  }
+
+  calc(){
+    const pw = Number(this.props.priceWeekday ?? 40);
+    const we = Number(this.props.priceWeekend ?? 45);
+    const df = Number(this.props.deliveryFee ?? 15);
+    let s = this.mk(this.state.od), e = this.mk(this.state.dod || this.state.od);
+    if(!s || !e) return { days:0, total:0, wkd:0, wknd:0, dow:0 };
+    if(e < s){ const t=s; s=e; e=t; }
+    let days=0, total=0, wkd=0, wknd=0;
+    const cur = new Date(s);
+    while(cur <= e){
+      const d = cur.getDay();
+      if(d===0 || d===6){ total += we; wknd++; } else { total += pw; wkd++; }
+      days++;
+      cur.setDate(cur.getDate()+1);
+    }
+    total *= this.state.pads;
+    let dow = 0;
+    if(this.state.dowoz){ dow = df * this.state.pads; total += dow; }
+    return { days, total, wkd, wknd, dow };
+  }
+
+  seg(active){
+    const base = "padding:13px 8px; border-radius:11px; font-weight:700; font-size:15px; cursor:pointer; transition:all .15s;";
+    return active
+      ? base + "background:#1a1916; color:#fff; border:1px solid #1a1916;"
+      : base + "background:#fff; color:#1a1916; border:1px solid #e2e0db;";
+  }
+
+  renderVals(){
+    const pw = Number(this.props.priceWeekday ?? 40);
+    const we = Number(this.props.priceWeekend ?? 45);
+    const df = Number(this.props.deliveryFee ?? 15);
+    const phone = String(this.props.whatsappNumber ?? '48600123456');
+    const c = this.calc();
+
+    const padWord = this.state.pads===1 ? 'pad' : (this.state.pads>=2 && this.state.pads<=4 ? 'pady' : 'padów');
+    const dayWord = c.days===1 ? 'dzień' : (c.days>=2 && c.days<=4 ? 'dni' : 'dni');
+    const daysLabel = c.days + ' ' + dayWord + ' · ' + this.state.pads + ' ' + padWord;
+
+    let bd = this.state.pads + '× pad';
+    if(c.wkd && c.wknd) bd += ' · ' + c.wkd + ' rob. + ' + c.wknd + ' wknd';
+    else if(c.wkd) bd += ' · ' + c.wkd + ' robocze';
+    else if(c.wknd) bd += ' · ' + c.wknd + ' weekend';
+    if(this.state.dowoz) bd += ' · + dowóz';
+
+    const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
+      + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
+      + '• Liczba padów: ' + this.state.pads + '\n'
+      + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice)' : ('Odbiór osobisty — ' + this.state.loc)) + '\n'
+      + '• Szacowana cena: ' + c.total + ' zł';
+    const waLink = 'https://wa.me/' + phone.replace(/\D/g,'') + '?text=' + encodeURIComponent(msg);
+
+    const phoneDigits = phone.replace(/\D/g,'');
+    const telHref = 'tel:+' + phoneDigits;
+    const phoneLabel = '+' + phoneDigits.replace(/^(\d{2})(\d{3})(\d{3})(\d{3}).*$/, '$1 $2 $3 $4');
+
+    const trackBase = "width:46px; height:27px; border-radius:999px; flex:none; position:relative; transition:background .18s; display:inline-block;";
+    const trackStyle = trackBase + (this.state.dowoz ? 'background:#FB5A12;' : 'background:#dcd9d3;');
+    const knobBase = "position:absolute; top:3px; width:21px; height:21px; border-radius:50%; background:#fff; transition:left .18s; box-shadow:0 1px 3px rgba(0,0,0,0.3);";
+    const knobStyle = knobBase + (this.state.dowoz ? 'left:22px;' : 'left:3px;');
+
+    const faqData = [
+      { q:'Na jak długo mogę wypożyczyć?', a:'Od jednego dnia po cały wyjazd. Wybierasz daty od–do, a cena liczy się za każdy dzień osobno.' },
+      { q:'Jak działa dowóz?', a:'Dowozimy na terenie Wrocławia i okolic za 15 zł od pada. Umawiamy konkretne miejsce i przedział godzin — pod blok albo pod sektor.' },
+      { q:'Czy muszę płacić z góry?', a:'Nie. Rezerwujesz przez WhatsApp, a płatność ustalamy przy odbiorze. Bez przedpłat.' },
+      { q:'Co jeśli pad się zabrudzi?', a:'Normalne ślady terenu to żaden problem — to crash pad, nie kanapa. Liczą się tylko realne uszkodzenia.' },
+      { q:'Ile padów wziąć?', a:'Na jeden problem zwykle 2–3. Na trudniejsze lądowania albo wyższe boulderingi — więcej. Jak nie wiesz, napisz, doradzimy.' }
+    ];
+    const faqs = faqData.map((f, i) => {
+      const open = this.state.openFaq === i;
+      return {
+        q: f.q,
+        a: f.a,
+        onToggle: () => this.setState(s => ({ openFaq: s.openFaq === i ? -1 : i })),
+        iconStyle: "font-size:22px; font-weight:400; color:#FB5A12; flex:none; line-height:1; transition:transform .2s; transform:rotate(" + (open ? '45deg' : '0deg') + ");",
+        answerStyle: "overflow:hidden; transition:max-height .25s ease, opacity .2s; max-height:" + (open ? '200px' : '0px') + "; opacity:" + (open ? '1' : '0') + ";"
+      };
+    });
+
+    // ---- kalendarz dostępności ----
+    const monthNames=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+    const cy=this.state.calYear, cm=this.state.calMonth;
+    const monthLabel = monthNames[cm] + ' ' + cy;
+    const firstDow = (new Date(cy,cm,1).getDay()+6)%7;
+    const daysInMonth = new Date(cy,cm+1,0).getDate();
+    const calDays=[];
+    for(let i=0;i<firstDow;i++) calDays.push({ blank:true, day:'', freeLabel:'', cellStyle:'aspect-ratio:1/1;', dotStyle:'', onClick:null });
+    for(let dnum=1; dnum<=daysInMonth; dnum++){
+      const date=new Date(cy,cm,dnum);
+      const str=this.key(date);
+      const f=this.freeFor(str);
+      const isEnd = (str===this.state.od && !this.state.dod) || str===this.state.dod;
+      const isStart = str===this.state.od;
+      const inRange = this.state.od && this.state.dod && str>this.state.od && str<this.state.dod;
+      let cell="aspect-ratio:1/1; border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; font-size:13.5px; font-weight:700; transition:background .12s;";
+      let dot="font-family:'Space Mono',monospace; font-size:9.5px; font-weight:700; line-height:1;";
+      let freeLabel='';
+      if(f===-1){ cell+="color:#cdc9c1; cursor:default;"; }
+      else if(f===0){ cell+="background:#f3f1ee; color:#bcb8b0; cursor:not-allowed;"; dot+="color:#cbc7bf;"; freeLabel='–'; }
+      else {
+        cell+="cursor:pointer;"; freeLabel=String(f);
+        if(isStart||isEnd){ cell+="background:#FB5A12; color:#fff;"; dot+="color:#ffe7da;"; }
+        else if(inRange){ cell+="background:#ffe3d3; color:#1a1916;"; dot+=(f>=3?"color:#1f8a5b;":"color:#FB5A12;"); }
+        else { cell+="background:#fff; border:1px solid #ededea; color:#1a1916;"; dot+=(f>=3?"color:#1f8a5b;":"color:#FB5A12;"); }
+      }
+      calDays.push({ blank:false, day:dnum, freeLabel, cellStyle:cell, dotStyle:dot, onClick: f>0 ? (()=>this.selectDay(str)) : null });
+    }
+    const navBase="width:34px; height:34px; border-radius:9px; border:1px solid #e2e0db; background:#fff; font-size:18px; font-weight:700; color:#1a1916; line-height:1; display:flex; align-items:center; justify-content:center;";
+    const curIdx=cy*12+cm;
+    const prevStyle=navBase+(curIdx>2026*12+5?'cursor:pointer;':'opacity:0.3; cursor:default;');
+    const nextStyle=navBase+(curIdx<2026*12+11?'cursor:pointer;':'opacity:0.3; cursor:default;');
+    const rangeLabel = this.state.od ? (this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '')) : 'Wybierz daty';
+    const maxAvailLabel = this.maxAvail();
+
+    return {
+      od: this.state.od, dod: this.state.dod, pads: this.state.pads,
+      monthLabel, calDays, prevStyle, nextStyle, rangeLabel, maxAvailLabel,
+      prevMonth: () => this.shiftMonth(-1),
+      nextMonth: () => this.shiftMonth(1),
+      incPad: () => this.setState(s => ({ pads: Math.min(this.maxAvail(), s.pads + 1) })),
+      decPad: () => this.setState(s => ({ pads: Math.max(1, s.pads - 1) })),
+      pickStab: () => this.setState({ loc:'Stabłowice' }),
+      pickBroch: () => this.setState({ loc:'Brochów' }),
+      stabStyle: this.seg(this.state.loc === 'Stabłowice'),
+      brochStyle: this.seg(this.state.loc === 'Brochów'),
+      pickOdbior: () => this.setState({ dowoz:false }),
+      pickDowoz: () => this.setState({ dowoz:true }),
+      odbiorStyle: this.seg(!this.state.dowoz),
+      dowozStyle: this.seg(this.state.dowoz),
+      showPoints: !this.state.dowoz,
+      dowoz: this.state.dowoz,
+      daysLabel, breakdown: bd,
+      totalLabel: c.total,
+      waLink, telHref, phoneLabel,
+      pwLabel: pw, weLabel: we, dfLabel: df,
+      faqs,
+      showSticky: (this.props.stickyBar ?? true)
+    };
+  }
+}
+</script>
+<script>
+(async () => {
+  if (!document.title || !document.title.trim()) document.title = "Skucha";
+  // Prepend so page-supplied @page / break rules (deck-stage's margin:0,
+  // author CSS) keep source-order precedence over the baseline.
+  const baseCss = document.createElement('style');
+  baseCss.textContent = "@media print {\n  @page { margin: 0.5cm; }\n  figure, table { break-inside: avoid; }\n  *, *::before, *::after {\n    print-color-adjust: exact; -webkit-print-color-adjust: exact;\n    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;\n    animation-delay: -99s !important; animation-duration: .001s !important;\n    animation-iteration-count: 1 !important; animation-fill-mode: both !important;\n    animation-play-state: running !important; transition-duration: 0s !important;\n  }\n}";
+  document.head.prepend(baseCss);
+  if (document.readyState === 'loading') {
+    await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  }
+  let ds = document.querySelector('deck-stage');
+  // whenDefined never resolves when nothing registers the element, so only
+  // await it when a <deck-stage> tag exists (and race a timeout regardless).
+  if (ds && !customElements.get('deck-stage')) {
+    try {
+      await Promise.race([
+        customElements.whenDefined('deck-stage'),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch (e) {}
+    ds = document.querySelector('deck-stage');
+  }
+  // dc-runtime assigns window.DCLogic at init and mounts into #dc-root on
+  // DOMContentLoaded; settle on that subtree so React has rendered before
+  // print(). Non-DC pages fall through to weighing body.
+  const isDc = !ds && 'DCLogic' in window;
+  const settleRoot = ds || (isDc ? document.getElementById('dc-root') : null) || document.body;
+  if (settleRoot) {
+    // Weigh only content children — skip script/style/template so inline
+    // Babel/CSS doesn't register as stable "content" before the framework
+    // has mounted anything.
+    const MEDIA = 'img,svg,canvas,video,picture,iframe,embed,object';
+    const weigh = () => {
+      let text = 0, media = 0;
+      for (const c of settleRoot.children) {
+        const t = c.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+        text += (c.textContent || '').trim().length;
+        media += c.querySelectorAll(MEDIA).length + (c.matches(MEDIA) ? 1 : 0);
+      }
+      return text + media * 100;
+    };
+    // "Non-zero and stable" alone is not sufficient to mean rendered: generic
+    // body can carry a static shell while async main content is pending, and
+    // #dc-root can carry the root DC's static text while child refs are still
+    // .sc-placeholder boxes. Gate generic on readyState 'complete', and never
+    // accept stability while a dc-runtime placeholder is present.
+    const isGeneric = settleRoot === document.body;
+    const deadline = Date.now() + 15000;
+    let last = -1, stable = 0;
+    while (Date.now() < deadline) {
+      const n = weigh();
+      const ready =
+        (!isGeneric || document.readyState === 'complete') &&
+        !settleRoot.querySelector('.sc-placeholder');
+      if (n > 0 && n === last && ready) { if (++stable >= 2) break; } else { stable = 0; }
+      last = n;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  // Reveal content gated on scroll or visibility before printing. Lazy <img>,
+  // IntersectionObserver fade-ins, and collapsed <details> don't render while
+  // off-screen, so a long page would print with them blank or closed. Open
+  // every <details>, force native-lazy images eager, and scroll the document
+  // through its full height to trip lazy-load + IO; then wait (bounded) for the
+  // newly-triggered images. Inert for deck-stage (slides aren't scroll-gated).
+  try {
+    for (const d of document.querySelectorAll('details')) d.open = true;
+    for (const img of document.querySelectorAll('img[loading="lazy"]'))
+      img.loading = 'eager';
+    const scroller = document.scrollingElement || document.documentElement;
+    const full = Math.max(scroller.scrollHeight, document.body.scrollHeight);
+    const step = window.innerHeight || 800;
+    for (let y = 0; y <= full; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    window.scrollTo(0, 0);
+    await Promise.race([
+      Promise.all(
+        [...document.images].map((img) =>
+          img.complete
+            ? null
+            : new Promise((res) => {
+                img.addEventListener('load', res, { once: true });
+                img.addEventListener('error', res, { once: true });
+              })
+        )
+      ),
+      new Promise((r) => setTimeout(r, 4000)),
+    ]);
+  } catch (e) {}
+  try { await document.fonts.ready; } catch (e) {}
+  // Jump every animation to its end state so print() never captures a slide
+  // mid-entrance. Ordering matters: the 0s-transition style must be live
+  // BEFORE data-deck-active is set so attribute-keyed transitions don't
+  // start a (now-0s) run from the pre-active base.
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{animation-delay:-99s !important;animation-duration:.001s !important;animation-iteration-count:1 !important;animation-fill-mode:both !important;animation-play-state:running !important;transition-duration:0s !important}';
+  document.head.appendChild(st);
+  for (const d of document.querySelectorAll('deck-stage')) {
+    for (const c of d.children) {
+      const t = c.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+      c.setAttribute('data-deck-active', '');
+    }
+  }
+  // Re-append deck-stage's @page last so no author @page can add a margin and
+  // spill each full-bleed slide onto two sheets. Backstop for old copies.
+  if (ds) {
+    let pg = document.getElementById('deck-stage-print-page');
+    if (!pg) {
+      pg = document.createElement('style');
+      pg.textContent = '@page{size:' + (+ds.getAttribute('width') || 1920) +
+        'px ' + (+ds.getAttribute('height') || 1080) + 'px;margin:0}';
+    }
+    document.body.appendChild(pg);
+  }
+  try {
+    const sweep = () => {
+      for (const a of document.getAnimations()) {
+        try { a.finish(); } catch (e) {
+          try { a.currentTime = (a.effect && a.effect.getComputedTiming().duration) || 0; a.pause(); } catch (e2) {}
+        }
+      }
+    };
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+  } catch (e) {}
+  // Relax break-inside on oversized elements. An element taller than a
+  // printable page can't honor break-inside: avoid — browsers either overflow
+  // it or push it whole to the next page, leaving a blank gap, then break it
+  // anyway at an arbitrary point. After the final layout (content revealed,
+  // animations jumped), find elements taller than a page that still compute
+  // break-inside: avoid and reset them to auto, so the browser breaks them at
+  // their children's boundaries instead (children keep their own avoid). PAGE_PX
+  // is a conservative portrait estimate at 96 CSS px/in — Letter/A4 usable
+  // height minus our 0.5in margins — so only clearly-oversized elements are
+  // touched and under-page elements still stay whole. Skipped for decks, whose
+  // slides are sized to the page.
+  try {
+    if (!document.querySelector('deck-stage')) {
+      const PAGE_PX = 1024;
+      // Our print defaults add a body padding inset only when we also zero the
+      // @page margin; computed style can't tell us (it reports screen media),
+      // so read the injected rule directly.
+      const defaults = document.querySelector('style[data-omelette-print-defaults]');
+      const pageInset = /body\s*\{[^}]*padding/.test(defaults ? defaults.textContent || '' : '');
+      const SEL = 'section,article,figure,table,pre,blockquote,[class~="card" i],[class~="page" i],[class~="sheet" i]';
+      for (const el of document.body.querySelectorAll(SEL)) {
+        if (el instanceof HTMLElement && el.offsetHeight > PAGE_PX) {
+          el.setAttribute('data-om-oversized', '');
+          // Fake-paged docs simulate sheets with over-tall break-after:page
+          // boxes; honoring the break spills half-blank pages and ends a
+          // colored box mid-sheet. Flow them, and (only when we own the page
+          // inset) drop the redundant padding/background via the rule below.
+          const cs = getComputedStyle(el);
+          if (cs.breakAfter === 'page' || cs.pageBreakAfter === 'always') {
+            el.setAttribute('data-om-fakepage', '');
+          }
+        }
+      }
+      const ost = document.createElement('style');
+      ost.textContent = '@media print{' +
+        '[data-om-oversized]{break-inside:auto !important;page-break-inside:auto !important}' +
+        '[data-om-fakepage]{break-after:auto !important;page-break-after:auto !important}' +
+        (pageInset ? '[data-om-fakepage]{padding:0 !important;background:none !important}' : '') +
+        '}';
+      document.head.appendChild(ost);
+    }
+  } catch (e) {}
+  // macOS Preview renders Skia-PDF Luminosity soft-masks as opaque grey boxes;
+  // swap the CSS that triggers them for Preview-safe forms.
+  try {
+    for (const el of document.body.querySelectorAll('*')) {
+      const cs = getComputedStyle(el);
+
+      if (cs.boxShadow !== 'none' && cs.filter === 'none') {
+        const outs = [], kept = [];
+        for (const s of cs.boxShadow.split(/,(?![^(]*[)])/)) {
+          const t = s.trim();
+          const m = t.match(/^(rgba?[(][^)]+[)]) (-?[0-9.]+px) (-?[0-9.]+px) ([0-9.]+px) -?[0-9.]+px$/);
+          if (m && parseFloat(m[4]) > 0) outs.push('drop-shadow(' + m[2] + ' ' + m[3] + ' ' + m[4] + ' ' + m[1] + ')');
+          else kept.push(t);
+        }
+        if (outs.length) {
+          el.style.setProperty('filter', outs.join(' '), 'important');
+          el.style.setProperty('box-shadow', kept.join(', ') || 'none', 'important');
+        }
+      }
+
+      const mask = cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : cs.webkitMaskImage;
+      if (mask && mask !== 'none' && cs.filter === 'none') el.style.setProperty('filter', 'opacity(1)', 'important');
+    }
+  } catch (e) {}
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 200);
+})();
+</script>
+</body>
+</html>

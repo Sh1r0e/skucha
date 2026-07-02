@@ -3,26 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CrashPad Wrocław</title>
+    <title>Skucha - Wypozyczalnia crash padow</title>
+    <style>
+        :root {
+            --bg: #f5f4f1;
+            --ink: #1a1916;
+            --accent: #fb5a12;
+            --card: #ffffff;
+            --line: #e7e5e1;
+        }
 
-    <link rel="stylesheet" href="styles.css">
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .card {
+            width: min(680px, 100%);
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 24px 60px -40px rgba(0, 0, 0, 0.45);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(26px, 5vw, 40px);
+            letter-spacing: -0.03em;
+        }
+
+        p {
+            margin: 12px 0 0;
+            color: #5c5953;
+            line-height: 1.5;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        a {
+            text-decoration: none;
+            color: var(--ink);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-weight: 600;
+        }
+
+        a.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .hint {
+            margin-top: 14px;
+            font-size: 13px;
+            color: #8c877e;
+        }
+    </style>
 </head>
 <body>
+    <main class="card">
+        <h1>Skucha. Ląduj miękko.</h1>
+        <p>Strona automatycznie otwiera wersję mobilną lub desktopową. Jeśli przekierowanie nie zadziała, użyj linków poniżej.</p>
+        <div class="actions">
+            <a class="primary" href="skucha-mobile.html">Wersja mobilna</a>
+            <a href="skucha-desktop.html">Wersja desktop</a>
+            <a href="skucha-print.html">Wersja print</a>
+        </div>
+        <div class="hint" id="redirectHint">Trwa przekierowanie...</div>
+    </main>
 
-    <div class="hero">
-        <h1>🧗 CrashPad Wrocław</h1>
+    <script>
+        (function () {
+            var isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+            var target = isDesktop ? "skucha-desktop.html" : "skucha-mobile.html";
+            var hint = document.getElementById("redirectHint");
 
-        <p>
-            Wypożycz profesjonalne crash pady
-            do wspinaczki outdoorowej.
-        </p>
+            if (hint) {
+                hint.textContent = "Przekierowanie do: " + target;
+            }
 
-        <button id="btnReserve">
-            Zarezerwuj
-        </button>
-    </div>
-
-    <script src="script.js"></script>
-
+            window.location.replace(target);
+        })();
+    </script>
 </body>
 </html>
