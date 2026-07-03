@@ -7,10 +7,11 @@ const ALLOWED_STATUSES = ["Pending", "Confirmed", "Cancelled", "Completed"];
 
 let clientPromise = null;
 
-function createStorageError(message, error) {
+function createStorageError(message, error, fallbackCode) {
   const wrappedError = new Error(message);
   wrappedError.statusCode = error && error.statusCode ? error.statusCode : 503;
-  wrappedError.code = error && error.code ? error.code : "StorageError";
+  wrappedError.code = error && error.code ? error.code : (fallbackCode || "StorageError");
+  wrappedError.details = error && error.message ? error.message : undefined;
   return wrappedError;
 }
 
@@ -71,7 +72,7 @@ async function getClient() {
         await tableClient.createTable();
       } catch (error) {
         if (error && error.statusCode !== 409) {
-          throw createStorageError("Unable to initialize reservations table", error);
+          throw createStorageError("Unable to initialize reservations table", error, "StorageInitializationFailed");
         }
       }
 
@@ -105,7 +106,7 @@ async function saveReservation(reservation) {
     await client.createEntity(entity);
     return toPublicReservation(entity);
   } catch (error) {
-    throw createStorageError("Unable to save reservation", error);
+    throw createStorageError("Unable to save reservation", error, "StorageWriteFailed");
   }
 }
 
@@ -120,7 +121,7 @@ async function getReservation(id) {
 
     return null;
   } catch (error) {
-    throw createStorageError("Unable to load reservation", error);
+    throw createStorageError("Unable to load reservation", error, "StorageReadFailed");
   }
 }
 
@@ -136,7 +137,7 @@ async function getReservations() {
 
     return reservations;
   } catch (error) {
-    throw createStorageError("Unable to load reservations", error);
+    throw createStorageError("Unable to load reservations", error, "StorageReadFailed");
   }
 }
 
@@ -161,7 +162,7 @@ async function updateStatus(id, status) {
       status: entity.Status
     };
   } catch (error) {
-    throw createStorageError("Unable to update reservation status", error);
+    throw createStorageError("Unable to update reservation status", error, "StorageUpdateFailed");
   }
 }
 

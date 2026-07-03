@@ -520,7 +520,7 @@ class Component extends DCLogic {
 
     try {
       const response = await fetch('/api/availability?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
-      const payload = await response.json().catch(function () { return {}; });
+      const payload = await this.readApiPayload(response);
       if (!response.ok || !payload || typeof payload.days !== 'object') return;
 
       this.setState((s) => {
@@ -535,6 +535,16 @@ class Component extends DCLogic {
       });
     } catch (error) {
       // Keep optimistic defaults when API is temporarily unavailable.
+    }
+  }
+
+  async readApiPayload(response){
+    const raw = await response.text().catch(function () { return ''; });
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch (error) {
+      return { message: raw.slice(0, 240) };
     }
   }
 
@@ -690,10 +700,15 @@ class Component extends DCLogic {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const result = await response.json().catch(function () { return {}; });
+      const result = await this.readApiPayload(response);
 
       if (!response.ok) {
-        this.setState({ reservationStatus: (result && result.message) || 'Nie udało się przyjąć rezerwacji.', reservationStatusColor: '#b42318' });
+        const message = (result && result.message) || 'Nie udało się przyjąć rezerwacji.';
+        const suffix = ' [HTTP ' + response.status
+          + ((result && result.code) ? ', ' + result.code : '')
+          + ((result && result.requestId) ? ', id: ' + result.requestId : '')
+          + ']';
+        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318' });
         return;
       }
 

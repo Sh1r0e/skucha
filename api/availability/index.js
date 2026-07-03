@@ -27,15 +27,26 @@ module.exports = async function (context, req) {
       body: result
     };
   } catch (error) {
-    context.log.error("Availability error", error);
+    const statusCode = error.statusCode || 400;
+    const code = error.code || (statusCode >= 500 ? "InternalError" : "BadRequest");
+    const requestId = context.invocationId;
+
+    context.log.error("Availability error", {
+      requestId: requestId,
+      statusCode: statusCode,
+      message: error.message,
+      code: code
+    });
 
     context.res = {
-      status: error.statusCode || 400,
+      status: statusCode,
       headers: {
         "Content-Type": "application/json"
       },
       body: {
-        message: error.message || "Invalid request"
+        message: error.message || "Invalid request",
+        code: code,
+        requestId: requestId
       }
     };
   }
