@@ -33,11 +33,19 @@ function toIsoDate(date) {
   return date.getFullYear() + "-" + month + "-" + day;
 }
 
+function isIsoDate(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 function reservedPadsOnDate(date, reservations) {
   var reserved = 0;
 
   reservations.forEach(function (reservation) {
     if (BLOCKING_STATUSES.indexOf(reservation.status) === -1) {
+      return;
+    }
+
+    if (!isIsoDate(reservation.fromDate) || !isIsoDate(reservation.toDate)) {
       return;
     }
 
@@ -63,7 +71,15 @@ async function getAvailability(params) {
   }
 
   const config = await ConfigService.loadConfig();
-  const reservations = await ReservationRepository.getReservations();
+  let reservations = [];
+
+  try {
+    reservations = await ReservationRepository.getReservations();
+  } catch (error) {
+    // Keep calendar responsive even if storage is temporarily unavailable.
+    reservations = [];
+  }
+
   const maxPads = Number((config.availability && config.availability.totalPads) || 0);
 
   if (!maxPads || maxPads < 1) {

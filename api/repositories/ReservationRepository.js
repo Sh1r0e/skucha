@@ -60,7 +60,8 @@ async function getClient() {
 
       if (!connectionString) {
         const configError = new Error("Storage is not configured");
-        configError.statusCode = 500;
+        configError.statusCode = 503;
+        configError.code = "StorageNotConfigured";
         throw configError;
       }
 
