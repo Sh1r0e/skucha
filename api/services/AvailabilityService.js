@@ -1,6 +1,7 @@
 const ConfigService = require("./ConfigService");
+const ReservationRepository = require("../repositories/ReservationRepository");
 
-const reservationsInMemory = [];
+const BLOCKING_STATUSES = ["Pending", "Confirmed"];
 
 function asDate(value, fieldName) {
   var date = null;
@@ -32,15 +33,19 @@ function toIsoDate(date) {
   return date.getFullYear() + "-" + month + "-" + day;
 }
 
-function reservedPadsOnDate(date) {
+function reservedPadsOnDate(date, reservations) {
   var reserved = 0;
 
-  reservationsInMemory.forEach(function (reservation) {
-    var existingFrom = asDate(reservation.dateFrom, "reservation.dateFrom");
-    var existingTo = asDate(reservation.dateTo, "reservation.dateTo");
+  reservations.forEach(function (reservation) {
+    if (BLOCKING_STATUSES.indexOf(reservation.status) === -1) {
+      return;
+    }
+
+    var existingFrom = asDate(reservation.fromDate, "reservation.fromDate");
+    var existingTo = asDate(reservation.toDate, "reservation.toDate");
 
     if (overlaps(date, date, existingFrom, existingTo)) {
-      reserved += Number(reservation.padsCount || 0);
+      reserved += Number(reservation.pads || 0);
     }
   });
 
@@ -58,6 +63,7 @@ async function getAvailability(params) {
   }
 
   const config = await ConfigService.loadConfig();
+  const reservations = await ReservationRepository.getReservations();
   const maxPads = Number((config.availability && config.availability.totalPads) || 0);
 
   if (!maxPads || maxPads < 1) {
@@ -74,7 +80,7 @@ async function getAvailability(params) {
   const cursor = new Date(from);
 
   while (cursor.getTime() <= to.getTime()) {
-    const reservedOnDay = reservedPadsOnDate(cursor);
+    const reservedOnDay = reservedPadsOnDate(cursor, reservations);
     const remainingOnDay = Math.max(0, maxPads - reservedOnDay);
 
     days[toIsoDate(cursor)] = remainingOnDay;
@@ -96,11 +102,6 @@ async function getAvailability(params) {
   };
 }
 
-function addReservationToAvailabilityStore(reservation) {
-  reservationsInMemory.push(reservation);
-}
-
 module.exports = {
-  getAvailability,
-  addReservationToAvailabilityStore
+  getAvailability
 };

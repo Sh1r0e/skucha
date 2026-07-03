@@ -1,6 +1,9 @@
 const ReservationService = require("../services/ReservationService");
+const Reservation = require("../models/Reservation");
 
 module.exports = async function (context, req) {
+  let reservation = null;
+
   try {
     const request = req || context.req || {};
     let payload = request.body || {};
@@ -15,7 +18,17 @@ module.exports = async function (context, req) {
       }
     }
 
-    const result = await ReservationService.createReservation(payload);
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      const typeError = new Error("Request body must be a JSON object");
+      typeError.statusCode = 400;
+      throw typeError;
+    }
+
+    reservation = new Reservation(payload);
+
+    const result = await ReservationService.createReservation(reservation);
+
+    context.log("Reservation accepted", { reservationId: result.reservationId });
 
     context.res = {
       status: 200,
@@ -25,7 +38,11 @@ module.exports = async function (context, req) {
       body: result
     };
   } catch (error) {
-    context.log.error("Reservation error", error);
+    context.log.error("Reservation error", {
+      reservationId: reservation && reservation.id ? reservation.id : undefined,
+      message: error.message,
+      code: error.code
+    });
 
     context.res = {
       status: error.statusCode || 500,

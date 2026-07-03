@@ -2,6 +2,14 @@ const Reservation = require("../models/Reservation");
 const AvailabilityService = require("./AvailabilityService");
 const ConfigService = require("./ConfigService");
 const MailService = require("./MailService");
+const ReservationRepository = require("../repositories/ReservationRepository");
+
+const RESERVATION_STATUS = {
+  PENDING: "Pending",
+  CONFIRMED: "Confirmed",
+  CANCELLED: "Cancelled",
+  COMPLETED: "Completed"
+};
 
 function badRequest(message) {
   const error = new Error(message);
@@ -83,8 +91,11 @@ function validateReservation(reservation, config) {
   }
 }
 
-async function createReservation(payload) {
-  const reservation = new Reservation(payload);
+async function createReservation(reservation) {
+  if (!(reservation instanceof Reservation)) {
+    reservation = new Reservation(reservation || {});
+  }
+
   const config = await ConfigService.loadConfig();
 
   validateReservation(reservation, config);
@@ -98,27 +109,44 @@ async function createReservation(payload) {
     throw badRequest("Requested number of pads is not available for selected dates");
   }
 
-  AvailabilityService.addReservationToAvailabilityStore(reservation);
-  const mailResult = await MailService.sendReservationNotification(reservation);
+  const savedReservation = await ReservationRepository.saveReservation({
+    fullName: reservation.fullName,
+    email: reservation.email,
+    phone: reservation.phone,
+    dateFrom: reservation.dateFrom,
+    dateTo: reservation.dateTo,
+    padsCount: reservation.padsCount,
+    notes: reservation.notes,
+    status: RESERVATION_STATUS.PENDING
+  });
+
+  const mailResult = await MailService.sendReservationNotification({
+    ...reservation,
+    id: savedReservation.id,
+    status: savedReservation.status
+  });
 
   return {
     message: "Reservation accepted",
+    reservationId: savedReservation.id,
     reservation: {
-      firstName: reservation.firstName,
-      lastName: reservation.lastName,
-      fullName: reservation.fullName,
-      email: reservation.email,
-      phone: reservation.phone,
-      dateFrom: reservation.dateFrom,
-      dateTo: reservation.dateTo,
-      padsCount: reservation.padsCount,
+      id: savedReservation.id,
+      status: savedReservation.status,
+      fullName: savedReservation.customerName,
+      email: savedReservation.customerEmail,
+      phone: savedReservation.customerPhone,
+      dateFrom: savedReservation.fromDate,
+      dateTo: savedReservation.toDate,
+      padsCount: savedReservation.pads,
       deliveryMethod: reservation.deliveryMethod,
-      pickupPoint: reservation.pickupPoint
+      pickupPoint: reservation.pickupPoint,
+      createdAt: savedReservation.createdAt
     },
     mail: mailResult
   };
 }
 
 module.exports = {
+  RESERVATION_STATUS,
   createReservation
 };

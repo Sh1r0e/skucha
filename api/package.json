@@ -9,5 +9,9 @@
   },
   "engines": {
     "node": "18.x"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.2.2",
+    "uuid": "^14.0.1"
   }
 }
