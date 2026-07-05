@@ -35,6 +35,15 @@ const DEFAULT_CONFIG = {
 
 let cachedConfig = null;
 
+const defaultDependencies = {
+  fs,
+  configCandidates: CONFIG_CANDIDATES
+};
+
+const dependencies = {
+  ...defaultDependencies
+};
+
 function mergeConfig(base, extra) {
   return {
     ...base,
@@ -58,7 +67,7 @@ function mergeConfig(base, extra) {
 }
 
 async function tryReadJson(configPath) {
-  const raw = await fs.readFile(configPath, "utf8");
+  const raw = await dependencies.fs.readFile(configPath, "utf8");
   return JSON.parse(raw);
 }
 
@@ -67,7 +76,7 @@ async function loadConfig() {
     return cachedConfig;
   }
 
-  for (const candidate of CONFIG_CANDIDATES) {
+  for (const candidate of dependencies.configCandidates) {
     try {
       const parsed = await tryReadJson(candidate);
       cachedConfig = mergeConfig(DEFAULT_CONFIG, parsed);
@@ -81,6 +90,21 @@ async function loadConfig() {
   return cachedConfig;
 }
 
+function __setDependencies(overrides) {
+  Object.assign(dependencies, overrides || {});
+}
+
+function __resetDependencies() {
+  Object.assign(dependencies, defaultDependencies);
+}
+
+function __resetCache() {
+  cachedConfig = null;
+}
+
 module.exports = {
-  loadConfig
+  loadConfig,
+  __setDependencies,
+  __resetDependencies,
+  __resetCache
 };

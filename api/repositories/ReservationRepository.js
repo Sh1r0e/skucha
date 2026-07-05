@@ -5,7 +5,12 @@ const ConfigurationService = require("../services/ConfigurationService");
 const TABLE_NAME = "Reservations";
 const ALLOWED_STATUSES = ["Pending", "Confirmed", "Cancelled", "Completed"];
 
-let clientPromise = null;
+const defaultDependencies = {
+  TableClient,
+  odata,
+  uuidv4,
+  ConfigurationService
+};
 
 function createStorageError(message, error, fallbackCode) {
   const wrappedError = new Error(message);
@@ -54,121 +59,158 @@ function toPublicReservation(entity) {
   };
 }
 
-async function getClient() {
-  if (!clientPromise) {
-    clientPromise = (async function initializeClient() {
-      const connectionString = ConfigurationService.getStorageConnectionString();
+function createReservationRepository(customDependencies) {
+  const dependencies = {
+    ...defaultDependencies,
+    ...(customDependencies || {})
+  };
 
-      if (!connectionString) {
-        const configError = new Error("Storage is not configured");
-        configError.statusCode = 503;
-        configError.code = "StorageNotConfigured";
-        throw configError;
-      }
+  let clientPromise = null;
 
-      const tableClient = TableClient.fromConnectionString(connectionString, TABLE_NAME);
+  async function getClient() {
+    if (!clientPromise) {
+      clientPromise = (async function initializeClient() {
+        const connectionString = dependencies.ConfigurationService.getStorageConnectionString();
 
-      try {
-        await tableClient.createTable();
-      } catch (error) {
-        if (error && error.statusCode !== 409) {
-          throw createStorageError("Unable to initialize reservations table", error, "StorageInitializationFailed");
+        if (!connectionString) {
+          const configError = new Error("Storage is not configured");
+          configError.statusCode = 503;
+          configError.code = "StorageNotConfigured";
+          throw configError;
         }
+
+        const tableClient = dependencies.TableClient.fromConnectionString(connectionString, TABLE_NAME);
+
+        try {
+          await tableClient.createTable();
+        } catch (error) {
+          if (error && error.statusCode !== 409) {
+            throw createStorageError("Unable to initialize reservations table", error, "StorageInitializationFailed");
+          }
+        }
+
+        return tableClient;
+      })();
+    }
+
+    return clientPromise;
+  }
+
+  async function saveReservation(reservation) {
+    const client = await getClient();
+    const reservationId = dependencies.uuidv4();
+    const createdAt = new Date().toISOString();
+
+    const entity = {
+      partitionKey: monthPartitionKey(reservation.dateFrom || createdAt),
+      rowKey: reservationId,
+      CreatedAt: createdAt,
+      Status: normalizeStatus(reservation.status),
+      CustomerName: reservation.fullName,
+      CustomerEmail: reservation.email,
+      CustomerPhone: reservation.phone,
+      FromDate: reservation.dateFrom,
+      ToDate: reservation.dateTo,
+      Pads: Number(reservation.padsCount || 0),
+      Notes: reservation.notes || ""
+    };
+
+    try {
+      await client.createEntity(entity);
+      return toPublicReservation(entity);
+    } catch (error) {
+      throw createStorageError("Unable to save reservation", error, "StorageWriteFailed");
+    }
+  }
+
+  async function getReservation(id) {
+    const client = await getClient();
+    const filter = dependencies.odata`RowKey eq ${id}`;
+
+    try {
+      for await (const entity of client.listEntities({ queryOptions: { filter } })) {
+        return toPublicReservation(entity);
       }
 
-      return tableClient;
-    })();
+      return null;
+    } catch (error) {
+      throw createStorageError("Unable to load reservation", error, "StorageReadFailed");
+    }
   }
 
-  return clientPromise;
-}
+  async function getReservations() {
+    const client = await getClient();
 
-async function saveReservation(reservation) {
-  const client = await getClient();
-  const reservationId = uuidv4();
-  const createdAt = new Date().toISOString();
+    try {
+      const reservations = [];
 
-  const entity = {
-    partitionKey: monthPartitionKey(reservation.dateFrom || createdAt),
-    rowKey: reservationId,
-    CreatedAt: createdAt,
-    Status: normalizeStatus(reservation.status),
-    CustomerName: reservation.fullName,
-    CustomerEmail: reservation.email,
-    CustomerPhone: reservation.phone,
-    FromDate: reservation.dateFrom,
-    ToDate: reservation.dateTo,
-    Pads: Number(reservation.padsCount || 0),
-    Notes: reservation.notes || ""
-  };
+      for await (const entity of client.listEntities()) {
+        reservations.push(toPublicReservation(entity));
+      }
 
-  try {
-    await client.createEntity(entity);
-    return toPublicReservation(entity);
-  } catch (error) {
-    throw createStorageError("Unable to save reservation", error, "StorageWriteFailed");
+      return reservations;
+    } catch (error) {
+      throw createStorageError("Unable to load reservations", error, "StorageReadFailed");
+    }
   }
-}
 
-async function getReservation(id) {
-  const client = await getClient();
-  const filter = odata`RowKey eq ${id}`;
+  async function updateStatus(id, status) {
+    const client = await getClient();
+    const existing = await getReservation(id);
 
-  try {
-    for await (const entity of client.listEntities({ queryOptions: { filter } })) {
-      return toPublicReservation(entity);
+    if (!existing) {
+      return null;
     }
 
-    return null;
-  } catch (error) {
-    throw createStorageError("Unable to load reservation", error, "StorageReadFailed");
-  }
-}
-
-async function getReservations() {
-  const client = await getClient();
-
-  try {
-    const reservations = [];
-
-    for await (const entity of client.listEntities()) {
-      reservations.push(toPublicReservation(entity));
-    }
-
-    return reservations;
-  } catch (error) {
-    throw createStorageError("Unable to load reservations", error, "StorageReadFailed");
-  }
-}
-
-async function updateStatus(id, status) {
-  const client = await getClient();
-  const existing = await getReservation(id);
-
-  if (!existing) {
-    return null;
-  }
-
-  const entity = {
-    partitionKey: existing.partitionKey,
-    rowKey: existing.id,
-    Status: normalizeStatus(status)
-  };
-
-  try {
-    await client.updateEntity(entity, "Merge");
-    return {
-      ...existing,
-      status: entity.Status
+    const entity = {
+      partitionKey: existing.partitionKey,
+      rowKey: existing.id,
+      Status: normalizeStatus(status)
     };
-  } catch (error) {
-    throw createStorageError("Unable to update reservation status", error, "StorageUpdateFailed");
+
+    try {
+      await client.updateEntity(entity, "Merge");
+      return {
+        ...existing,
+        status: entity.Status
+      };
+    } catch (error) {
+      throw createStorageError("Unable to update reservation status", error, "StorageUpdateFailed");
+    }
   }
+
+  return {
+    saveReservation,
+    getReservation,
+    getReservations,
+    updateStatus
+  };
+}
+
+let activeRepository = createReservationRepository();
+
+function __setDependencies(overrides) {
+  activeRepository = createReservationRepository(overrides);
+}
+
+function __resetDependencies() {
+  activeRepository = createReservationRepository();
 }
 
 module.exports = {
-  saveReservation,
-  getReservation,
-  getReservations,
-  updateStatus
+  saveReservation: function saveReservationProxy(reservation) {
+    return activeRepository.saveReservation(reservation);
+  },
+  getReservation: function getReservationProxy(id) {
+    return activeRepository.getReservation(id);
+  },
+  getReservations: function getReservationsProxy() {
+    return activeRepository.getReservations();
+  },
+  updateStatus: function updateStatusProxy(id, status) {
+    return activeRepository.updateStatus(id, status);
+  },
+  createReservationRepository,
+  __setDependencies,
+  __resetDependencies
 };

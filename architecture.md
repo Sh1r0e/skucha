@@ -16,6 +16,95 @@ The system follows a thin-handler backend pattern:
 - business logic lives in `api/services/*`
 - data shape rules live in `api/models/*`
 
+## Testing Architecture Requirements
+
+The repository uses a production-grade testing strategy and all future modules must follow it.
+
+### Core Principles
+
+- Keep Azure Function handlers thin: parse request, call service, map response/error.
+- Keep business rules in services and persistence in repositories.
+- Avoid shared mutable state in tests.
+- Prefer dependency injection via factory functions over brittle module-level monkey patching.
+- Mock only external dependencies (Azure SDK, storage, notification transports, HTTP, payment providers).
+- Do not mock business logic under test.
+
+### Test Stack
+
+- Test runner: Vitest.
+- Runtime: Node environment.
+- Linting: ESLint.
+- Coverage outputs:
+  - console summary
+  - `api/coverage/index.html`
+  - `api/coverage/lcov.info`
+
+Coverage thresholds enforced in CI:
+
+- Lines >= 90%
+- Branches >= 85%
+- Functions >= 90%
+- Statements >= 90%
+
+### Folder and Naming Conventions
+
+- Tests live under `api/tests/`.
+- Unit tests:
+  - `api/tests/unit/services/`
+  - `api/tests/unit/repositories/`
+  - `api/tests/unit/helpers/`
+- Integration tests:
+  - `api/tests/integration/reservation/`
+  - `api/tests/integration/availability/`
+- Shared test utilities:
+  - `api/tests/factories/`
+  - `api/tests/mocks/`
+  - `api/tests/helpers/`
+
+Test naming uses behavior style, for example:
+
+- `should_save_valid_reservation()`
+- `should_reject_overlapping_reservations()`
+- `should_return_400_for_invalid_payload()`
+
+### Dependency Injection Standard
+
+Services, repositories, and function handlers expose non-breaking factory constructors for testability.
+
+- Service factories:
+  - `createReservationService(dependencies)`
+  - `createAvailabilityService(dependencies)`
+- Repository factory:
+  - `createReservationRepository(dependencies)`
+- Function handler factories:
+  - `createReservationHandler(dependencies)`
+  - `createAvailabilityHandler(dependencies)`
+
+Default exports preserve current runtime behavior and remain production-safe.
+
+### CI Quality Gate
+
+Deployment is gated by quality checks in GitHub Actions:
+
+1. checkout
+2. setup Node
+3. `npm ci` in `api/`
+4. `npm run lint`
+5. `npm test`
+6. `npm run test:coverage`
+7. deploy only if all previous steps pass
+
+### Future Modules Checklist
+
+Every new module (payments, inventory, products, orders, auth, admin panel) must include:
+
+- service + repository split
+- DI factory for testability
+- unit tests for validation and error propagation
+- integration tests for handler status mapping (200/400/404/500)
+- mocked external boundaries only
+- coverage maintained at or above enforced thresholds
+
 ## High-Level Components
 
 ### Frontend

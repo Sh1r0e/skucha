@@ -4,6 +4,13 @@ const ConfigService = require("./ConfigService");
 const MailService = require("./MailService");
 const ReservationRepository = require("../repositories/ReservationRepository");
 
+const defaultDependencies = {
+  AvailabilityService,
+  ConfigService,
+  MailService,
+  ReservationRepository
+};
+
 const RESERVATION_STATUS = {
   PENDING: "Pending",
   CONFIRMED: "Confirmed",
@@ -91,62 +98,88 @@ function validateReservation(reservation, config) {
   }
 }
 
-async function createReservation(reservation) {
-  if (!(reservation instanceof Reservation)) {
-    reservation = new Reservation(reservation || {});
+function createReservationService(customDependencies) {
+  const dependencies = {
+    ...defaultDependencies,
+    ...(customDependencies || {})
+  };
+
+  async function createReservation(reservation) {
+    if (!(reservation instanceof Reservation)) {
+      reservation = new Reservation(reservation || {});
+    }
+
+    const config = await dependencies.ConfigService.loadConfig();
+
+    validateReservation(reservation, config);
+
+    const availability = await dependencies.AvailabilityService.getAvailability({
+      from: reservation.dateFrom,
+      to: reservation.dateTo
+    });
+
+    if (!availability.available || availability.remainingPads < reservation.padsCount) {
+      throw badRequest("Requested number of pads is not available for selected dates");
+    }
+
+    const savedReservation = await dependencies.ReservationRepository.saveReservation({
+      fullName: reservation.fullName,
+      email: reservation.email,
+      phone: reservation.phone,
+      dateFrom: reservation.dateFrom,
+      dateTo: reservation.dateTo,
+      padsCount: reservation.padsCount,
+      notes: reservation.notes,
+      status: RESERVATION_STATUS.PENDING
+    });
+
+    const mailResult = await dependencies.MailService.sendReservationNotification({
+      ...reservation,
+      id: savedReservation.id,
+      status: savedReservation.status
+    });
+
+    return {
+      message: "Reservation accepted",
+      reservationId: savedReservation.id,
+      reservation: {
+        id: savedReservation.id,
+        status: savedReservation.status,
+        fullName: savedReservation.customerName,
+        email: savedReservation.customerEmail,
+        phone: savedReservation.customerPhone,
+        dateFrom: savedReservation.fromDate,
+        dateTo: savedReservation.toDate,
+        padsCount: savedReservation.pads,
+        deliveryMethod: reservation.deliveryMethod,
+        pickupPoint: reservation.pickupPoint,
+        createdAt: savedReservation.createdAt
+      },
+      mail: mailResult
+    };
   }
-
-  const config = await ConfigService.loadConfig();
-
-  validateReservation(reservation, config);
-
-  const availability = await AvailabilityService.getAvailability({
-    from: reservation.dateFrom,
-    to: reservation.dateTo
-  });
-
-  if (!availability.available || availability.remainingPads < reservation.padsCount) {
-    throw badRequest("Requested number of pads is not available for selected dates");
-  }
-
-  const savedReservation = await ReservationRepository.saveReservation({
-    fullName: reservation.fullName,
-    email: reservation.email,
-    phone: reservation.phone,
-    dateFrom: reservation.dateFrom,
-    dateTo: reservation.dateTo,
-    padsCount: reservation.padsCount,
-    notes: reservation.notes,
-    status: RESERVATION_STATUS.PENDING
-  });
-
-  const mailResult = await MailService.sendReservationNotification({
-    ...reservation,
-    id: savedReservation.id,
-    status: savedReservation.status
-  });
 
   return {
-    message: "Reservation accepted",
-    reservationId: savedReservation.id,
-    reservation: {
-      id: savedReservation.id,
-      status: savedReservation.status,
-      fullName: savedReservation.customerName,
-      email: savedReservation.customerEmail,
-      phone: savedReservation.customerPhone,
-      dateFrom: savedReservation.fromDate,
-      dateTo: savedReservation.toDate,
-      padsCount: savedReservation.pads,
-      deliveryMethod: reservation.deliveryMethod,
-      pickupPoint: reservation.pickupPoint,
-      createdAt: savedReservation.createdAt
-    },
-    mail: mailResult
+    createReservation
   };
+}
+
+let activeService = createReservationService();
+
+function __setDependencies(overrides) {
+  activeService = createReservationService(overrides);
+}
+
+function __resetDependencies() {
+  activeService = createReservationService();
 }
 
 module.exports = {
   RESERVATION_STATUS,
-  createReservation
+  createReservation: function createReservationProxy(reservation) {
+    return activeService.createReservation(reservation);
+  },
+  createReservationService,
+  __setDependencies,
+  __resetDependencies
 };
