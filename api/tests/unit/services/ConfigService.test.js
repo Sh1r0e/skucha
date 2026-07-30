@@ -93,4 +93,41 @@ describe("ConfigService", function () {
     expect(first).toBe(second);
     expect(readFile).toHaveBeenCalledTimes(1);
   });
+
+  it("should_use_empty_objects_when_config_sections_are_missing()", async function () {
+    const readFile = vi.fn().mockResolvedValue(JSON.stringify({ pickupPoints: [{ name: "X", enabled: true }] }));
+
+    ConfigService.__setDependencies({
+      fs: { readFile },
+      configCandidates: ["candidate-a"]
+    });
+
+    const config = await ConfigService.loadConfig();
+
+    // No contact/pricing/availability in file — mergeConfig fallbacks to defaults.
+    expect(config.contact.email).toBe("kontakt@skucha.pl");
+    expect(config.pricing.weekday).toBe(40);
+    expect(config.availability.totalPads).toBe(4);
+    expect(config.pickupPoints[0].name).toBe("X");
+  });
+
+  it("should_merge_with_null_extra_when_config_file_contains_json_null()", async function () {
+    const readFile = vi.fn().mockResolvedValue("null");
+
+    ConfigService.__setDependencies({
+      fs: { readFile },
+      configCandidates: ["candidate-a"]
+    });
+
+    const config = await ConfigService.loadConfig();
+
+    // JSON.parse("null") === null — mergeConfig gets extra=null, falls back to default.
+    expect(config.contact.email).toBe("kontakt@skucha.pl");
+    expect(config.pricing.weekday).toBe(40);
+  });
+
+  it("should_handle_null_overrides_in_set_dependencies()", async function () {
+    // Covers the `overrides || {}` fallback branch.
+    expect(() => ConfigService.__setDependencies(null)).not.toThrow();
+  });
 });

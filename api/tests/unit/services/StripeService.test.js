@@ -150,4 +150,67 @@ describe("StripeService", function () {
       expect.objectContaining({ statusCode: 503, code: "WebhookSecretNotConfigured" })
     );
   });
+
+  it("should_throw_503_when_stripe_secret_key_is_not_configured()", async function () {
+    const MockStripe = vi.fn();
+
+    StripeService.__setDependencies({
+      Stripe: MockStripe,
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue(""),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("")
+      }
+    });
+
+    await expect(
+      StripeService.createCheckoutSession({
+        reservationId: "res-1",
+        amountInMinorUnit: 1000,
+        currency: "pln",
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel"
+      })
+    ).rejects.toMatchObject({ statusCode: 503, code: "PaymentNotConfigured" });
+
+    expect(MockStripe).not.toHaveBeenCalled();
+  });
+
+  it("should_instantiate_stripe_client_from_key_when_no_stripeClient_is_injected()", async function () {
+    const mockSession = {
+      id: "cs_test_direct",
+      url: "https://checkout.stripe.com/pay/cs_test_direct",
+      payment_status: null
+    };
+    const createSession = vi.fn().mockResolvedValue(mockSession);
+
+    const MockStripe = vi.fn().mockImplementation(function () {
+      return {
+        checkout: { sessions: { create: createSession } }
+      };
+    });
+
+    StripeService.__setDependencies({
+      Stripe: MockStripe,
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_live_key"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("")
+      }
+    });
+
+    const result = await StripeService.createCheckoutSession({
+      reservationId: "res-direct",
+      customerEmail: "a@b.com",
+      amountInMinorUnit: 4000,
+      currency: "pln"
+    });
+
+    expect(MockStripe).toHaveBeenCalledWith("sk_test_live_key");
+    expect(result.sessionId).toBe("cs_test_direct");
+    // Covers the `session.payment_status || "unpaid"` fallback branch (null → "unpaid")
+    expect(result.paymentStatus).toBe("unpaid");
+  });
 });

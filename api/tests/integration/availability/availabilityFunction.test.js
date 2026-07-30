@@ -117,6 +117,40 @@ describe("availability function", function () {
     expect(context.res.status).toBe(200);
   });
 
+  it("should_return_400_when_both_req_and_context_req_are_absent()", async function () {
+    // Covers the third branch of `req || context.req || {}`.
+    handler.__setAvailabilityService({
+      getAvailability: vi.fn().mockRejectedValue(
+        Object.assign(new Error("Invalid date: from"), { statusCode: 400, code: "BadRequest" })
+      )
+    });
+    const context = createMockContext(); // context.req is undefined
+
+    await handler(context); // req argument also absent
+
+    expect(context.res.status).toBe(400);
+  });
+
+  it("should_use_BadRequest_code_when_error_has_no_code_and_status_is_below_500()", async function () {
+    // Covers the `"BadRequest"` branch of `error.code || (statusCode >= 500 ? ... : "BadRequest")`.
+    handler.__setAvailabilityService({
+      getAvailability: vi.fn().mockRejectedValue(
+        Object.assign(new Error("date out of range"), { statusCode: 422 })
+      )
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { from: "2026-08-10", to: "2026-08-12" } });
+
+    expect(context.res.status).toBe(422);
+    expect(context.res.body.code).toBe("BadRequest");
+  });
+
+  it("should_use_default_service_when_null_is_passed_to_set_availability_service()", async function () {
+    // Covers `service || AvailabilityService` fallback.
+    expect(() => handler.__setAvailabilityService(null)).not.toThrow();
+  });
+
   it("should_map_unknown_errors_to_bad_request()", async function () {
     handler.__setAvailabilityService({
       getAvailability: vi.fn().mockRejectedValue(new Error("unknown failure"))

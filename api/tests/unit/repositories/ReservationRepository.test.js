@@ -161,6 +161,75 @@ describe("ReservationRepository", function () {
     expect(updated.status).toBe("Confirmed");
   });
 
+  it("should_return_null_when_attachPayment_target_does_not_exist()", async function () {
+    mockClient.listEntities.mockReturnValue(createAsyncIterable([]));
+
+    const result = await ReservationRepository.attachPayment("missing", { sessionId: "cs_test" });
+
+    expect(result).toBeNull();
+    expect(mockClient.updateEntity).not.toHaveBeenCalled();
+  });
+
+  it("should_attachPayment_storing_empty_strings_when_payment_is_null()", async function () {
+    mockClient.listEntities.mockReturnValue(
+      createAsyncIterable([
+        {
+          partitionKey: "2026-08",
+          rowKey: "res-3",
+          Status: "Pending",
+          CustomerName: "C",
+          CustomerEmail: "c@example.com",
+          CustomerPhone: "+48000000003",
+          FromDate: "2026-08-10",
+          ToDate: "2026-08-11",
+          Pads: 1,
+          Notes: "",
+          CreatedAt: "2026-07-05T10:00:00.000Z"
+        }
+      ])
+    );
+
+    const result = await ReservationRepository.attachPayment("res-3", null);
+
+    expect(mockClient.updateEntity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        PaymentSessionId: "",
+        PaymentStatus: "",
+        PaymentUrl: ""
+      }),
+      "Merge"
+    );
+    expect(result.paymentSessionId).toBe("");
+  });
+
+  it("should_throw_when_attachPayment_update_fails()", async function () {
+    mockClient.listEntities.mockReturnValue(
+      createAsyncIterable([
+        {
+          partitionKey: "2026-08",
+          rowKey: "res-4",
+          Status: "Pending",
+          CustomerName: "D",
+          CustomerEmail: "d@example.com",
+          CustomerPhone: "+48000000004",
+          FromDate: "2026-08-10",
+          ToDate: "2026-08-11",
+          Pads: 1,
+          Notes: "",
+          CreatedAt: "2026-07-05T10:00:00.000Z"
+        }
+      ])
+    );
+    mockClient.updateEntity.mockRejectedValue(
+      Object.assign(new Error("update failed"), { statusCode: 503, code: "EUPD2" })
+    );
+
+    await expect(ReservationRepository.attachPayment("res-4", { sessionId: "cs_test" })).rejects.toMatchObject({
+      message: "Unable to attach reservation payment",
+      code: "EUPD2"
+    });
+  });
+
   it("should_attachPayment_for_existing_reservation()", async function () {
     mockClient.listEntities.mockReturnValue(
       createAsyncIterable([

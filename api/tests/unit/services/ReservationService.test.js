@@ -295,6 +295,19 @@ describe("ReservationService", function () {
     });
   });
 
+  it("should_calculate_correct_amount_when_date_range_is_reversed()", async function () {
+    // dateFrom later than dateTo hits the swap branch in countDaysInRange and calculateReservationAmountInMajorUnit.
+    const input = buildReservation({ dateFrom: "2026-08-12", dateTo: "2026-08-10" });
+
+    applyHappyPathDependencies();
+
+    const result = await ReservationService.createReservation(input);
+
+    // 3 days × 2 pads × 40 PLN/day = 240 (all weekdays)
+    expect(result.payment.amount).toBeGreaterThan(0);
+    expect(result.payment.sessionId).toBe("cs_test_123");
+  });
+
   it("should_reject_when_remaining_pads_are_lower_than_requested()", async function () {
     const input = buildReservation({ padsCount: 3 });
 

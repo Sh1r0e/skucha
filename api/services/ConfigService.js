@@ -49,15 +49,15 @@ function mergeConfig(base, extra) {
     ...base,
     ...(extra || {}),
     contact: {
-      ...(base.contact || {}),
+      ...base.contact,
       ...((extra && extra.contact) || {})
     },
     pricing: {
-      ...(base.pricing || {}),
+      ...base.pricing,
       ...((extra && extra.pricing) || {})
     },
     availability: {
-      ...(base.availability || {}),
+      ...base.availability,
       ...((extra && extra.availability) || {})
     },
     pickupPoints: Array.isArray(extra && extra.pickupPoints)

@@ -118,6 +118,49 @@ describe("reservation function", function () {
     expect(context.res.status).toBe(200);
   });
 
+  it("should_return_400_when_both_req_and_context_req_are_absent()", async function () {
+    // Covers the third branch of `req || context.req || {}`.
+    handler.__setReservationService({
+      createReservation: vi.fn().mockRejectedValue(
+        Object.assign(new Error("firstName is required"), { statusCode: 400, code: "BadRequest" })
+      )
+    });
+    const context = createMockContext(); // context.req is undefined
+
+    await handler(context); // req argument also absent
+
+    expect(context.res.status).toBe(400);
+  });
+
+  it("should_return_400_for_empty_string_body()", async function () {
+    // Covers the `payload || "{}"` fallback in JSON.parse branch.
+    const context = createMockContext();
+
+    await handler(context, { body: "" });
+
+    expect(context.res.status).toBe(400);
+  });
+
+  it("should_use_BadRequest_code_when_error_has_no_code_and_status_is_below_500()", async function () {
+    // Covers the `"BadRequest"` branch of `error.code || (statusCode >= 500 ? ... : "BadRequest")`.
+    handler.__setReservationService({
+      createReservation: vi.fn().mockRejectedValue(
+        Object.assign(new Error("validation failed"), { statusCode: 422 })
+      )
+    });
+    const context = createMockContext();
+
+    await handler(context, { body: { firstName: "Jan" } });
+
+    expect(context.res.status).toBe(422);
+    expect(context.res.body.code).toBe("BadRequest");
+  });
+
+  it("should_use_default_service_when_null_is_passed_to_set_reservation_service()", async function () {
+    // Covers `service || ReservationService` fallback.
+    expect(() => handler.__setReservationService(null)).not.toThrow();
+  });
+
   it("should_map_unknown_errors_to_internal_error()", async function () {
     handler.__setReservationService({
       createReservation: vi.fn().mockRejectedValue(new Error("unexpected"))

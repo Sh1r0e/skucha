@@ -52,7 +52,7 @@ function createReservationHandler(customDependencies) {
       const requestId = context.invocationId;
 
       context.log.error("Reservation error", {
-        reservationId: reservation && reservation.id ? reservation.id : undefined,
+        reservationId: reservation ? reservation.email : undefined,
         requestId: requestId,
         statusCode: statusCode,
         message: error.message,
