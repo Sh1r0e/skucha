@@ -161,6 +161,44 @@ describe("ReservationRepository", function () {
     expect(updated.status).toBe("Confirmed");
   });
 
+  it("should_attachPayment_for_existing_reservation()", async function () {
+    mockClient.listEntities.mockReturnValue(
+      createAsyncIterable([
+        {
+          partitionKey: "2026-08",
+          rowKey: "res-2",
+          Status: "Pending",
+          CustomerName: "B",
+          CustomerEmail: "b@example.com",
+          CustomerPhone: "+48000000002",
+          FromDate: "2026-08-12",
+          ToDate: "2026-08-13",
+          Pads: 2,
+          Notes: "",
+          CreatedAt: "2026-07-05T10:00:00.000Z"
+        }
+      ])
+    );
+
+    const updated = await ReservationRepository.attachPayment("res-2", {
+      sessionId: "cs_test_123",
+      paymentStatus: "unpaid",
+      paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+    });
+
+    expect(mockClient.updateEntity).toHaveBeenCalledWith(
+      {
+        partitionKey: "2026-08",
+        rowKey: "res-2",
+        PaymentSessionId: "cs_test_123",
+        PaymentStatus: "unpaid",
+        PaymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+      },
+      "Merge"
+    );
+    expect(updated.paymentSessionId).toBe("cs_test_123");
+  });
+
   it("should_return_null_when_updateStatus_target_does_not_exist()", async function () {
     mockClient.listEntities.mockReturnValue(createAsyncIterable([]));
 

@@ -55,7 +55,10 @@ function toPublicReservation(entity) {
     fromDate: entity.FromDate,
     toDate: entity.ToDate,
     pads: Number(entity.Pads || 0),
-    notes: entity.Notes || ""
+    notes: entity.Notes || "",
+    paymentSessionId: entity.PaymentSessionId || "",
+    paymentStatus: entity.PaymentStatus || "",
+    paymentUrl: entity.PaymentUrl || ""
   };
 }
 
@@ -112,7 +115,10 @@ function createReservationRepository(customDependencies) {
       FromDate: reservation.dateFrom,
       ToDate: reservation.dateTo,
       Pads: Number(reservation.padsCount || 0),
-      Notes: reservation.notes || ""
+      Notes: reservation.notes || "",
+      PaymentSessionId: reservation.paymentSessionId || "",
+      PaymentStatus: reservation.paymentStatus || "",
+      PaymentUrl: reservation.paymentUrl || ""
     };
 
     try {
@@ -179,11 +185,41 @@ function createReservationRepository(customDependencies) {
     }
   }
 
+  async function attachPayment(id, payment) {
+    const client = await getClient();
+    const existing = await getReservation(id);
+
+    if (!existing) {
+      return null;
+    }
+
+    const entity = {
+      partitionKey: existing.partitionKey,
+      rowKey: existing.id,
+      PaymentSessionId: payment && payment.sessionId ? payment.sessionId : "",
+      PaymentStatus: payment && payment.paymentStatus ? payment.paymentStatus : "",
+      PaymentUrl: payment && payment.paymentUrl ? payment.paymentUrl : ""
+    };
+
+    try {
+      await client.updateEntity(entity, "Merge");
+      return {
+        ...existing,
+        paymentSessionId: entity.PaymentSessionId,
+        paymentStatus: entity.PaymentStatus,
+        paymentUrl: entity.PaymentUrl
+      };
+    } catch (error) {
+      throw createStorageError("Unable to attach reservation payment", error, "StorageUpdateFailed");
+    }
+  }
+
   return {
     saveReservation,
     getReservation,
     getReservations,
-    updateStatus
+    updateStatus,
+    attachPayment
   };
 }
 
@@ -209,6 +245,9 @@ module.exports = {
   },
   updateStatus: function updateStatusProxy(id, status) {
     return activeRepository.updateStatus(id, status);
+  },
+  attachPayment: function attachPaymentProxy(id, payment) {
+    return activeRepository.attachPayment(id, payment);
   },
   createReservationRepository,
   __setDependencies,

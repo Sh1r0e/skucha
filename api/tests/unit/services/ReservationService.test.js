@@ -5,7 +5,10 @@ const ReservationService = require("../../../services/ReservationService");
 function applyHappyPathDependencies() {
   ReservationService.__setDependencies({
     ConfigService: {
-      loadConfig: vi.fn().mockResolvedValue({ pickupPoints: [{ name: "Stablowice", enabled: true }] })
+      loadConfig: vi.fn().mockResolvedValue({
+        pickupPoints: [{ name: "Stablowice", enabled: true }],
+        pricing: { weekday: 40, weekend: 45, currency: "PLN" }
+      })
     },
     AvailabilityService: {
       getAvailability: vi.fn().mockResolvedValue({ available: true, remainingPads: 5 })
@@ -21,6 +24,17 @@ function applyHappyPathDependencies() {
         toDate: "2026-08-12",
         pads: 2,
         createdAt: "2026-07-05T10:00:00.000Z"
+      }),
+      attachPayment: vi.fn().mockResolvedValue({
+        id: "res-1",
+        paymentSessionId: "cs_test_123"
+      })
+    },
+    StripeService: {
+      createCheckoutSession: vi.fn().mockResolvedValue({
+        sessionId: "cs_test_123",
+        url: "https://checkout.stripe.com/c/pay/cs_test_123",
+        paymentStatus: "unpaid"
       })
     },
     MailService: {
@@ -45,6 +59,8 @@ describe("ReservationService", function () {
     expect(result.message).toBe("Reservation accepted");
     expect(result.reservationId).toBe("res-1");
     expect(result.reservation.deliveryMethod).toBe("pickup");
+    expect(result.payment.sessionId).toBe("cs_test_123");
+    expect(result.payment.currency).toBe("PLN");
     expect(result.mail.queued).toBe(true);
   });
 
@@ -93,6 +109,9 @@ describe("ReservationService", function () {
       },
       ReservationRepository: {
         saveReservation: vi.fn().mockRejectedValue(Object.assign(new Error("Storage down"), { statusCode: 503 }))
+      },
+      StripeService: {
+        createCheckoutSession: vi.fn()
       }
     });
 
@@ -107,7 +126,10 @@ describe("ReservationService", function () {
 
     ReservationService.__setDependencies({
       ConfigService: {
-        loadConfig: vi.fn().mockResolvedValue({ pickupPoints: [{ name: "Stablowice", enabled: true }] })
+        loadConfig: vi.fn().mockResolvedValue({
+          pickupPoints: [{ name: "Stablowice", enabled: true }],
+          pricing: { weekday: 40, weekend: 45, currency: "PLN" }
+        })
       },
       AvailabilityService: {
         getAvailability: vi.fn().mockResolvedValue({ available: true, remainingPads: 5 })
@@ -123,6 +145,17 @@ describe("ReservationService", function () {
           toDate: "2026-08-12",
           pads: 2,
           createdAt: "2026-07-05T10:00:00.000Z"
+        }),
+        attachPayment: vi.fn().mockResolvedValue({
+          id: "res-1",
+          paymentSessionId: "cs_test_123"
+        })
+      },
+      StripeService: {
+        createCheckoutSession: vi.fn().mockResolvedValue({
+          sessionId: "cs_test_123",
+          url: "https://checkout.stripe.com/c/pay/cs_test_123",
+          paymentStatus: "unpaid"
         })
       },
       MailService: {

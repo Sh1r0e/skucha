@@ -4,6 +4,7 @@ function createMockReservationRepository(overrides) {
     getReservation: vi.fn(),
     getReservations: vi.fn(),
     updateStatus: vi.fn(),
+    attachPayment: vi.fn(),
     ...overrides
   };
 }

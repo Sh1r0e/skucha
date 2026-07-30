@@ -1,0 +1,153 @@
+const StripeService = require("../../../services/StripeService");
+
+describe("StripeService", function () {
+  beforeEach(function () {
+    StripeService.__resetDependencies();
+    vi.clearAllMocks();
+  });
+
+  it("should_create_checkout_session_for_valid_input()", async function () {
+    const createSession = vi.fn().mockResolvedValue({
+      id: "cs_test_123",
+      url: "https://checkout.stripe.com/c/pay/cs_test_123",
+      payment_status: "unpaid"
+    });
+
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: createSession
+          }
+        }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel")
+      }
+    });
+
+    const result = await StripeService.createCheckoutSession({
+      reservationId: "res-1",
+      customerEmail: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-12",
+      padsCount: 2,
+      amountInMinorUnit: 12000,
+      currency: "pln",
+      productName: "Skucha - crash pad reservation",
+      description: "3 day(s), 2 pad(s)"
+    });
+
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(result.sessionId).toBe("cs_test_123");
+    expect(result.paymentStatus).toBe("unpaid");
+  });
+
+  it("should_throw_when_checkout_urls_are_not_configured()", async function () {
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: vi.fn()
+          }
+        }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue(""),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("")
+      }
+    });
+
+    await expect(
+      StripeService.createCheckoutSession({
+        reservationId: "res-1",
+        amountInMinorUnit: 100,
+        currency: "pln"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "PaymentUrlsNotConfigured"
+    });
+  });
+
+  it("should_throw_for_non_positive_amount()", async function () {
+    await expect(
+      StripeService.createCheckoutSession({
+        reservationId: "res-1",
+        amountInMinorUnit: 0,
+        currency: "pln"
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      code: "InvalidPaymentAmount"
+    });
+  });
+
+  it("should_verify_valid_webhook_signature()", function () {
+    const fakeEvent = { type: "checkout.session.completed", id: "evt_1", data: { object: {} } };
+
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: { sessions: { create: vi.fn() } },
+        webhooks: {
+          constructEvent: vi.fn().mockReturnValue(fakeEvent)
+        }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("whsec_test_abc")
+      }
+    });
+
+    const result = StripeService.verifyWebhookSignature("raw-body", "t=123,v1=abc");
+
+    expect(result).toEqual(fakeEvent);
+  });
+
+  it("should_throw_400_when_webhook_signature_is_invalid()", function () {
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: { sessions: { create: vi.fn() } },
+        webhooks: {
+          constructEvent: vi.fn().mockImplementation(function () {
+            throw new Error("No signatures found matching the expected signature for payload");
+          })
+        }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("whsec_test_abc")
+      }
+    });
+
+    expect(() => StripeService.verifyWebhookSignature("bad-body", "bad-sig")).toThrow(
+      expect.objectContaining({ statusCode: 400, code: "WebhookSignatureInvalid" })
+    );
+  });
+
+  it("should_throw_503_when_webhook_secret_is_not_configured()", function () {
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: { sessions: { create: vi.fn() } },
+        webhooks: { constructEvent: vi.fn() }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("")
+      }
+    });
+
+    expect(() => StripeService.verifyWebhookSignature("body", "sig")).toThrow(
+      expect.objectContaining({ statusCode: 503, code: "WebhookSecretNotConfigured" })
+    );
+  });
+});

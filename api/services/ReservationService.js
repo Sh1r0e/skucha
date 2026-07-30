@@ -2,12 +2,14 @@ const Reservation = require("../models/Reservation");
 const AvailabilityService = require("./AvailabilityService");
 const ConfigService = require("./ConfigService");
 const MailService = require("./MailService");
+const StripeService = require("./StripeService");
 const ReservationRepository = require("../repositories/ReservationRepository");
 
 const defaultDependencies = {
   AvailabilityService,
   ConfigService,
   MailService,
+  StripeService,
   ReservationRepository
 };
 
@@ -98,6 +100,58 @@ function validateReservation(reservation, config) {
   }
 }
 
+function parseIsoDate(value) {
+  const parts = String(value || "").split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function countDaysInRange(fromDate, toDateValue) {
+  const from = parseIsoDate(fromDate);
+  const to = parseIsoDate(toDateValue);
+  let start = from;
+  let end = to;
+
+  if (start.getTime() > end.getTime()) {
+    start = to;
+    end = from;
+  }
+
+  const cursor = new Date(start);
+  let days = 0;
+
+  while (cursor.getTime() <= end.getTime()) {
+    days += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return days;
+}
+
+function calculateReservationAmountInMajorUnit(reservation, pricing) {
+  const weekdayRate = Number((pricing && pricing.weekday) || 0);
+  const weekendRate = Number((pricing && pricing.weekend) || 0);
+  const from = parseIsoDate(reservation.dateFrom);
+  const to = parseIsoDate(reservation.dateTo);
+  let start = from;
+  let end = to;
+
+  if (start.getTime() > end.getTime()) {
+    start = to;
+    end = from;
+  }
+
+  let totalForSinglePad = 0;
+  const cursor = new Date(start);
+
+  while (cursor.getTime() <= end.getTime()) {
+    const day = cursor.getDay();
+    totalForSinglePad += day === 0 || day === 6 ? weekendRate : weekdayRate;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return totalForSinglePad * reservation.padsCount;
+}
+
 function createReservationService(customDependencies) {
   const dependencies = {
     ...defaultDependencies,
@@ -133,10 +187,39 @@ function createReservationService(customDependencies) {
       status: RESERVATION_STATUS.PENDING
     });
 
+    const currency = String((config.pricing && config.pricing.currency) || "PLN").toLowerCase();
+    const amountInMajorUnit = calculateReservationAmountInMajorUnit(reservation, config.pricing);
+    const amountInMinorUnit = Math.round(amountInMajorUnit * 100);
+    const daysCount = countDaysInRange(reservation.dateFrom, reservation.dateTo);
+
+    const payment = await dependencies.StripeService.createCheckoutSession({
+      reservationId: savedReservation.id,
+      customerEmail: reservation.email,
+      dateFrom: reservation.dateFrom,
+      dateTo: reservation.dateTo,
+      padsCount: reservation.padsCount,
+      amountInMinorUnit: amountInMinorUnit,
+      currency: currency,
+      productName: "Skucha - crash pad reservation",
+      description: daysCount + " day(s), " + reservation.padsCount + " pad(s)"
+    });
+
+    await dependencies.ReservationRepository.attachPayment(savedReservation.id, {
+      sessionId: payment.sessionId,
+      paymentStatus: payment.paymentStatus,
+      paymentUrl: payment.url
+    });
+
     const mailResult = await dependencies.MailService.sendReservationNotification({
       ...reservation,
       id: savedReservation.id,
-      status: savedReservation.status
+      status: savedReservation.status,
+      payment: {
+        sessionId: payment.sessionId,
+        checkoutUrl: payment.url,
+        amount: amountInMajorUnit,
+        currency: currency.toUpperCase()
+      }
     });
 
     return {
@@ -154,6 +237,15 @@ function createReservationService(customDependencies) {
         deliveryMethod: reservation.deliveryMethod,
         pickupPoint: reservation.pickupPoint,
         createdAt: savedReservation.createdAt
+      },
+      payment: {
+        provider: "stripe",
+        status: payment.paymentStatus,
+        sessionId: payment.sessionId,
+        checkoutUrl: payment.url,
+        amount: amountInMajorUnit,
+        amountInMinorUnit: amountInMinorUnit,
+        currency: currency.toUpperCase()
       },
       mail: mailResult
     };

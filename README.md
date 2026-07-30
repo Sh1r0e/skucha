@@ -23,6 +23,7 @@ Backend responsibilities:
 - check availability
 - prevent double booking (currently in-memory, phase 3 will move to Azure Table Storage)
 - send reservation notifications (phase 1: log-only placeholder)
+- create Stripe Checkout sessions for reservation payments
 
 Never trust frontend input. Reservation acceptance is backend-controlled.
 
@@ -88,6 +89,26 @@ Frontend loads config through `config/config-loader.js`.
 
 Backend also reads `config/config.json` through `api/services/ConfigService.js`.
 
+Stripe runtime settings are provided via environment variables in Azure Functions:
+
+- `STRIPE_SECRET_KEY` - Stripe sandbox/live secret key (`sk_test_...` in sandbox)
+- `STRIPE_CHECKOUT_SUCCESS_URL` - full URL where Stripe redirects after successful payment
+- `STRIPE_CHECKOUT_CANCEL_URL` - full URL where Stripe redirects after canceled payment
+
+Example local values (`local.settings.json` for Functions runtime):
+
+```json
+{
+	"Values": {
+		"STRIPE_SECRET_KEY": "sk_test_xxx",
+		"STRIPE_CHECKOUT_SUCCESS_URL": "https://localhost:4280/skucha-payment-success.html?session_id={CHECKOUT_SESSION_ID}",
+		"STRIPE_CHECKOUT_CANCEL_URL": "https://localhost:4280/skucha-payment-cancel.html?session_id={CHECKOUT_SESSION_ID}"
+	}
+}
+```
+
+For Azure Static Web Apps production, use your deployed domain with the same paths.
+
 ## Azure Static Web Apps Workflow
 
 Current GitHub Actions workflow uses:
@@ -102,4 +123,4 @@ Current GitHub Actions workflow uses:
 2. Availability endpoint
 3. Azure Table Storage persistence
 4. Admin page
-5. Online payments
+5. Webhook-based payment status reconciliation

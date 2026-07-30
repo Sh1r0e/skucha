@@ -54,9 +54,9 @@
   <!-- HERO -->
   <div style="max-width:1200px; margin:0 auto; padding:72px 40px 64px; display:grid; grid-template-columns:1fr 480px; gap:60px; align-items:start;">
     <div style="padding-top: 18px; position: relative">
-      <div style="font-family:var(--font-mono); font-size:13px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">WYPOŻYCZALNIA CRASH PADÓW · WROCŁAW</div>
-      <h1 style="margin:20px 0 0; font-size:74px; line-height:0.98; letter-spacing:-0.04em; font-weight:800;">Skucha?<br>Ląduj miękko.<br></h1>
-      <p style="margin: 26px 0 0; font-size: 20px; line-height: 1.45; color: #6b6862; max-width: 46ch; text-decoration-line: none">Zarezerwuj crash pady wspinaczkowe online. Odbierz na wschodzie lub południu Wrocławia. Możliwość dowozu.</p>
+      <h1 style="margin:0; font-family:var(--font-mono); font-size:13px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">WYPOŻYCZALNIA CRASH PADÓW · WROCŁAW</h1>
+      <h2 style="margin:20px 0 0; font-size:74px; line-height:0.98; letter-spacing:-0.04em; font-weight:800;">Skucha?<br>Ląduj miękko.<br></h2>
+      <h3 style="margin: 26px 0 0; font-size: 20px; line-height: 1.45; color: #6b6862; max-width: 46ch; text-decoration-line: none; font-weight:400;">Wypożycz crash pady wspinaczkowe online. Odbierz na wschodzie lub południu Wrocławia. Możliwość dowozu.</h3>
 
       <div style="display:flex; gap:0; margin-top:40px; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
         <div style="flex:1; padding:22px 24px 22px 0;">
@@ -150,7 +150,7 @@
         <div style="font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:8px;">Jak chcesz odebrać?</div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
           <button onClick="{{ pickOdbior }}" style="{{ odbiorStyle }}">Odbiór osobisty</button>
-          <button onClick="{{ pickDowoz }}" style="{{ dowozStyle }}">Dowóz</button>
+          <button onClick="{{ pickDowoz }}" style="{{ dowozStyle }}" disabled>Dowóz <span style="font-family:var(--font-mono); font-size:10px; font-weight:700;">wkrótce</span></button>
         </div>
       </div>
 
@@ -396,29 +396,11 @@
     </div>
   </div>
 
-  <!-- OPINIE -->
-  <div style="max-width:1200px; margin:0 auto; padding:40px 40px 80px;">
-    <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">06 · Opinie</div>
-    <h2 style="margin:12px 0 36px; font-size:42px; font-weight:800; letter-spacing:-0.03em;">Co mówią wspinacze</h2>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
-      <div style="border:1px solid #e7e5e1; border-radius:var(--r-xl); padding:32px;">
-        <div style="font-family:var(--font-mono); color:var(--accent); font-size:16px;">★★★★★</div>
-        <p style="margin:14px 0 0; font-size:20px; line-height:1.5; font-weight:500;">„Dowieźli pady pod Sokoliki w sobotę rano. Zero stresu, pady jak nowe.”</p>
-        <div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; margin-top:18px;">— MARTA, V5 PROJEKT</div>
-      </div>
-      <div style="border:1px solid #e7e5e1; border-radius:var(--r-xl); padding:32px;">
-        <div style="font-family:var(--font-mono); color:var(--accent); font-size:16px;">★★★★★</div>
-        <p style="margin:14px 0 0; font-size:20px; line-height:1.5; font-weight:500;">„Brałem 3 pady na weekend wyjazdowy. Taniej niż własny sprzęt, który leży w piwnicy.”</p>
-        <div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; margin-top:18px;">— KUBA, BOULDER WRO</div>
-      </div>
-    </div>
-  </div>
-
   <!-- FAQ -->
   <div id="faq" style="background:#faf9f7; border-top:1px solid #ededea;">
     <div style="max-width:1200px; margin:0 auto; padding:80px 40px; display:grid; grid-template-columns:0.8fr 1.2fr; gap:56px; align-items:start;">
       <div style="position:sticky; top:90px;">
-        <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">07 · FAQ</div>
+        <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">06 · FAQ</div>
         <h2 style="margin:12px 0 0; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Częste pytania</h2>
         <p style="margin:16px 0 0; font-size:16px; color:#6b6862; line-height:1.5;">Nie ma tu Twojego pytania? Napisz na WhatsApp — odpiszemy szybciej niż przeczytasz ten akapit.</p>
       </div>
@@ -442,7 +424,7 @@
     <div style="max-width:1200px; margin:0 auto; padding:64px 40px; display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center;">
       <div>
         <div style="font-size:44px; font-weight:900; letter-spacing:-0.04em;">SKUCHA<span style="color:var(--accent);">.</span></div>
-        <p style="margin:12px 0 0; font-size:17px; color:#b3afa8; max-width:40ch;">Wypożyczalnia crash padów we Wrocławiu. Pisz albo dzwoń — odpisujemy szybko.</p>
+        <p style="margin:12px 0 0; font-size:17px; color:#b3afa8; max-width:40ch;">Wypożyczalnia crash padów we Wrocławiu. Jasne warunki, szybka i wygodna rezerwacja.</p>
         <div style="font-family:var(--font-mono); font-size:11px; color:#7c7972; margin-top:28px;">© 2026 SKUCHA · WROCŁAW</div>
       </div>
       <div style="display:flex; flex-direction:column; gap:12px; max-width:380px; margin-left:auto; width:100%;">
@@ -712,6 +694,26 @@ class Component extends DCLogic {
         return;
       }
 
+      try {
+        localStorage.setItem('skucha_last_order', JSON.stringify({
+          savedAt: new Date().toISOString(),
+          payload: payload,
+          reservation: result && result.reservation ? result.reservation : null,
+          reservationId: result && result.reservationId ? result.reservationId : '',
+          payment: result && result.payment ? result.payment : null
+        }));
+      } catch (_storageError) {
+        // Storage can be blocked in private mode; payment flow should continue anyway.
+      }
+
+      const checkoutUrl = result && result.payment && result.payment.checkoutUrl;
+
+      if (checkoutUrl) {
+        this.setState({ reservationStatus: 'Rezerwacja przyjęta. Przekierowuję do płatności...', reservationStatusColor: '#1f8a5b' });
+        window.location.href = checkoutUrl;
+        return;
+      }
+
       this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b' });
       window.open(this.buildWaLink(), '_blank', 'noopener');
     } catch (error) {
@@ -873,9 +875,9 @@ class Component extends DCLogic {
       notifyIconStyle: "font-size:22px; font-weight:400; color:var(--accent); flex:none; line-height:1; transition:transform .2s; transform:rotate(" + (this.state.notifyOpen ? '45deg' : '0deg') + ");",
       notifyBodyStyle: "overflow:hidden; transition:max-height .3s ease, opacity .2s; max-height:" + (this.state.notifyOpen ? '320px' : '0px') + "; opacity:" + (this.state.notifyOpen ? '1' : '0') + ";",
       pickOdbior: () => this.setState({ dowoz:false }),
-      pickDowoz: () => this.setState({ dowoz:true }),
+      pickDowoz: null,
       odbiorStyle: this.seg(!this.state.dowoz),
-      dowozStyle: this.seg(this.state.dowoz),
+      dowozStyle: this.segDisabled(),
       firstName: this.state.firstName,
       lastName: this.state.lastName,
       email: this.state.email,
