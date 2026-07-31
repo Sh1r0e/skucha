@@ -264,6 +264,27 @@
       if (sessionId === '-') {
         byId('noteBox').textContent = 'Brak session_id w URL. Ustaw STRIPE_CHECKOUT_CANCEL_URL z ?session_id={CHECKOUT_SESSION_ID}.';
       }
+
+      // Fetch authoritative status — reservation may have been confirmed by webhook already.
+      if (reservationId !== '-') {
+        fetch('/api/reservation?id=' + encodeURIComponent(reservationId))
+          .then(function (res) { return res.ok ? res.json() : null; })
+          .then(function (data) {
+            if (!data) { return; }
+            var ps = data.payment && data.payment.status ? data.payment.status : '';
+            var rs = data.status || '';
+
+            byId('statusText').textContent = 'Status: ' + (ps || rs || statusText).replace(/_/g, ' ');
+
+            if (data.dateFrom) {
+              byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
+            }
+            if (data.pads) { byId('padsCount').textContent = String(data.pads); }
+            if (data.customerName) { byId('email').textContent = data.customerName; }
+            if (data.payment && data.payment.sessionId) { byId('sessionId').textContent = data.payment.sessionId; }
+          })
+          .catch(function () { /* keep localStorage fallback on network error */ });
+      }
     })();
   </script>
 </body>

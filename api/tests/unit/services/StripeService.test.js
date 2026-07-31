@@ -45,6 +45,35 @@ describe("StripeService", function () {
     expect(result.paymentStatus).toBe("unpaid");
   });
 
+  it("should_append_reservation_id_to_success_and_cancel_urls()", async function () {
+    const createSession = vi.fn().mockResolvedValue({
+      id: "cs_test_456",
+      url: "https://checkout.stripe.com/pay/cs_test_456",
+      payment_status: "unpaid"
+    });
+
+    StripeService.__setDependencies({
+      stripeClient: { checkout: { sessions: { create: createSession } } },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success?session_id={CHECKOUT_SESSION_ID}"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel?session_id={CHECKOUT_SESSION_ID}"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("whsec_abc")
+      }
+    });
+
+    await StripeService.createCheckoutSession({
+      reservationId: "res-42",
+      customerEmail: "a@b.com",
+      amountInMinorUnit: 4000,
+      currency: "pln"
+    });
+
+    const callArgs = createSession.mock.calls[0][0];
+    expect(callArgs.success_url).toContain("reservation_id=res-42");
+    expect(callArgs.cancel_url).toContain("reservation_id=res-42");
+  });
+
   it("should_throw_when_checkout_urls_are_not_configured()", async function () {
     StripeService.__setDependencies({
       stripeClient: {

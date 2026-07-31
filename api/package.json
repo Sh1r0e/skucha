@@ -15,7 +15,7 @@
     "node": "18.x"
   },
   "dependencies": {
-    "@azure/data-tables": "13.3.2",
+    "@azure/data-tables": "13.2.2",
     "stripe": "^22.3.2",
     "uuid": "11.0.5"
   },

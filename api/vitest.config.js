@@ -18,7 +18,8 @@ module.exports = defineConfig({
         "reservation/**/*.js",
         "availability/**/*.js",
         "ping/**/*.js",
-        "models/**/*.js"
+        "models/**/*.js",
+        "get-reservation/**/*.js"
       ],
       thresholds: {
         lines: 90,

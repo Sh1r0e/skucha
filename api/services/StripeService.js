@@ -71,11 +71,21 @@ function createStripeService(customDependencies) {
 
     const stripeClient = getClient();
 
+    // Append reservation_id so redirect pages can fetch authoritative status
+    // without relying on localStorage alone.
+    function appendReservationId(url, id) {
+      if (!url || !id) { return url || ""; }
+      return url + (url.includes("?") ? "&" : "?") + "reservation_id=" + encodeURIComponent(id);
+    }
+
+    const successUrlFinal = appendReservationId(successUrl, params.reservationId);
+    const cancelUrlFinal = appendReservationId(cancelUrl, params.reservationId);
+
     try {
       const session = await stripeClient.checkout.sessions.create({
         mode: "payment",
-        success_url: successUrl,
-        cancel_url: cancelUrl,
+        success_url: successUrlFinal,
+        cancel_url: cancelUrlFinal,
         customer_email: params.customerEmail,
         client_reference_id: params.reservationId,
         payment_method_types: ["card"],

@@ -28,6 +28,7 @@ __pycache__/
 *.pyc
 
 # Env files
+changes-to-htmls.html
 .env
 .env.*
 !.env.example
