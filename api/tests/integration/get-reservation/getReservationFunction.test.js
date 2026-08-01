@@ -39,6 +39,7 @@ describe("get-reservation function", function () {
     expect(context.res.body.payment.sessionId).toBe("cs_test_123");
     expect(context.res.body.payment.status).toBe("Paid");
     expect(context.res.body.customerName).toBe("Jan Kowalski");
+    expect(context.res.body.customerEmail).toBe("jan@example.com");
   });
 
   it("should_return_404_when_reservation_does_not_exist()", async function () {

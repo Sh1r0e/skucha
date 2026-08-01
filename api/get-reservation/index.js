@@ -61,6 +61,7 @@ function createGetReservationHandler(customDependencies) {
         id: reservation.id,
         status: reservation.status,
         customerName: reservation.customerName,
+        customerEmail: reservation.customerEmail,
         dateFrom: reservation.fromDate,
         dateTo: reservation.toDate,
         pads: reservation.pads,

@@ -1,4 +1,16 @@
 {
+  "routes": [
+    {
+      "route": "/stripe-webhook",
+      "methods": ["POST"],
+      "rewrite": "/api/stripe-webhook"
+    },
+    {
+      "route": "/stripe-webhook/",
+      "methods": ["POST"],
+      "rewrite": "/api/stripe-webhook"
+    }
+  ],
   "platform": {
     "apiRuntime": "node:18"
   }

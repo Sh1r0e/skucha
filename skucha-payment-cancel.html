@@ -280,7 +280,7 @@
               byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
             }
             if (data.pads) { byId('padsCount').textContent = String(data.pads); }
-            if (data.customerName) { byId('email').textContent = data.customerName; }
+            if (data.customerEmail) { byId('email').textContent = data.customerEmail; }
             if (data.payment && data.payment.sessionId) { byId('sessionId').textContent = data.payment.sessionId; }
           })
           .catch(function () { /* keep localStorage fallback on network error */ });

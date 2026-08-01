@@ -42,6 +42,20 @@ describe("stripe-webhook function", function () {
     expect(context.res.body.error).toMatch(/Missing stripe-signature/i);
   });
 
+  it("should_return_400_when_raw_body_is_missing()", async function () {
+    const context = createMockContext();
+    const deps = buildMockDependencies();
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      body: { parsed: true }
+    });
+
+    expect(context.res.status).toBe(400);
+    expect(context.res.body.error).toMatch(/Raw body unavailable/i);
+  });
+
   it("should_return_400_when_signature_verification_fails()", async function () {
     const context = createMockContext();
     const deps = buildMockDependencies({
@@ -90,6 +104,29 @@ describe("stripe-webhook function", function () {
       expect.objectContaining({ sessionId: "cs_test_123", paymentStatus: "Paid" })
     );
     expect(deps.ReservationRepository.updateStatus).toHaveBeenCalledWith("res-1", "Confirmed");
+  });
+
+  it("should_accept_stripe_signature_header_with_original_casing()", async function () {
+    const session = buildCompletedSession();
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt_1a",
+          data: { object: session }
+        })
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "Stripe-Signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(200);
+    expect(deps.StripeService.verifyWebhookSignature).toHaveBeenCalledWith("{}", "t=1,v1=abc");
   });
 
   it("should_mark_reservation_Unpaid_when_payment_status_is_unpaid()", async function () {
@@ -195,6 +232,33 @@ describe("stripe-webhook function", function () {
     });
 
     expect(context.res.status).toBe(500);
+  });
+
+  it("should_return_500_when_reservation_is_missing_during_event_handling()", async function () {
+    const session = buildCompletedSession();
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt_5b",
+          data: { object: session }
+        })
+      },
+      ReservationRepository: {
+        attachPayment: vi.fn().mockResolvedValue(null),
+        updateStatus: vi.fn().mockResolvedValue(null)
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(500);
+    expect(context.res.body.code).toBe("ReservationNotFound");
   });
 
   it("should_use_client_reference_id_to_identify_reservation()", async function () {

@@ -15,6 +15,12 @@ const RESERVATION_STATUS_ON_PAYMENT = {
   NoPaymentRequired: "Confirmed"
 };
 
+function createWebhookHandlingError(message, code) {
+  const error = new Error(message);
+  error.code = code || "WebhookEventHandlingFailed";
+  return error;
+}
+
 function createWebhookHandler(customDependencies) {
   const dependencies = {
     StripeService,
@@ -22,13 +28,48 @@ function createWebhookHandler(customDependencies) {
     ...(customDependencies || {})
   };
 
+  function getHeaderValue(headers, name) {
+    if (!headers || !name) {
+      return "";
+    }
+
+    const direct = headers[name];
+    if (direct) {
+      return direct;
+    }
+
+    const target = String(name).toLowerCase();
+    const keys = Object.keys(headers);
+
+    for (let index = 0; index < keys.length; index += 1) {
+      const key = keys[index];
+      if (String(key).toLowerCase() === target) {
+        return headers[key] || "";
+      }
+    }
+
+    return "";
+  }
+
   return async function stripeWebhookHandler(context, req) {
     const request = req || context.req || {};
 
-    // Azure Functions v2 runtime provides the raw body buffer on req.rawBody.
-    // Stripe signature verification requires the exact original bytes.
-    const rawBody = request.rawBody || request.body || "";
-    const signature = (request.headers && request.headers["stripe-signature"]) || "";
+    // Stripe signature verification requires the original body payload bytes.
+    // Depending on runtime shape we may receive it as req.rawBody or as a
+    // plain string in req.body.
+    const rawBody = request.rawBody
+      || (typeof request.body === "string" ? request.body : "");
+    const signature = getHeaderValue(request.headers, "stripe-signature");
+
+    if (!rawBody) {
+      context.log.error("Stripe webhook: raw body is missing");
+      context.res = {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+        body: { error: "Raw body unavailable" }
+      };
+      return;
+    }
 
     if (!signature) {
       context.log.error("Stripe webhook: missing stripe-signature header");
@@ -108,13 +149,27 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
   const internalPaymentStatus = PAYMENT_STATUS_MAP[stripePaymentStatus] || "Unpaid";
   const reservationStatus = RESERVATION_STATUS_ON_PAYMENT[internalPaymentStatus] || "Pending";
 
-  await dependencies.ReservationRepository.attachPayment(reservationId, {
+  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, {
     sessionId: session.id,
     paymentStatus: internalPaymentStatus,
     paymentUrl: session.url || ""
   });
 
-  await dependencies.ReservationRepository.updateStatus(reservationId, reservationStatus);
+  if (!paymentUpdate) {
+    throw createWebhookHandlingError(
+      "Reservation not found while attaching payment",
+      "ReservationNotFound"
+    );
+  }
+
+  const statusUpdate = await dependencies.ReservationRepository.updateStatus(reservationId, reservationStatus);
+
+  if (!statusUpdate) {
+    throw createWebhookHandlingError(
+      "Reservation not found while updating reservation status",
+      "ReservationNotFound"
+    );
+  }
 
   context.log("Stripe webhook: reservation updated after checkout.session.completed", {
     reservationId,
@@ -131,11 +186,18 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
     return;
   }
 
-  await dependencies.ReservationRepository.attachPayment(reservationId, {
+  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, {
     sessionId: session.id,
     paymentStatus: "Expired",
     paymentUrl: ""
   });
+
+  if (!paymentUpdate) {
+    throw createWebhookHandlingError(
+      "Reservation not found while marking payment as expired",
+      "ReservationNotFound"
+    );
+  }
 
   context.log("Stripe webhook: reservation payment marked Expired", { reservationId });
 }

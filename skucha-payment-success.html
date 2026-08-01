@@ -247,6 +247,9 @@
       var email = params.get('email') || reservation.email || payload.email || '-';
 
       var statusText = payment.status || params.get('payment_status') || 'pending_confirmation';
+      var hasReservationId = reservationId !== '-';
+      var statusChecksRemaining = 12;
+      var statusCheckDelayMs = 2500;
 
       byId('reservationId').textContent = reservationId;
       byId('sessionId').textContent = sessionId;
@@ -259,45 +262,69 @@
         : (deliveryMethod === 'delivery' ? 'Dowoz' : String(deliveryMethod));
       byId('email').textContent = email;
 
-      byId('statusText').textContent = 'Status: ' + String(statusText).replace(/_/g, ' ');
+      byId('statusText').textContent = hasReservationId
+        ? 'Status: sprawdzanie platnosci...'
+        : ('Status: ' + String(statusText).replace(/_/g, ' '));
 
       if (sessionId === '-') {
         byId('noteBox').textContent = 'Brak session_id w URL. Ustaw STRIPE_CHECKOUT_SUCCESS_URL z ?session_id={CHECKOUT_SESSION_ID}.';
       }
 
-      // Fetch authoritative status from backend.
-      if (reservationId !== '-') {
+      function updateStatusFromApi(data) {
+        if (!data) { return false; }
+
+        var ps = data.payment && data.payment.status ? data.payment.status : '';
+        var rs = data.status || '';
+        var paid = ps === 'Paid' || rs === 'Confirmed';
+
+        byId('statusText').textContent = paid
+          ? 'Płatność potwierdzona \xB7 Rezerwacja potwierdzona'
+          : 'Status: ' + (ps || rs || 'oczekiwanie na potwierdzenie');
+
+        if (paid) {
+          var statusRow = document.querySelector('.status-row');
+          if (statusRow) {
+            statusRow.style.background = 'color-mix(in srgb, #1f8a5b 10%, #fff)';
+            statusRow.style.borderColor = 'color-mix(in srgb, #1f8a5b 35%, #fff)';
+            statusRow.style.color = '#1f8a5b';
+          }
+          byId('noteBox').style.display = 'none';
+        }
+
+        if (data.dateFrom) {
+          byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
+        }
+        if (data.pads) { byId('padsCount').textContent = String(data.pads); }
+        if (data.customerEmail) { byId('email').textContent = data.customerEmail; }
+        if (data.payment && data.payment.sessionId) { byId('sessionId').textContent = data.payment.sessionId; }
+
+        return paid;
+      }
+
+      function fetchStatusWithRetry() {
+        if (!hasReservationId || statusChecksRemaining < 1) { return; }
+
+        statusChecksRemaining -= 1;
+
         fetch('/api/reservation?id=' + encodeURIComponent(reservationId))
           .then(function (res) { return res.ok ? res.json() : null; })
           .then(function (data) {
-            if (!data) { return; }
-            var ps = data.payment && data.payment.status ? data.payment.status : '';
-            var rs = data.status || '';
-            var paid = ps === 'Paid' || rs === 'Confirmed';
+            var paid = updateStatusFromApi(data);
 
-            byId('statusText').textContent = paid
-              ? 'Płatność potwierdzona \xB7 Rezerwacja potwierdzona'
-              : 'Status: ' + (ps || rs || 'oczekiwanie na potwierdzenie');
-
-            if (paid) {
-              var statusRow = document.querySelector('.status-row');
-              if (statusRow) {
-                statusRow.style.background = 'color-mix(in srgb, #1f8a5b 10%, #fff)';
-                statusRow.style.borderColor = 'color-mix(in srgb, #1f8a5b 35%, #fff)';
-                statusRow.style.color = '#1f8a5b';
-              }
-              byId('noteBox').style.display = 'none';
+            if (!paid && statusChecksRemaining > 0) {
+              setTimeout(fetchStatusWithRetry, statusCheckDelayMs);
             }
-
-            if (data.dateFrom) {
-              byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
-            }
-            if (data.pads) { byId('padsCount').textContent = String(data.pads); }
-            if (data.customerName) { byId('email').textContent = data.customerName; }
-            if (data.payment && data.payment.sessionId) { byId('sessionId').textContent = data.payment.sessionId; }
           })
-          .catch(function () { /* keep localStorage fallback on network error */ });
+          .catch(function () {
+            if (statusChecksRemaining > 0) {
+              setTimeout(fetchStatusWithRetry, statusCheckDelayMs);
+            }
+          });
       }
+
+      // Fetch authoritative status from backend and retry briefly because
+      // Stripe webhook processing can finish a few seconds after redirect.
+      fetchStatusWithRetry();
     })();
   </script>
 </body>
