@@ -44,4 +44,36 @@ describe("ConfigurationService", function () {
 
     process.env.STRIPE_WEBHOOK_SECRET = previous;
   });
+
+  it("should_return_acs_configuration_with_defaults()", function () {
+    const previousConnection = process.env.ACS_CONNECTION_STRING;
+    const previousSender = process.env.ACS_SENDER_ADDRESS;
+
+    process.env.ACS_CONNECTION_STRING = "endpoint=https://example";
+    delete process.env.ACS_SENDER_ADDRESS;
+
+    expect(ConfigurationService.getAcsConnectionString()).toBe("endpoint=https://example");
+    expect(ConfigurationService.getAcsSenderAddress()).toBe("noreply@skucha.co");
+
+    process.env.ACS_CONNECTION_STRING = previousConnection;
+    process.env.ACS_SENDER_ADDRESS = previousSender;
+  });
+
+  it("should_return_cancellation_link_settings_from_environment()", function () {
+    const prevBaseUrl = process.env.RESERVATION_PUBLIC_BASE_URL;
+    const prevSecret = process.env.RESERVATION_CANCEL_TOKEN_SECRET;
+    const prevTtl = process.env.RESERVATION_CANCEL_TOKEN_TTL_HOURS;
+
+    process.env.RESERVATION_PUBLIC_BASE_URL = "https://demo.skucha.co";
+    process.env.RESERVATION_CANCEL_TOKEN_SECRET = "top-secret";
+    process.env.RESERVATION_CANCEL_TOKEN_TTL_HOURS = "24";
+
+    expect(ConfigurationService.getReservationPublicBaseUrl()).toBe("https://demo.skucha.co");
+    expect(ConfigurationService.getReservationCancelTokenSecret()).toBe("top-secret");
+    expect(ConfigurationService.getReservationCancelTokenTtlHours()).toBe(24);
+
+    process.env.RESERVATION_PUBLIC_BASE_URL = prevBaseUrl;
+    process.env.RESERVATION_CANCEL_TOKEN_SECRET = prevSecret;
+    process.env.RESERVATION_CANCEL_TOKEN_TTL_HOURS = prevTtl;
+  });
 });

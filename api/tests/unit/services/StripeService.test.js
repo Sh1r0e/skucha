@@ -242,4 +242,74 @@ describe("StripeService", function () {
     // Covers the `session.payment_status || "unpaid"` fallback branch (null → "unpaid")
     expect(result.paymentStatus).toBe("unpaid");
   });
+
+  it("should_create_refund_for_checkout_session_payment_intent()", async function () {
+    const retrieve = vi.fn().mockResolvedValue({
+      id: "cs_test_1",
+      payment_intent: "pi_123"
+    });
+    const createRefund = vi.fn().mockResolvedValue({
+      id: "re_123",
+      status: "succeeded"
+    });
+
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: vi.fn(),
+            retrieve: retrieve
+          }
+        },
+        webhooks: { constructEvent: vi.fn() },
+        refunds: {
+          create: createRefund
+        }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("whsec_test_abc")
+      }
+    });
+
+    const result = await StripeService.refundCheckoutSessionPayment({
+      sessionId: "cs_test_1",
+      reservationId: "res-1"
+    });
+
+    expect(retrieve).toHaveBeenCalledWith("cs_test_1");
+    expect(createRefund).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: "pi_123", reason: "requested_by_customer" })
+    );
+    expect(result).toMatchObject({ refundId: "re_123", status: "succeeded", paymentIntentId: "pi_123" });
+  });
+
+  it("should_throw_when_checkout_session_has_no_payment_intent_for_refund()", async function () {
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            create: vi.fn(),
+            retrieve: vi.fn().mockResolvedValue({ id: "cs_no_intent", payment_intent: null })
+          }
+        },
+        webhooks: { constructEvent: vi.fn() },
+        refunds: {
+          create: vi.fn()
+        }
+      },
+      ConfigurationService: {
+        getStripeSecretKey: vi.fn().mockReturnValue("sk_test_123"),
+        getStripeCheckoutSuccessUrl: vi.fn().mockReturnValue("https://example.com/success"),
+        getStripeCheckoutCancelUrl: vi.fn().mockReturnValue("https://example.com/cancel"),
+        getStripeWebhookSecret: vi.fn().mockReturnValue("whsec_test_abc")
+      }
+    });
+
+    await expect(
+      StripeService.refundCheckoutSessionPayment({ sessionId: "cs_no_intent", reservationId: "res-1" })
+    ).rejects.toMatchObject({ statusCode: 409, code: "PaymentNotRefundable" });
+  });
 });

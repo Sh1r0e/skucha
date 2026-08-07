@@ -8,7 +8,32 @@ function buildMockDependencies(overrides) {
     },
     ReservationRepository: {
       attachPayment: vi.fn().mockResolvedValue({}),
-      updateStatus: vi.fn().mockResolvedValue({})
+      updateStatus: vi.fn().mockResolvedValue({}),
+      getReservation: vi.fn().mockResolvedValue({
+        id: "res-1",
+        status: "Confirmed",
+        customerName: "Jan Kowalski",
+        customerEmail: "jan@example.com",
+        customerPhone: "+48500500500",
+        fromDate: "2026-08-10",
+        toDate: "2026-08-12",
+        pads: 2,
+        notes: "Bring extra straps",
+        deliveryMethod: "pickup",
+        pickupPoint: "Stablowice",
+        paymentSessionId: "cs_test_123",
+        paymentStatus: "Paid",
+        paymentAmountMinor: 12000,
+        paymentCurrency: "PLN",
+        paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
+        cancellationUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-1&token=abc",
+        cancellationExpiresAt: "2026-08-20T12:00:00.000Z"
+      })
+    },
+    MailService: {
+      sendPaymentPendingNotification: vi.fn().mockResolvedValue({ queued: true }),
+      sendPaymentConfirmationNotification: vi.fn().mockResolvedValue({ queued: true }),
+      sendPaymentExpiredNotification: vi.fn().mockResolvedValue({ queued: true })
     },
     ...overrides
   };
@@ -104,6 +129,21 @@ describe("stripe-webhook function", function () {
       expect.objectContaining({ sessionId: "cs_test_123", paymentStatus: "Paid" })
     );
     expect(deps.ReservationRepository.updateStatus).toHaveBeenCalledWith("res-1", "Confirmed");
+    expect(deps.MailService.sendPaymentConfirmationNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "res-1",
+        fullName: "Jan Kowalski",
+        dateFrom: "2026-08-10",
+        padsCount: 2,
+        deliveryMethod: "pickup",
+        pickupPoint: "Stablowice",
+        notes: "Bring extra straps",
+        amount: 120,
+        currency: "PLN",
+        cancelUrl: expect.stringContaining("/api/reservation/cancel"),
+        payment: expect.objectContaining({ status: "Paid", sessionId: "cs_test_123" })
+      })
+    );
   });
 
   it("should_accept_stripe_signature_header_with_original_casing()", async function () {
@@ -154,6 +194,9 @@ describe("stripe-webhook function", function () {
       expect.objectContaining({ paymentStatus: "Unpaid" })
     );
     expect(deps.ReservationRepository.updateStatus).toHaveBeenCalledWith("res-1", "Pending");
+    expect(deps.MailService.sendPaymentPendingNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: "Unpaid" })
+    );
   });
 
   it("should_mark_payment_Expired_on_checkout_session_expired()", async function () {
@@ -181,6 +224,9 @@ describe("stripe-webhook function", function () {
       expect.objectContaining({ paymentStatus: "Expired" })
     );
     expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentExpiredNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentStatus: "Expired" })
+    );
   });
 
   it("should_return_200_for_unhandled_event_types_without_updating_storage()", async function () {
@@ -259,6 +305,62 @@ describe("stripe-webhook function", function () {
 
     expect(context.res.status).toBe(500);
     expect(context.res.body.code).toBe("ReservationNotFound");
+  });
+
+  it("should_return_500_when_notification_details_are_missing()", async function () {
+    const session = buildCompletedSession();
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt_5c",
+          data: { object: session }
+        })
+      },
+      ReservationRepository: {
+        attachPayment: vi.fn().mockResolvedValue({}),
+        updateStatus: vi.fn().mockResolvedValue({}),
+        getReservation: vi.fn().mockResolvedValue(null)
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(500);
+    expect(context.res.body.code).toBe("ReservationNotFound");
+  });
+
+  it("should_return_500_when_confirmation_email_fails()", async function () {
+    const session = buildCompletedSession();
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt_5d",
+          data: { object: session }
+        })
+      },
+      MailService: {
+        sendPaymentPendingNotification: vi.fn(),
+        sendPaymentConfirmationNotification: vi.fn().mockRejectedValue(new Error("ACS unavailable")),
+        sendPaymentExpiredNotification: vi.fn()
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(500);
+    expect(context.res.body.code).toBe("InternalError");
   });
 
   it("should_use_client_reference_id_to_identify_reservation()", async function () {

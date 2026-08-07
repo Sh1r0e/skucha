@@ -1,6 +1,18 @@
 const { createReservation: buildReservation } = require("../../factories/reservationFactory");
+const crypto = require("crypto");
+const { Buffer } = require("buffer");
 const Reservation = require("../../../models/Reservation");
 const ReservationService = require("../../../services/ReservationService");
+
+function createCancellationToken(payload, secret) {
+  const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(encodedPayload)
+    .digest("hex");
+
+  return encodedPayload + "." + signature;
+}
 
 function applyHappyPathDependencies() {
   ReservationService.__setDependencies({
@@ -35,10 +47,21 @@ function applyHappyPathDependencies() {
         sessionId: "cs_test_123",
         url: "https://checkout.stripe.com/c/pay/cs_test_123",
         paymentStatus: "unpaid"
+      }),
+      refundCheckoutSessionPayment: vi.fn().mockResolvedValue({
+        refundId: "re_test_1",
+        status: "succeeded",
+        paymentIntentId: "pi_test_1"
       })
     },
+    ConfigurationService: {
+      getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+      getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+      getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+    },
     MailService: {
-      sendReservationNotification: vi.fn().mockResolvedValue({ queued: true })
+      sendReservationNotification: vi.fn().mockResolvedValue({ queued: true }),
+      sendCancellationNotification: vi.fn().mockResolvedValue({ queued: true })
     }
   });
 }
@@ -61,6 +84,7 @@ describe("ReservationService", function () {
     expect(result.reservation.deliveryMethod).toBe("pickup");
     expect(result.payment.sessionId).toBe("cs_test_123");
     expect(result.payment.currency).toBe("PLN");
+    expect(result.cancellation.url).toContain("/api/reservation/cancel?reservation_id=res-1");
     expect(result.mail.queued).toBe(true);
   });
 
@@ -157,6 +181,11 @@ describe("ReservationService", function () {
           url: "https://checkout.stripe.com/c/pay/cs_test_123",
           paymentStatus: "unpaid"
         })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue(""),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(0)
       },
       MailService: {
         sendReservationNotification: vi.fn().mockRejectedValue(new Error("Mail provider unavailable"))
@@ -324,5 +353,333 @@ describe("ReservationService", function () {
       statusCode: 400,
       message: "Requested number of pads is not available for selected dates"
     });
+  });
+
+  it("should_cancel_paid_reservation_and_request_refund()", async function () {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = createCancellationToken(
+      { reservationId: "res-1", sessionId: "cs_test_123", exp: exp },
+      "unit-test-secret"
+    );
+
+    applyHappyPathDependencies();
+
+    ReservationService.__setDependencies({
+      ConfigService: {
+        loadConfig: vi.fn().mockResolvedValue({
+          pickupPoints: [{ name: "Stablowice", enabled: true }],
+          pricing: { weekday: 40, weekend: 45, currency: "PLN" }
+        })
+      },
+      AvailabilityService: {
+        getAvailability: vi.fn().mockResolvedValue({ available: true, remainingPads: 5 })
+      },
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          partitionKey: "2026-08",
+          status: "Confirmed",
+          customerName: "Jan Kowalski",
+          customerEmail: "jan@example.com",
+          customerPhone: "+48500500500",
+          fromDate: "2026-08-10",
+          toDate: "2026-08-12",
+          pads: 2,
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid",
+          paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+        }),
+        attachPayment: vi.fn().mockResolvedValue({ id: "res-1" }),
+        updateStatus: vi.fn().mockResolvedValue({ id: "res-1", status: "Cancelled" }),
+        saveReservation: vi.fn()
+      },
+      StripeService: {
+        createCheckoutSession: vi.fn(),
+        refundCheckoutSessionPayment: vi.fn().mockResolvedValue({
+          refundId: "re_test_1",
+          status: "succeeded",
+          paymentIntentId: "pi_test_1"
+        })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      },
+      MailService: {
+        sendReservationNotification: vi.fn().mockResolvedValue({ queued: true }),
+        sendCancellationNotification: vi.fn().mockResolvedValue({ queued: true })
+      }
+    });
+
+    const result = await ReservationService.cancelReservation({
+      reservationId: "res-1",
+      token: token
+    });
+
+    expect(result.status).toBe("Cancelled");
+    expect(result.paymentStatus).toBe("Refunded");
+    expect(result.refund.refundId).toBe("re_test_1");
+  });
+
+  it("should_return_already_cancelled_without_requesting_another_refund()", async function () {
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Cancelled",
+          paymentStatus: "Refunded"
+        })
+      }
+    });
+
+    const result = await ReservationService.cancelReservation({
+      reservationId: "res-1",
+      token: "already-cancelled-token"
+    });
+
+    expect(result).toMatchObject({
+      status: "Cancelled",
+      paymentStatus: "Refunded",
+      alreadyCancelled: true,
+      refund: null
+    });
+  });
+
+  it("should_reject_cancellation_for_completed_reservation()", async function () {
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Completed",
+          paymentSessionId: "cs_test_123"
+        })
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: "token" })
+    ).rejects.toMatchObject({ statusCode: 409, code: "AlreadyCompleted" });
+  });
+
+  it("should_reject_cancellation_when_reservation_is_missing()", async function () {
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue(null)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "missing", token: "token" })
+    ).rejects.toMatchObject({ statusCode: 404, code: "NotFound" });
+  });
+
+  it("should_cancel_unpaid_reservation_without_requesting_refund()", async function () {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = createCancellationToken(
+      { reservationId: "res-1", sessionId: "cs_test_123", exp: exp },
+      "unit-test-secret"
+    );
+    const refundCheckoutSessionPayment = vi.fn();
+
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Pending",
+          customerName: "Jan Kowalski",
+          customerEmail: "jan@example.com",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "unpaid",
+          paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+        }),
+        attachPayment: vi.fn().mockResolvedValue({ id: "res-1" }),
+        updateStatus: vi.fn().mockResolvedValue({ id: "res-1", status: "Cancelled" })
+      },
+      StripeService: {
+        refundCheckoutSessionPayment: refundCheckoutSessionPayment
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      },
+      MailService: {
+        sendCancellationNotification: vi.fn().mockResolvedValue({ queued: true })
+      }
+    });
+
+    const result = await ReservationService.cancelReservation({
+      reservationId: "res-1",
+      token: token
+    });
+
+    expect(result.paymentStatus).toBe("Cancelled");
+    expect(refundCheckoutSessionPayment).not.toHaveBeenCalled();
+  });
+
+  it("should_reject_cancellation_with_invalid_token_format()", async function () {
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Confirmed",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid"
+        })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: "invalid" })
+    ).rejects.toMatchObject({ statusCode: 400, message: "Invalid cancellation token format" });
+  });
+
+  it("should_reject_cancellation_with_invalid_token_signature()", async function () {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = createCancellationToken(
+      { reservationId: "res-1", sessionId: "cs_test_123", exp: exp },
+      "different-secret"
+    );
+
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Confirmed",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid"
+        })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: token })
+    ).rejects.toMatchObject({ statusCode: 400, message: "Invalid cancellation token signature" });
+  });
+
+  it("should_reject_cancellation_when_payment_update_returns_null()", async function () {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = createCancellationToken(
+      { reservationId: "res-1", sessionId: "cs_test_123", exp: exp },
+      "unit-test-secret"
+    );
+
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Confirmed",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid"
+        }),
+        attachPayment: vi.fn().mockResolvedValue(null)
+      },
+      StripeService: {
+        refundCheckoutSessionPayment: vi.fn().mockResolvedValue({ status: "succeeded", refundId: "re_1" })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: token })
+    ).rejects.toMatchObject({ statusCode: 404, code: "NotFound" });
+  });
+
+  it("should_reject_cancellation_when_status_update_returns_null()", async function () {
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const token = createCancellationToken(
+      { reservationId: "res-1", sessionId: "cs_test_123", exp: exp },
+      "unit-test-secret"
+    );
+
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Confirmed",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid"
+        }),
+        attachPayment: vi.fn().mockResolvedValue({ id: "res-1" }),
+        updateStatus: vi.fn().mockResolvedValue(null)
+      },
+      StripeService: {
+        refundCheckoutSessionPayment: vi.fn().mockResolvedValue({ status: "succeeded", refundId: "re_1" })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: token })
+    ).rejects.toMatchObject({ statusCode: 404, code: "NotFound" });
+  });
+
+  it("should_report_missing_cancellation_token_secret()", async function () {
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Confirmed",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid"
+        })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue(""),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: "token" })
+    ).rejects.toMatchObject({ statusCode: 503, code: "CancellationNotConfigured" });
+  });
+
+  it("should_reject_cancellation_with_expired_token()", async function () {
+    const exp = Math.floor(Date.now() / 1000) - 60;
+    const token = createCancellationToken(
+      { reservationId: "res-1", sessionId: "cs_test_123", exp: exp },
+      "unit-test-secret"
+    );
+
+    ReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Confirmed",
+          paymentSessionId: "cs_test_123",
+          paymentStatus: "Paid"
+        })
+      },
+      ConfigurationService: {
+        getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
+        getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
+        getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      }
+    });
+
+    await expect(
+      ReservationService.cancelReservation({ reservationId: "res-1", token: token })
+    ).rejects.toMatchObject({ statusCode: 410, code: "TokenExpired" });
   });
 });

@@ -1,12 +1,17 @@
 const MailService = require("../../../services/MailService");
 
 describe("MailService", function () {
-  it("should_return_deterministic_log_only_payload()", async function () {
+  beforeEach(function () {
+    MailService.__resetDependencies();
+    vi.clearAllMocks();
+  });
+
+  it("should_return_log_only_payload_when_mail_mode_is_not_acs()", async function () {
     process.env.MAIL_MODE = "log-only";
-    process.env.RESERVATION_NOTIFY_EMAIL = "ops@example.com";
 
     const result = await MailService.sendReservationNotification({
       fullName: "Jan Kowalski",
+      email: "jan@example.com",
       dateFrom: "2026-08-10",
       dateTo: "2026-08-12",
       padsCount: 2
@@ -15,25 +20,292 @@ describe("MailService", function () {
     expect(result).toMatchObject({
       queued: true,
       mode: "log-only",
-      recipient: "ops@example.com"
+      recipient: "jan@example.com",
+      operationId: "log-only"
     });
   });
 
-  it("should_use_default_values_when_environment_is_missing()", async function () {
-    delete process.env.MAIL_MODE;
-    delete process.env.RESERVATION_NOTIFY_EMAIL;
+  it("should_send_reservation_notification_with_acs_when_enabled()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-1" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: {
+        beginSend: beginSend
+      },
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
 
     const result = await MailService.sendReservationNotification({
+      id: "res-1",
       fullName: "Jan Kowalski",
+      email: "jan@example.com",
+      phone: "+48500500500",
       dateFrom: "2026-08-10",
       dateTo: "2026-08-12",
-      padsCount: 2
+      padsCount: 2,
+      deliveryMethod: "pickup",
+      pickupPoint: "Stablowice",
+      amount: 120,
+      currency: "PLN",
+      payment: {
+        checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+      },
+      cancelUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-1&token=abc",
+      cancelExpiresAt: "2026-08-20T12:00:00.000Z"
+    });
+
+    expect(beginSend).toHaveBeenCalledTimes(1);
+    expect(beginSend.mock.calls[0][0]).toMatchObject({
+      senderAddress: "noreply@skucha.co"
+    });
+    expect(result).toMatchObject({
+      queued: true,
+      mode: "acs-email",
+      recipient: "jan@example.com",
+      operationId: "mail-op-1"
+    });
+  });
+
+  it("should_send_cancellation_notification_with_acs_when_enabled()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-2" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: {
+        beginSend: beginSend
+      },
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
+
+    const result = await MailService.sendCancellationNotification(
+      {
+        id: "res-1",
+        customerName: "Jan Kowalski",
+        customerEmail: "jan@example.com"
+      },
+      {
+        status: "Cancelled",
+        paymentStatus: "RefundPending",
+        refund: { refundId: "re_1" }
+      }
+    );
+
+    expect(beginSend).toHaveBeenCalledTimes(1);
+    expect(result.operationId).toBe("mail-op-2");
+  });
+
+  it("should_include_complete_checkout_details_in_payment_confirmation_email()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-3" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: { beginSend: beginSend },
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
+
+    await MailService.sendPaymentConfirmationNotification({
+      id: "res-1",
+      status: "Confirmed",
+      fullName: "Jan Kowalski",
+      email: "jan@example.com",
+      phone: "+48500500500",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-12",
+      padsCount: 2,
+      deliveryMethod: "pickup",
+      pickupPoint: "Stablowice",
+      notes: "Bring extra straps",
+      amount: 120,
+      currency: "PLN",
+      paymentStatus: "Paid",
+      paymentSessionId: "cs_test_123",
+      checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
+      cancelUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-1&token=abc",
+      cancelExpiresAt: "2026-08-20T12:00:00.000Z"
+    });
+
+    const message = beginSend.mock.calls[0][0];
+
+    expect(message.content.subject).toBe("Skucha - platnosc potwierdzona");
+    expect(message.content.plainText).toContain("Jan Kowalski");
+    expect(message.content.plainText).toContain("2026-08-10 - 2026-08-12");
+    expect(message.content.plainText).toContain("Liczba padow: 2");
+    expect(message.content.plainText).toContain("Punkt odbioru: Stablowice");
+    expect(message.content.plainText).toContain("Uwagi: Bring extra straps");
+    expect(message.content.plainText).toContain("120 PLN");
+    expect(message.content.plainText).toContain("cs_test_123");
+    expect(message.content.plainText).toContain("/api/reservation/cancel?reservation_id=res-1");
+  });
+
+  it("should_send_expired_checkout_notification_with_acs_when_enabled()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-4" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: { beginSend: beginSend },
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
+
+    const result = await MailService.sendPaymentExpiredNotification({
+      customerName: "Jan Kowalski",
+      customerEmail: "jan@example.com",
+      paymentStatus: "Expired"
+    });
+
+    expect(beginSend.mock.calls[0][0].content.subject).toBe("Skucha - sesja platnosci wygasla");
+    expect(result.operationId).toBe("mail-op-4");
+  });
+
+  it("should_support_repository_shaped_reservation_data_in_pending_email()", async function () {
+    process.env.MAIL_MODE = "log-only";
+
+    const result = await MailService.sendPaymentPendingNotification({
+      customerName: "Jan Kowalski",
+      customerEmail: "jan@example.com",
+      customerPhone: "+48500500500",
+      fromDate: "2026-08-10",
+      toDate: "2026-08-12",
+      pads: 2,
+      payment: {
+        amount: 120,
+        currency: "pln",
+        status: "Unpaid",
+        sessionId: "cs_test_123",
+        checkoutUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+      },
+      cancellationUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-1&token=abc",
+      cancellationExpiresAt: "2026-08-20T12:00:00.000Z"
     });
 
     expect(result).toMatchObject({
-      queued: true,
       mode: "log-only",
-      recipient: "kontakt@skucha.pl"
+      recipient: "jan@example.com"
     });
+  });
+
+  it("should_use_default_values_for_sparse_checkout_notification()", async function () {
+    process.env.MAIL_MODE = "log-only";
+
+    const result = await MailService.sendPaymentExpiredNotification({});
+
+    expect(result).toMatchObject({
+      mode: "log-only",
+      recipient: ""
+    });
+  });
+
+  it("should_report_missing_acs_connection_string()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    MailService.__setDependencies({
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue(""),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
+
+    await expect(MailService.sendReservationNotification({ email: "jan@example.com" })).rejects.toMatchObject({
+      statusCode: 503,
+      code: "MailNotConfigured"
+    });
+  });
+
+  it("should_report_missing_acs_sender_address()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    MailService.__setDependencies({
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("")
+      }
+    });
+
+    await expect(MailService.sendReservationNotification({ email: "jan@example.com" })).rejects.toMatchObject({
+      statusCode: 503,
+      code: "MailSenderNotConfigured"
+    });
+  });
+
+  it("should_create_acs_client_and_allow_missing_operation_id()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({})
+    });
+    const EmailClient = vi.fn().mockImplementation(function () {
+      return { beginSend: beginSend };
+    });
+
+    MailService.__setDependencies({
+      EmailClient: EmailClient,
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
+
+    const result = await MailService.sendPaymentConfirmationNotification({
+      email: "jan@example.com"
+    });
+
+    expect(EmailClient).toHaveBeenCalledWith("endpoint=https://example");
+    expect(result.operationId).toBe("");
+  });
+
+  it("should_send_cancellation_notification_with_default_result_details()", async function () {
+    process.env.MAIL_MODE = "log-only";
+
+    const result = await MailService.sendCancellationNotification({}, {});
+
+    expect(result).toMatchObject({
+      mode: "log-only",
+      recipient: ""
+    });
+  });
+
+  it("should_reuse_cached_acs_client_for_multiple_messages()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-cache" })
+    });
+    const emailClient = { beginSend: beginSend };
+
+    MailService.__setDependencies({
+      emailClient: emailClient,
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+      }
+    });
+
+    await MailService.sendPaymentConfirmationNotification({ email: "jan@example.com" });
+    await MailService.sendPaymentExpiredNotification({ email: "jan@example.com" });
+
+    expect(beginSend).toHaveBeenCalledTimes(2);
   });
 });

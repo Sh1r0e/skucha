@@ -1,6 +1,9 @@
 const Reservation = require("../models/Reservation");
+const crypto = require("crypto");
+const { Buffer } = require("buffer");
 const AvailabilityService = require("./AvailabilityService");
 const ConfigService = require("./ConfigService");
+const ConfigurationService = require("./ConfigurationService");
 const MailService = require("./MailService");
 const StripeService = require("./StripeService");
 const ReservationRepository = require("../repositories/ReservationRepository");
@@ -8,6 +11,7 @@ const ReservationRepository = require("../repositories/ReservationRepository");
 const defaultDependencies = {
   AvailabilityService,
   ConfigService,
+  ConfigurationService,
   MailService,
   StripeService,
   ReservationRepository
@@ -23,6 +27,34 @@ const RESERVATION_STATUS = {
 function badRequest(message) {
   const error = new Error(message);
   error.statusCode = 400;
+  return error;
+}
+
+function conflict(message, code) {
+  const error = new Error(message);
+  error.statusCode = 409;
+  error.code = code || "Conflict";
+  return error;
+}
+
+function notFound(message, code) {
+  const error = new Error(message);
+  error.statusCode = 404;
+  error.code = code || "NotFound";
+  return error;
+}
+
+function gone(message, code) {
+  const error = new Error(message);
+  error.statusCode = 410;
+  error.code = code || "TokenExpired";
+  return error;
+}
+
+function serverError(message, code) {
+  const error = new Error(message);
+  error.statusCode = 503;
+  error.code = code || "ServiceUnavailable";
   return error;
 }
 
@@ -158,6 +190,97 @@ function createReservationService(customDependencies) {
     ...(customDependencies || {})
   };
 
+  function getCancellationSettings() {
+    const secret = dependencies.ConfigurationService.getReservationCancelTokenSecret();
+
+    if (!secret) {
+      throw serverError("Reservation cancellation token secret is not configured", "CancellationNotConfigured");
+    }
+
+    const baseUrl = String(dependencies.ConfigurationService.getReservationPublicBaseUrl() || "").replace(/\/$/, "");
+    const ttlHours = Number(dependencies.ConfigurationService.getReservationCancelTokenTtlHours() || 72);
+
+    return {
+      secret,
+      baseUrl: baseUrl || "https://www.skucha.co",
+      ttlHours: Number.isFinite(ttlHours) && ttlHours > 0 ? ttlHours : 72
+    };
+  }
+
+  function signCancellationToken(encodedPayload, secret) {
+    return crypto
+      .createHmac("sha256", secret)
+      .update(encodedPayload)
+      .digest("hex");
+  }
+
+  function generateCancellationToken(reservationId, sessionId) {
+    const settings = getCancellationSettings();
+    const expiresAtUnix = Math.floor(Date.now() / 1000) + (settings.ttlHours * 60 * 60);
+    const payload = {
+      reservationId: String(reservationId || ""),
+      sessionId: String(sessionId || ""),
+      exp: expiresAtUnix
+    };
+    const encodedPayload = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+    const signature = signCancellationToken(encodedPayload, settings.secret);
+
+    return {
+      token: encodedPayload + "." + signature,
+      expiresAt: new Date(expiresAtUnix * 1000).toISOString()
+    };
+  }
+
+  function verifyCancellationToken(token, reservationId, paymentSessionId) {
+    const settings = getCancellationSettings();
+    const rawToken = String(token || "");
+    const parts = rawToken.split(".");
+
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      throw badRequest("Invalid cancellation token format");
+    }
+
+    const encodedPayload = parts[0];
+    const providedSignature = parts[1];
+    const expectedSignature = signCancellationToken(encodedPayload, settings.secret);
+    const providedBuffer = Buffer.from(providedSignature, "utf8");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+
+    if (providedBuffer.length !== expectedBuffer.length
+      || !crypto.timingSafeEqual(providedBuffer, expectedBuffer)) {
+      throw badRequest("Invalid cancellation token signature");
+    }
+
+    let payload;
+
+    try {
+      payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+    } catch (_error) {
+      throw badRequest("Invalid cancellation token payload");
+    }
+
+    if (!payload || payload.reservationId !== reservationId) {
+      throw badRequest("Cancellation token does not match reservation");
+    }
+
+    if (String(payload.sessionId || "") !== String(paymentSessionId || "")) {
+      throw badRequest("Cancellation token does not match payment session");
+    }
+
+    if (!payload.exp || Number(payload.exp) < Math.floor(Date.now() / 1000)) {
+      throw gone("Cancellation token expired", "TokenExpired");
+    }
+
+    return payload;
+  }
+
+  function buildCancellationUrl(reservationId, token) {
+    const settings = getCancellationSettings();
+    return settings.baseUrl
+      + "/api/reservation/cancel?reservation_id=" + encodeURIComponent(reservationId)
+      + "&token=" + encodeURIComponent(token);
+  }
+
   async function createReservation(reservation) {
     if (!(reservation instanceof Reservation)) {
       reservation = new Reservation(reservation || {});
@@ -184,6 +307,8 @@ function createReservationService(customDependencies) {
       dateTo: reservation.dateTo,
       padsCount: reservation.padsCount,
       notes: reservation.notes,
+      deliveryMethod: reservation.deliveryMethod,
+      pickupPoint: reservation.pickupPoint,
       status: RESERVATION_STATUS.PENDING
     });
 
@@ -204,10 +329,17 @@ function createReservationService(customDependencies) {
       description: daysCount + " day(s), " + reservation.padsCount + " pad(s)"
     });
 
+    const cancellationToken = generateCancellationToken(savedReservation.id, payment.sessionId);
+    const cancellationUrl = buildCancellationUrl(savedReservation.id, cancellationToken.token);
+
     await dependencies.ReservationRepository.attachPayment(savedReservation.id, {
       sessionId: payment.sessionId,
       paymentStatus: payment.paymentStatus,
-      paymentUrl: payment.url
+      paymentUrl: payment.url,
+      amountInMinorUnit: amountInMinorUnit,
+      currency: currency,
+      cancellationUrl: cancellationUrl,
+      cancellationExpiresAt: cancellationToken.expiresAt
     });
 
     const mailResult = await dependencies.MailService.sendReservationNotification({
@@ -217,9 +349,14 @@ function createReservationService(customDependencies) {
       payment: {
         sessionId: payment.sessionId,
         checkoutUrl: payment.url,
+        status: payment.paymentStatus,
         amount: amountInMajorUnit,
         currency: currency.toUpperCase()
-      }
+      },
+      amount: amountInMajorUnit,
+      currency: currency.toUpperCase(),
+      cancelUrl: cancellationUrl,
+      cancelExpiresAt: cancellationToken.expiresAt
     });
 
     return {
@@ -236,6 +373,7 @@ function createReservationService(customDependencies) {
         padsCount: savedReservation.pads,
         deliveryMethod: reservation.deliveryMethod,
         pickupPoint: reservation.pickupPoint,
+        notes: reservation.notes,
         createdAt: savedReservation.createdAt
       },
       payment: {
@@ -247,12 +385,101 @@ function createReservationService(customDependencies) {
         amountInMinorUnit: amountInMinorUnit,
         currency: currency.toUpperCase()
       },
+      cancellation: {
+        url: cancellationUrl,
+        expiresAt: cancellationToken.expiresAt
+      },
+      mail: mailResult
+    };
+  }
+
+  async function cancelReservation(payload) {
+    const reservationId = String((payload && payload.reservationId) || "").trim();
+    const token = String((payload && payload.token) || "").trim();
+
+    if (!reservationId) {
+      throw badRequest("reservationId is required");
+    }
+
+    if (!token) {
+      throw badRequest("token is required");
+    }
+
+    const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+
+    if (!reservation) {
+      throw notFound("Reservation not found", "NotFound");
+    }
+
+    if (reservation.status === RESERVATION_STATUS.CANCELLED) {
+      return {
+        reservationId: reservation.id,
+        status: reservation.status,
+        paymentStatus: reservation.paymentStatus,
+        refund: null,
+        alreadyCancelled: true
+      };
+    }
+
+    if (reservation.status === RESERVATION_STATUS.COMPLETED) {
+      throw conflict("Completed reservations cannot be cancelled", "AlreadyCompleted");
+    }
+
+    verifyCancellationToken(token, reservation.id, reservation.paymentSessionId);
+
+    let refund = null;
+    let paymentStatus = reservation.paymentStatus || "";
+
+    if (String(paymentStatus).toLowerCase() === "paid") {
+      refund = await dependencies.StripeService.refundCheckoutSessionPayment({
+        sessionId: reservation.paymentSessionId,
+        reservationId: reservation.id,
+        reason: "requested_by_customer"
+      });
+
+      paymentStatus = refund.status === "succeeded" ? "Refunded" : "RefundPending";
+    } else if (!paymentStatus || ["unpaid", "pending", "expired"].indexOf(String(paymentStatus).toLowerCase()) !== -1) {
+      paymentStatus = "Cancelled";
+    }
+
+    const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservation.id, {
+      sessionId: reservation.paymentSessionId,
+      paymentStatus: paymentStatus,
+      paymentUrl: reservation.paymentUrl
+    });
+
+    if (!paymentUpdate) {
+      throw notFound("Reservation not found while updating payment", "NotFound");
+    }
+
+    const statusUpdate = await dependencies.ReservationRepository.updateStatus(
+      reservation.id,
+      RESERVATION_STATUS.CANCELLED
+    );
+
+    if (!statusUpdate) {
+      throw notFound("Reservation not found while updating status", "NotFound");
+    }
+
+    const cancellationResult = {
+      reservationId: reservation.id,
+      status: RESERVATION_STATUS.CANCELLED,
+      paymentStatus: paymentStatus,
+      refund: refund,
+      alreadyCancelled: false
+    };
+
+    const mailResult = await dependencies.MailService.sendCancellationNotification(reservation, cancellationResult);
+
+    return {
+      ...cancellationResult,
       mail: mailResult
     };
   }
 
   return {
-    createReservation
+    createReservation,
+    cancelReservation
   };
 }
 
@@ -270,6 +497,9 @@ module.exports = {
   RESERVATION_STATUS,
   createReservation: function createReservationProxy(reservation) {
     return activeService.createReservation(reservation);
+  },
+  cancelReservation: function cancelReservationProxy(payload) {
+    return activeService.cancelReservation(payload);
   },
   createReservationService,
   __setDependencies,

@@ -41,6 +41,8 @@ describe("ReservationRepository", function () {
       dateTo: "2026-08-12",
       padsCount: 3,
       notes: "test",
+      deliveryMethod: "pickup",
+      pickupPoint: "Stablowice",
       status: "Pending"
     });
 
@@ -55,7 +57,9 @@ describe("ReservationRepository", function () {
       FromDate: "2026-08-10",
       ToDate: "2026-08-12",
       Pads: 3,
-      Notes: "test"
+      Notes: "test",
+      DeliveryMethod: "pickup",
+      PickupPoint: "Stablowice"
     });
     expect(result.id).toBe("fixed-uuid-1");
   });
@@ -252,7 +256,11 @@ describe("ReservationRepository", function () {
     const updated = await ReservationRepository.attachPayment("res-2", {
       sessionId: "cs_test_123",
       paymentStatus: "unpaid",
-      paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+      paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
+      amountInMinorUnit: 12000,
+      currency: "pln",
+      cancellationUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-2&token=abc",
+      cancellationExpiresAt: "2026-08-20T12:00:00.000Z"
     });
 
     expect(mockClient.updateEntity).toHaveBeenCalledWith(
@@ -261,11 +269,54 @@ describe("ReservationRepository", function () {
         rowKey: "res-2",
         PaymentSessionId: "cs_test_123",
         PaymentStatus: "unpaid",
-        PaymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+        PaymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
+        PaymentAmountMinor: 12000,
+        PaymentCurrency: "PLN",
+        CancellationUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-2&token=abc",
+        CancellationExpiresAt: "2026-08-20T12:00:00.000Z"
       },
       "Merge"
     );
     expect(updated.paymentSessionId).toBe("cs_test_123");
+    expect(updated.paymentAmountMinor).toBe(12000);
+    expect(updated.paymentCurrency).toBe("PLN");
+    expect(updated.cancellationUrl).toContain("/api/reservation/cancel");
+  });
+
+  it("should_preserve_existing_payment_url_when_update_omits_it()", async function () {
+    mockClient.listEntities.mockReturnValue(
+      createAsyncIterable([
+        {
+          partitionKey: "2026-08",
+          rowKey: "res-5",
+          Status: "Pending",
+          CustomerName: "E",
+          CustomerEmail: "e@example.com",
+          CustomerPhone: "+48000000005",
+          FromDate: "2026-08-10",
+          ToDate: "2026-08-11",
+          Pads: 1,
+          Notes: "",
+          PaymentSessionId: "cs_old",
+          PaymentStatus: "unpaid",
+          PaymentUrl: "https://checkout.stripe.com/c/pay/cs_old"
+        }
+      ])
+    );
+
+    await ReservationRepository.attachPayment("res-5", {
+      sessionId: "cs_old",
+      paymentStatus: "Expired"
+    });
+
+    expect(mockClient.updateEntity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        PaymentSessionId: "cs_old",
+        PaymentStatus: "Expired",
+        PaymentUrl: "https://checkout.stripe.com/c/pay/cs_old"
+      }),
+      "Merge"
+    );
   });
 
   it("should_return_null_when_updateStatus_target_does_not_exist()", async function () {

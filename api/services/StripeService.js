@@ -144,9 +144,58 @@ function createStripeService(customDependencies) {
     }
   }
 
+  async function refundCheckoutSessionPayment(params) {
+    const sessionId = String((params && params.sessionId) || "").trim();
+
+    if (!sessionId) {
+      const validationError = new Error("sessionId is required for refund");
+      validationError.statusCode = 400;
+      validationError.code = "MissingSessionId";
+      throw validationError;
+    }
+
+    const stripeClient = getClient();
+
+    let session;
+
+    try {
+      session = await stripeClient.checkout.sessions.retrieve(sessionId);
+    } catch (error) {
+      throw createPaymentError("Unable to load Stripe checkout session", error, "PaymentProviderError");
+    }
+
+    const paymentIntentId = session && session.payment_intent ? String(session.payment_intent) : "";
+
+    if (!paymentIntentId) {
+      const notRefundable = new Error("Checkout session has no payment intent to refund");
+      notRefundable.statusCode = 409;
+      notRefundable.code = "PaymentNotRefundable";
+      throw notRefundable;
+    }
+
+    try {
+      const refund = await stripeClient.refunds.create({
+        payment_intent: paymentIntentId,
+        reason: (params && params.reason) || "requested_by_customer",
+        metadata: {
+          reservationId: (params && params.reservationId) || ""
+        }
+      });
+
+      return {
+        refundId: refund.id,
+        status: refund.status || "pending",
+        paymentIntentId: paymentIntentId
+      };
+    } catch (error) {
+      throw createPaymentError("Unable to create Stripe refund", error, "RefundFailed");
+    }
+  }
+
   return {
     createCheckoutSession,
-    verifyWebhookSignature
+    verifyWebhookSignature,
+    refundCheckoutSessionPayment
   };
 }
 
@@ -166,6 +215,9 @@ module.exports = {
   },
   verifyWebhookSignature: function verifyWebhookSignatureProxy(rawBody, signature) {
     return activeService.verifyWebhookSignature(rawBody, signature);
+  },
+  refundCheckoutSessionPayment: function refundCheckoutSessionPaymentProxy(params) {
+    return activeService.refundCheckoutSessionPayment(params);
   },
   createStripeService,
   __setDependencies,

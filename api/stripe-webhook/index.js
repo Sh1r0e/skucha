@@ -1,5 +1,6 @@
 const StripeService = require("../services/StripeService");
 const ReservationRepository = require("../repositories/ReservationRepository");
+const MailService = require("../services/MailService");
 
 // Maps Stripe checkout.session payment_status to internal reservation payment status.
 const PAYMENT_STATUS_MAP = {
@@ -25,6 +26,7 @@ function createWebhookHandler(customDependencies) {
   const dependencies = {
     StripeService,
     ReservationRepository,
+    MailService,
     ...(customDependencies || {})
   };
 
@@ -149,11 +151,24 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
   const internalPaymentStatus = PAYMENT_STATUS_MAP[stripePaymentStatus] || "Unpaid";
   const reservationStatus = RESERVATION_STATUS_ON_PAYMENT[internalPaymentStatus] || "Pending";
 
-  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, {
+  const payment = {
     sessionId: session.id,
-    paymentStatus: internalPaymentStatus,
-    paymentUrl: session.url || ""
-  });
+    paymentStatus: internalPaymentStatus
+  };
+
+  if (session.url) {
+    payment.paymentUrl = session.url;
+  }
+
+  if (Number.isInteger(session.amount_total)) {
+    payment.amountInMinorUnit = session.amount_total;
+  }
+
+  if (session.currency) {
+    payment.currency = session.currency;
+  }
+
+  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, payment);
 
   if (!paymentUpdate) {
     throw createWebhookHandlingError(
@@ -171,6 +186,28 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
     );
   }
 
+  const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+
+  if (!reservation) {
+    throw createWebhookHandlingError(
+      "Reservation not found while loading notification details",
+      "ReservationNotFound"
+    );
+  }
+
+  const notificationReservation = buildNotificationReservation(
+    reservation,
+    session,
+    internalPaymentStatus,
+    reservationStatus
+  );
+
+  if (reservationStatus === "Confirmed") {
+    await dependencies.MailService.sendPaymentConfirmationNotification(notificationReservation);
+  } else {
+    await dependencies.MailService.sendPaymentPendingNotification(notificationReservation);
+  }
+
   context.log("Stripe webhook: reservation updated after checkout.session.completed", {
     reservationId,
     internalPaymentStatus,
@@ -186,11 +223,20 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
     return;
   }
 
-  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, {
+  const payment = {
     sessionId: session.id,
-    paymentStatus: "Expired",
-    paymentUrl: ""
-  });
+    paymentStatus: "Expired"
+  };
+
+  if (Number.isInteger(session.amount_total)) {
+    payment.amountInMinorUnit = session.amount_total;
+  }
+
+  if (session.currency) {
+    payment.currency = session.currency;
+  }
+
+  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, payment);
 
   if (!paymentUpdate) {
     throw createWebhookHandlingError(
@@ -199,7 +245,59 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
     );
   }
 
+  const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+
+  if (!reservation) {
+    throw createWebhookHandlingError(
+      "Reservation not found while loading expiration notification details",
+      "ReservationNotFound"
+    );
+  }
+
+  await dependencies.MailService.sendPaymentExpiredNotification(
+    buildNotificationReservation(reservation, session, "Expired", reservation.status)
+  );
+
   context.log("Stripe webhook: reservation payment marked Expired", { reservationId });
+}
+
+function buildNotificationReservation(reservation, session, paymentStatus, reservationStatus) {
+  const amountInMinorUnit = Number(
+    reservation.paymentAmountMinor || session.amount_total || 0
+  );
+  const currency = String(
+    reservation.paymentCurrency || session.currency || "PLN"
+  ).toUpperCase();
+  const checkoutUrl = reservation.paymentUrl || session.url || "";
+
+  return {
+    ...reservation,
+    id: reservation.id,
+    status: reservationStatus || reservation.status,
+    fullName: reservation.customerName,
+    email: reservation.customerEmail,
+    phone: reservation.customerPhone,
+    dateFrom: reservation.fromDate,
+    dateTo: reservation.toDate,
+    padsCount: reservation.pads,
+    deliveryMethod: reservation.deliveryMethod,
+    pickupPoint: reservation.pickupPoint,
+    notes: reservation.notes,
+    amount: amountInMinorUnit > 0 ? amountInMinorUnit / 100 : "-",
+    currency: currency,
+    paymentStatus: paymentStatus,
+    paymentSessionId: reservation.paymentSessionId || session.id,
+    checkoutUrl: checkoutUrl,
+    cancelUrl: reservation.cancellationUrl,
+    cancelExpiresAt: reservation.cancellationExpiresAt,
+    payment: {
+      sessionId: reservation.paymentSessionId || session.id,
+      status: paymentStatus,
+      checkoutUrl: checkoutUrl,
+      amount: amountInMinorUnit > 0 ? amountInMinorUnit / 100 : "-",
+      currency: currency
+    }
+  };
 }
 
 let activeHandler = createWebhookHandler();

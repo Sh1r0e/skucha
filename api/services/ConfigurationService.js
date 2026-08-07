@@ -18,10 +18,36 @@ function getStripeWebhookSecret() {
   return process.env.STRIPE_WEBHOOK_SECRET;
 }
 
+function getAcsConnectionString() {
+  return process.env.ACS_CONNECTION_STRING;
+}
+
+function getAcsSenderAddress() {
+  return process.env.ACS_SENDER_ADDRESS || "noreply@skucha.co";
+}
+
+function getReservationPublicBaseUrl() {
+  return process.env.RESERVATION_PUBLIC_BASE_URL || "https://www.skucha.co";
+}
+
+function getReservationCancelTokenSecret() {
+  return process.env.RESERVATION_CANCEL_TOKEN_SECRET;
+}
+
+function getReservationCancelTokenTtlHours() {
+  const raw = Number(process.env.RESERVATION_CANCEL_TOKEN_TTL_HOURS || 72);
+  return Number.isFinite(raw) && raw > 0 ? raw : 72;
+}
+
 module.exports = {
   getStorageConnectionString,
   getStripeSecretKey,
   getStripeCheckoutSuccessUrl,
   getStripeCheckoutCancelUrl,
-  getStripeWebhookSecret
+  getStripeWebhookSecret,
+  getAcsConnectionString,
+  getAcsSenderAddress,
+  getReservationPublicBaseUrl,
+  getReservationCancelTokenSecret,
+  getReservationCancelTokenTtlHours
 };

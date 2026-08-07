@@ -56,9 +56,15 @@ function toPublicReservation(entity) {
     toDate: entity.ToDate,
     pads: Number(entity.Pads || 0),
     notes: entity.Notes || "",
+    deliveryMethod: entity.DeliveryMethod || "",
+    pickupPoint: entity.PickupPoint || "",
     paymentSessionId: entity.PaymentSessionId || "",
     paymentStatus: entity.PaymentStatus || "",
-    paymentUrl: entity.PaymentUrl || ""
+    paymentUrl: entity.PaymentUrl || "",
+    paymentAmountMinor: Number(entity.PaymentAmountMinor || 0),
+    paymentCurrency: entity.PaymentCurrency || "",
+    cancellationUrl: entity.CancellationUrl || "",
+    cancellationExpiresAt: entity.CancellationExpiresAt || ""
   };
 }
 
@@ -116,6 +122,8 @@ function createReservationRepository(customDependencies) {
       ToDate: reservation.dateTo,
       Pads: Number(reservation.padsCount || 0),
       Notes: reservation.notes || "",
+      DeliveryMethod: reservation.deliveryMethod || "",
+      PickupPoint: reservation.pickupPoint || "",
       PaymentSessionId: reservation.paymentSessionId || "",
       PaymentStatus: reservation.paymentStatus || "",
       PaymentUrl: reservation.paymentUrl || ""
@@ -196,10 +204,32 @@ function createReservationRepository(customDependencies) {
     const entity = {
       partitionKey: existing.partitionKey,
       rowKey: existing.id,
-      PaymentSessionId: payment && payment.sessionId ? payment.sessionId : "",
-      PaymentStatus: payment && payment.paymentStatus ? payment.paymentStatus : "",
-      PaymentUrl: payment && payment.paymentUrl ? payment.paymentUrl : ""
+      PaymentSessionId: payment && payment.sessionId
+        ? payment.sessionId
+        : (existing.paymentSessionId || ""),
+      PaymentStatus: payment && payment.paymentStatus
+        ? payment.paymentStatus
+        : (existing.paymentStatus || ""),
+      PaymentUrl: payment && payment.paymentUrl
+        ? payment.paymentUrl
+        : (existing.paymentUrl || "")
     };
+
+    if (payment && payment.amountInMinorUnit !== undefined) {
+      entity.PaymentAmountMinor = Number(payment.amountInMinorUnit || 0);
+    }
+
+    if (payment && payment.currency) {
+      entity.PaymentCurrency = String(payment.currency).toUpperCase();
+    }
+
+    if (payment && payment.cancellationUrl) {
+      entity.CancellationUrl = payment.cancellationUrl;
+    }
+
+    if (payment && payment.cancellationExpiresAt) {
+      entity.CancellationExpiresAt = payment.cancellationExpiresAt;
+    }
 
     try {
       await client.updateEntity(entity, "Merge");
@@ -207,7 +237,13 @@ function createReservationRepository(customDependencies) {
         ...existing,
         paymentSessionId: entity.PaymentSessionId,
         paymentStatus: entity.PaymentStatus,
-        paymentUrl: entity.PaymentUrl
+        paymentUrl: entity.PaymentUrl,
+        paymentAmountMinor: entity.PaymentAmountMinor !== undefined
+          ? entity.PaymentAmountMinor
+          : (existing.paymentAmountMinor || 0),
+        paymentCurrency: entity.PaymentCurrency || existing.paymentCurrency || "",
+        cancellationUrl: entity.CancellationUrl || existing.cancellationUrl || "",
+        cancellationExpiresAt: entity.CancellationExpiresAt || existing.cancellationExpiresAt || ""
       };
     } catch (error) {
       throw createStorageError("Unable to attach reservation payment", error, "StorageUpdateFailed");

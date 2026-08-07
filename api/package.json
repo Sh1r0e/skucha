@@ -15,6 +15,7 @@
     "node": "18.x"
   },
   "dependencies": {
+    "@azure/communication-email": "1.0.0",
     "@azure/data-tables": "13.2.2",
     "stripe": "^22.3.2",
     "uuid": "11.0.5"
@@ -26,6 +27,7 @@
     "vitest": "2.1.8"
   },
   "overrides": {
+    "@azure/communication-common": "2.3.0",
     "@azure/core-auth": "1.9.0",
     "@azure/core-client": "1.9.2",
     "@azure/core-rest-pipeline": "1.19.0",
