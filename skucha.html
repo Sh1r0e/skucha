@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skucha - Wypożyczalnia crash padów</title>
 <script src="./support.js"></script>
 <script src="./config/config-loader.js"></script>
 </head>
@@ -18,14 +19,72 @@
   html,body{ margin:0; padding:0; background:#f5f4f1; scroll-behavior:smooth; }
   body{ font-family:var(--font-main); color:var(--ink); -webkit-font-smoothing:antialiased; }
   a{ color:inherit; }
+  .mobile-sticky-cta{ display:none; }
+
+  @media (max-width:960px){
+    #skucha-root.site-shell{ overflow:hidden; }
+    .site-nav-inner{ padding:14px 20px !important; }
+    .site-nav-links{ display:none !important; }
+    .site-nav-actions{ gap:8px !important; }
+    .site-nav-actions > a:first-child{ font-size:11px !important; }
+    .site-nav-actions > a:last-child{ padding:10px 13px !important; font-size:13px !important; }
+    .site-hero{ display:flex !important; flex-direction:column !important; gap:24px !important; padding:32px 20px 48px !important; }
+    .hero-copy{ padding-top:0 !important; }
+    .hero-copy > h2{ font-size:clamp(42px,11vw,64px) !important; }
+    .hero-copy > h3{ font-size:17px !important; max-width:38ch !important; }
+    .booking-card{ width:100%; padding:18px !important; border-radius:18px !important; box-shadow:0 12px 30px -18px rgba(0,0,0,0.25) !important; }
+    .section-inner{ padding:56px 20px !important; }
+    .how-grid{ grid-template-columns:repeat(2,1fr) !important; gap:16px !important; }
+    .how-grid > div{ padding:20px !important; min-height:180px !important; }
+    .pricing-layout{ grid-template-columns:1fr !important; gap:32px !important; }
+    .pricing-cards{ grid-template-columns:repeat(3,1fr) !important; gap:12px !important; }
+    .pricing-card{ padding:20px !important; min-height:150px !important; }
+    .product-card{ grid-template-columns:1fr !important; }
+    .product-media{ min-height:260px !important; }
+    .product-details{ padding:28px !important; }
+    .product-specs{ grid-template-columns:repeat(3,1fr) !important; }
+    .upcoming-card{ flex-direction:column !important; align-items:flex-start !important; padding:24px !important; }
+    .upcoming-tags{ flex-direction:row !important; flex-wrap:wrap !important; }
+    .points-grid{ grid-template-columns:1fr !important; }
+    .delivery-card{ grid-template-columns:1fr !important; padding:36px !important; }
+    .delivery-tags{ flex-direction:row !important; flex-wrap:wrap !important; }
+    .faq-layout{ grid-template-columns:1fr !important; gap:28px !important; }
+    .faq-intro{ position:static !important; }
+    .site-footer-inner{ grid-template-columns:1fr !important; padding:52px 20px !important; gap:32px !important; }
+    .footer-actions{ max-width:none !important; margin-left:0 !important; }
+  }
+
+  @media (max-width:600px){
+    .site-nav-actions > a:first-child{ display:none !important; }
+    .site-hero{ gap:20px !important; padding:28px 20px 40px !important; }
+    .hero-copy > h2{ font-size:38px !important; }
+    .hero-copy > h3{ font-size:16px !important; }
+    .hero-stats{ display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:0 !important; margin-top:28px !important; }
+    .hero-stats > div{ padding:16px 10px !important; }
+    .hero-stats > div:first-child{ padding-left:0 !important; }
+    .hero-stats > div > div:first-child{ font-size:23px !important; }
+    .hero-stats > div > div:last-child{ font-size:9px !important; }
+    .section-inner{ padding:48px 20px !important; }
+    .how-grid{ grid-template-columns:1fr !important; }
+    .pricing-cards{ grid-template-columns:1fr !important; }
+    .product-details{ padding:20px !important; }
+    .product-specs{ grid-template-columns:repeat(2,1fr) !important; }
+    .delivery-card{ padding:28px 22px !important; }
+    .how-title,.pricing-title,.equipment-title,.points-title,.faq-title{ font-size:32px !important; }
+    .delivery-title{ font-size:36px !important; }
+    #skucha-root.site-shell{ padding-bottom:84px !important; }
+    .mobile-sticky-cta{ position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; align-items:center; gap:12px; max-width:none; margin:0; padding:12px 16px; background:rgba(255,255,255,0.94); border-top:1px solid #e7e5e1; backdrop-filter:blur(10px); }
+    .mobile-sticky-cta > div{ flex:1; min-width:0; }
+    .mobile-sticky-cta > a{ flex:none; }
+  }
 </style>
 </helmet>
 
-<div ref="{{ rootRef }}" id="skucha-root" style="width:100%; min-height:100vh; background:#ffffff; font-family:var(--font-main);">
+<div ref="{{ rootRef }}" id="skucha-root" class="site-shell" style="width:100%; min-height:100vh; background:#ffffff; font-family:var(--font-main);">
 
   <!-- NAV -->
-  <div style="position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); border-bottom:1px solid #ededea;">
-    <div style="max-width:1200px; margin:0 auto; padding:16px 40px; display:flex; align-items:center; justify-content:space-between;">
+  <div class="site-nav" style="position:sticky; top:0; z-index:50; background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); border-bottom:1px solid #ededea;">
+    <div class="site-nav-inner" style="max-width:1200px; margin:0 auto; padding:16px 40px; display:flex; align-items:center; justify-content:space-between;">
       <div style="display:flex; align-items:center;">
         <sc-if value="{{ showLogo1 }}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 85 9" fill="var(--ink)" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SKUCHA" style="height:20px; width:auto; display:block;">
 <path d="M3.972 8.25601C3.46 8.25601 2.996 8.20801 2.58 8.11201C2.164 8.01601 1.804 7.87201 1.5 7.68001C1.196 7.48001 0.956 7.22801 0.78 6.92401C0.604 6.62001 0.5 6.26801 0.468 5.86801L2.16 5.30401C2.184 5.64001 2.28 5.92001 2.448 6.14401C2.616 6.36801 2.84 6.53601 3.12 6.64801C3.408 6.75201 3.728 6.80401 4.08 6.80401C4.416 6.80401 4.696 6.76401 4.92 6.68401C5.152 6.59601 5.324 6.48801 5.436 6.36001C5.556 6.22401 5.616 6.08001 5.616 5.92801C5.616 5.75201 5.54 5.60801 5.388 5.49601C5.236 5.37601 5.028 5.27601 4.764 5.19601C4.5 5.10801 4.192 5.02401 3.84 4.94401C3.44 4.84801 3.048 4.74401 2.664 4.63201C2.28 4.52001 1.932 4.37601 1.62 4.20001C1.308 4.01601 1.06 3.78401 0.876 3.50401C0.7 3.21601 0.612 2.85601 0.612 2.42401C0.612 1.93601 0.736 1.51201 0.984 1.15201C1.232 0.792012 1.596 0.512012 2.076 0.312013C2.556 0.104012 3.148 1.23978e-05 3.852 1.23978e-05C4.548 1.23978e-05 5.14 0.100012 5.628 0.300012C6.116 0.500012 6.492 0.780012 6.756 1.14001C7.02 1.49201 7.164 1.90401 7.188 2.37601L5.46 2.86801C5.46 2.63601 5.42 2.43201 5.34 2.25601C5.268 2.08001 5.164 1.93601 5.028 1.82401C4.892 1.70401 4.724 1.61601 4.524 1.56001C4.324 1.49601 4.096 1.46401 3.84 1.46401C3.536 1.46401 3.276 1.50001 3.06 1.57201C2.852 1.64401 2.696 1.74001 2.592 1.86001C2.488 1.97201 2.436 2.10401 2.436 2.25601C2.436 2.44801 2.516 2.60801 2.676 2.73601C2.844 2.85601 3.068 2.96001 3.348 3.04801C3.636 3.12801 3.952 3.20801 4.296 3.28801C4.64 3.36001 4.996 3.45201 5.364 3.56401C5.732 3.66801 6.076 3.80801 6.396 3.98401C6.716 4.16001 6.972 4.40001 7.164 4.70401C7.364 5.00001 7.464 5.37601 7.464 5.83201C7.464 6.32001 7.332 6.74801 7.068 7.11601C6.812 7.47601 6.424 7.75601 5.904 7.95601C5.384 8.15601 4.74 8.25601 3.972 8.25601ZM8.72644 8.08801V0.168012H10.6584V3.63601C11.0504 3.46001 11.4144 3.24001 11.7504 2.97601C12.0864 2.71201 12.3824 2.42401 12.6384 2.11201C12.9024 1.80001 13.1184 1.48001 13.2864 1.15201C13.4624 0.816013 13.5904 0.488013 13.6704 0.168012H15.9024C15.8064 0.536012 15.6504 0.912012 15.4344 1.29601C15.2184 1.67201 14.9584 2.03601 14.6544 2.38801C14.3504 2.73201 14.0224 3.04001 13.6704 3.31201C13.3264 3.58401 12.9744 3.80001 12.6144 3.96001V4.14001C12.9824 4.14001 13.3064 4.18001 13.5864 4.26001C13.8744 4.34001 14.1264 4.46401 14.3424 4.63201C14.5664 4.80001 14.7584 5.01201 14.9184 5.26801C15.0864 5.51601 15.2304 5.81601 15.3504 6.16801L16.0344 8.08801H13.8384L13.3944 6.51601C13.2984 6.16401 13.1704 5.88801 13.0104 5.68801C12.8504 5.48001 12.6384 5.33201 12.3744 5.24401C12.1104 5.14801 11.7704 5.10001 11.3544 5.10001H10.6584V8.08801H8.72644ZM20.6348 8.25601C20.1308 8.25601 19.6828 8.20401 19.2908 8.10001C18.8988 8.00401 18.5588 7.86001 18.2708 7.66801C17.9828 7.47601 17.7428 7.24401 17.5508 6.97201C17.3668 6.70001 17.2268 6.39601 17.1308 6.06001C17.0428 5.71601 16.9988 5.34401 16.9988 4.94401V0.168012H18.9428V4.88401C18.9428 5.26801 19.0028 5.58401 19.1228 5.83201C19.2428 6.08001 19.4268 6.26401 19.6748 6.38401C19.9228 6.49601 20.2388 6.55201 20.6228 6.55201C21.0068 6.55201 21.3228 6.49601 21.5708 6.38401C21.8188 6.26401 22.0028 6.08001 22.1228 5.83201C22.2428 5.58401 22.3028 5.26801 22.3028 4.88401V0.168012H24.2348V4.94401C24.2348 5.99201 23.9348 6.80801 23.3348 7.39201C22.7428 7.96801 21.8428 8.25601 20.6348 8.25601ZM29.5441 8.25601C28.9201 8.25601 28.3601 8.17201 27.8641 8.00401C27.3681 7.83601 26.9441 7.58001 26.5921 7.23601C26.2481 6.89201 25.9841 6.47201 25.8001 5.97601C25.6241 5.47201 25.5361 4.88401 25.5361 4.21201C25.5361 3.52401 25.6281 2.92001 25.8121 2.40001C25.9961 1.88001 26.2601 1.44001 26.6041 1.08001C26.9561 0.720012 27.3681 0.452013 27.8401 0.276012C28.3121 0.0920124 28.8361 1.23978e-05 29.4121 1.23978e-05C29.8681 1.23978e-05 30.2841 0.0560124 30.6601 0.168012C31.0441 0.280012 31.3761 0.448012 31.6561 0.672012C31.9361 0.888012 32.1521 1.15201 32.3041 1.46401C32.4641 1.76801 32.5481 2.11601 32.5561 2.50801L30.7681 3.00001C30.7681 2.67201 30.6961 2.40401 30.5521 2.19601C30.4161 1.98801 30.2401 1.83201 30.0241 1.72801C29.8161 1.61601 29.5881 1.56001 29.3401 1.56001C29.1401 1.56001 28.9321 1.60401 28.7161 1.69201C28.5081 1.77201 28.3161 1.91201 28.1401 2.11201C27.9641 2.30401 27.8241 2.56001 27.7201 2.88001C27.6161 3.20001 27.5641 3.60001 27.5641 4.08001C27.5641 4.70401 27.6521 5.20801 27.8281 5.59201C28.0041 5.97601 28.2481 6.26001 28.5601 6.44401C28.8721 6.62001 29.2161 6.70801 29.5921 6.70801C30.0081 6.70801 30.3281 6.62001 30.5521 6.44401C30.7841 6.26001 30.9481 6.03201 31.0441 5.76001C31.1401 5.48801 31.1921 5.21201 31.2001 4.93201L32.8801 5.19601C32.8721 5.62801 32.8081 6.03201 32.6881 6.40801C32.5681 6.78401 32.3761 7.11201 32.1121 7.39201C31.8561 7.66401 31.5161 7.87601 31.0921 8.02801C30.6681 8.18001 30.1521 8.25601 29.5441 8.25601ZM39.1989 8.08801V0.168012H41.1309V8.08801H39.1989ZM34.0389 8.08801V0.168012H35.9709V8.08801H34.0389ZM35.2149 4.87201V3.31201H39.9789V4.87201H35.2149ZM42.1446 8.08801L44.8326 0.168012H47.6646L50.3526 8.08801H48.2406L46.3446 1.68001H46.1526L44.2566 8.08801H42.1446ZM43.7406 6.60001V5.30401H49.0446V6.60001H43.7406Z" fill="var(--ink)"></path>
@@ -37,14 +96,14 @@
 <path d="M62.3063 8.2524H78.4263C78.7024 8.2524 78.9263 8.47625 78.9263 8.7524V10.5224C78.9263 10.7985 78.7024 11.0224 78.4263 11.0224H63.1063C62.6644 11.0224 62.3063 10.6642 62.3063 10.2224V8.2524Z" fill="var(--accent)"></path>
 </svg></sc-if>
       </div>
-      <div style="display:flex; align-items:center; gap:26px; white-space:nowrap;">
+      <div class="site-nav-links" style="display:flex; align-items:center; gap:26px; white-space:nowrap;">
         <a href="#jak" style="font-size:14px; font-weight:600; text-decoration:none; color:#4a4842;">Jak to działa</a>
         <a href="#cennik" style="font-size:14px; font-weight:600; text-decoration:none; color:#4a4842;">Cennik</a>
         <a href="#sprzet" style="font-size:14px; font-weight:600; text-decoration:none; color:#4a4842;">Sprzęt</a>
         <a href="#punkty" style="font-size:14px; font-weight:600; text-decoration:none; color:#4a4842;">Punkty odbioru</a>
         <a href="#faq" style="font-size:14px; font-weight:600; text-decoration:none; color:#4a4842;">FAQ</a>
       </div>
-      <div style="display:flex; align-items:center; gap:12px;">
+      <div class="site-nav-actions" style="display:flex; align-items:center; gap:12px;">
         <a href="{{ telHref }}" style="font-family:var(--font-mono); font-size:13px; text-decoration:none; color:var(--ink); font-weight:700; white-space:nowrap;">{{ phoneLabel }}</a>
         <a href="#rezerwacja" style="background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:14px; padding:11px 18px; border-radius:999px;">Rezerwuj</a>
       </div>
@@ -52,13 +111,13 @@
   </div>
 
   <!-- HERO -->
-  <div style="max-width:1200px; margin:0 auto; padding:72px 40px 64px; display:grid; grid-template-columns:1fr 480px; gap:60px; align-items:start;">
-    <div style="padding-top: 18px; position: relative">
+  <div class="site-hero" style="max-width:1200px; margin:0 auto; padding:72px 40px 64px; display:grid; grid-template-columns:1fr 480px; gap:60px; align-items:start;">
+    <div class="hero-copy" style="padding-top: 18px; position: relative">
       <h1 style="margin:0; font-family:var(--font-mono); font-size:13px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">WYPOŻYCZALNIA CRASH PADÓW · WROCŁAW</h1>
       <h2 style="margin:20px 0 0; font-size:74px; line-height:0.98; letter-spacing:-0.04em; font-weight:800;">Skucha?<br>Ląduj miękko.<br></h2>
       <h3 style="margin: 26px 0 0; font-size: 20px; line-height: 1.45; color: #6b6862; max-width: 46ch; text-decoration-line: none; font-weight:400;">Wypożycz crash pady wspinaczkowe online. Odbierz na wschodzie lub południu Wrocławia. Możliwość dowozu.</h3>
 
-      <div style="display:flex; gap:0; margin-top:40px; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
+      <div class="hero-stats" style="display:flex; gap:0; margin-top:40px; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
         <div style="flex:1; padding:22px 24px 22px 0;">
           <div style="font-size:34px; font-weight:800; letter-spacing:-0.02em;">1</div>
           <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">punkt odbioru</div>
@@ -75,7 +134,7 @@
     </div>
 
     <!-- BOOKING CARD -->
-    <div id="rezerwacja" style="border:1px solid #e7e5e1; border-radius:var(--r-xl); padding:22px; box-shadow:0 24px 60px -28px rgba(0,0,0,0.32);">
+    <div id="rezerwacja" class="booking-card" style="border:1px solid #e7e5e1; border-radius:var(--r-xl); padding:22px; box-shadow:0 24px 60px -28px rgba(0,0,0,0.32);">
       <div style="font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em; color:#9a968e; font-weight:700; text-transform:uppercase;">Zarezerwuj w 30 sekund</div>
 
       <!-- calendar -->
@@ -244,15 +303,15 @@
   </div>
 
   <!-- JAK TO DZIALA -->
-  <div id="jak" style="background:#faf9f7; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
-    <div style="max-width:1200px; margin:0 auto; padding:80px 40px;">
+  <div id="jak" class="how-band" style="background:#faf9f7; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
+    <div class="section-inner" style="max-width:1200px; margin:0 auto; padding:80px 40px;">
       <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:44px;">
         <div>
           <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">01 · Jak to działa</div>
-          <h2 style="margin:12px 0 0; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Cztery kroki do miękkiego lądowania</h2>
+          <h2 class="how-title" style="margin:12px 0 0; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Cztery kroki do miękkiego lądowania</h2>
         </div>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:24px;">
+      <div class="how-grid" style="display:grid; grid-template-columns:repeat(4,1fr); gap:24px;">
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">01</div>
           <div style="font-size:19px; font-weight:700; margin-top:30px;">Wybierz daty i liczbę padów</div>
@@ -265,8 +324,8 @@
         </div>
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">03</div>
-          <div style="font-size:19px; font-weight:700; margin-top:30px;">Potwierdź na WhatsApp</div>
-          <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">Wiadomość uzupełnia się sama. Dogadujemy miejsce i godzinę.</div>
+          <div style="font-size:19px; font-weight:700; margin-top:30px;">Opłać rezerwację online</div>
+            <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">Po akceptacji terminu przejdziesz do bezpiecznej płatności online przez Stripe.</div>
         </div>
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">04</div>
@@ -278,24 +337,24 @@
   </div>
 
   <!-- CENNIK -->
-  <div id="cennik" style="background:var(--ink); color:#fff;">
-    <div style="max-width:1200px; margin:0 auto; padding:80px 40px;">
-      <div style="display:grid; grid-template-columns:0.8fr 1.2fr; gap:60px; align-items:center;">
+  <div id="cennik" class="pricing-band" style="background:var(--ink); color:#fff;">
+    <div class="section-inner" style="max-width:1200px; margin:0 auto; padding:80px 40px;">
+      <div class="pricing-layout" style="display:grid; grid-template-columns:0.8fr 1.2fr; gap:60px; align-items:center;">
         <div>
           <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">02 · Cennik</div>
-          <h2 style="margin:12px 0 16px; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Prosto, za pad, za dzień</h2>
+          <h2 class="pricing-title" style="margin:12px 0 16px; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Prosto, za pad, za dzień</h2>
           <p style="font-family:var(--font-mono); font-size:12.5px; color:#9a968e; line-height:1.6; max-width:32ch;">Ceny za jeden pad. Kilka padów = wielokrotność. Dowóz liczony za każdy pad.</p>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
-          <div style="border:1px solid #34322d; border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
+        <div class="pricing-cards" style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
+          <div class="pricing-card" style="border:1px solid #34322d; border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
             <div><div style="font-size:19px; font-weight:700;">Dzień roboczy</div><div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; margin-top:4px;">pon – pt</div></div>
             <div style="font-family:var(--font-mono); font-size:30px; font-weight:700;">{{ pwLabel }} zł</div>
           </div>
-          <div style="border:1px solid #34322d; border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
+          <div class="pricing-card" style="border:1px solid #34322d; border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
             <div><div style="font-size:19px; font-weight:700;">Weekend</div><div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; margin-top:4px;">sob – niedz</div></div>
             <div style="font-family:var(--font-mono); font-size:30px; font-weight:700;">{{ weLabel }} zł</div>
           </div>
-          <div style="border:1px solid color-mix(in srgb, var(--accent) 50%, #34322d); background:color-mix(in srgb, var(--accent) 12%, transparent); border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
+          <div class="pricing-card" style="border:1px solid color-mix(in srgb, var(--accent) 50%, #34322d); background:color-mix(in srgb, var(--accent) 12%, transparent); border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
             <div><div style="font-size:19px; font-weight:700; color:var(--accent);">Dowóz</div><div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; margin-top:4px;">Wrocław i okolice</div></div>
             <div style="font-family:var(--font-mono); font-size:19px; font-weight:700; color:var(--accent); line-height:1.2;">wyceniamy<br>indywidualnie</div>
           </div>
@@ -305,15 +364,15 @@
   </div>
 
   <!-- NASZE PADY -->
-  <div id="sprzet" style="max-width:1200px; margin:0 auto; padding:80px 40px;">
+  <div id="sprzet" class="section-inner equipment-section" style="max-width:1200px; margin:0 auto; padding:80px 40px;">
     <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">03 · Sprzęt</div>
-    <h2 style="margin:12px 0 36px; font-size:42px; font-weight:800; letter-spacing:-0.03em;">Nasze crash pady</h2>
+    <h2 class="equipment-title" style="margin:12px 0 36px; font-size:42px; font-weight:800; letter-spacing:-0.03em;">Nasze crash pady</h2>
 
-    <div style="border:1px solid #e7e5e1; border-radius:var(--r-xl); overflow:hidden; display:grid; grid-template-columns:440px 1fr;">
-      <div style="background:repeating-linear-gradient(135deg,#f1efeb 0 14px,#e9e7e2 14px 28px); display:flex; align-items:center; justify-content:center; min-height:380px;">
+    <div class="product-card" style="border:1px solid #e7e5e1; border-radius:var(--r-xl); overflow:hidden; display:grid; grid-template-columns:440px 1fr;">
+      <div class="product-media" style="background:repeating-linear-gradient(135deg,#f1efeb 0 14px,#e9e7e2 14px 28px); display:flex; align-items:center; justify-content:center; min-height:380px;">
         <span style="font-family:var(--font-mono); font-size:12px; color:#a8a49b; letter-spacing:0.05em;">[ ZDJĘCIE — BLACK DIAMOND CIRCUIT ]</span>
       </div>
-      <div style="padding:36px;">
+      <div class="product-details" style="padding:36px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
           <div>
             <div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em;">Black Diamond</div>
@@ -321,7 +380,7 @@
           </div>
           <div style="font-family:var(--font-mono); font-size:11px; color:#fff; background:var(--accent); font-weight:700; padding:6px 11px; border-radius:999px; white-space:nowrap;">NASZ PAD</div>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px 16px; margin-top:28px;">
+        <div class="product-specs" style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px 16px; margin-top:28px;">
           <div><div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">WYMIARY</div><div style="font-weight:700; font-size:16px; margin-top:3px;">121 × 91 cm</div></div>
           <div><div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">GRUBOŚĆ</div><div style="font-weight:700; font-size:16px; margin-top:3px;">10 cm</div></div>
           <div><div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">ZŁOŻONY</div><div style="font-weight:700; font-size:16px; margin-top:3px;">taco / zawias</div></div>
@@ -333,13 +392,13 @@
       </div>
     </div>
 
-    <div style="border:1.5px dashed #d8d4cd; border-radius:var(--r-xl); padding:28px 32px; background:#faf9f7; margin-top:20px; display:flex; align-items:center; justify-content:space-between; gap:32px;">
+    <div class="upcoming-card" style="border:1.5px dashed #d8d4cd; border-radius:var(--r-xl); padding:28px 32px; background:#faf9f7; margin-top:20px; display:flex; align-items:center; justify-content:space-between; gap:32px;">
       <div style="max-width:60ch;">
         <div style="font-family:var(--font-mono); font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Wkrótce więcej</div>
         <div style="font-size:22px; font-weight:800; margin-top:8px; line-height:1.1;">Rozwijamy ofertę</div>
         <p style="font-size:15px; color:#6b6862; line-height:1.55; margin:10px 0 0;">Na start jeździmy na sprawdzonych Circuitach, ale flota rośnie — dokładamy kolejne pady i większe modele na highballe. Potrzebujesz konkretnego rozmiaru albo większej liczby sztuk na wyjazd? Napisz, dogadamy.</p>
       </div>
-      <div style="display:flex; flex-direction:column; gap:10px; flex:none;">
+      <div class="upcoming-tags" style="display:flex; flex-direction:column; gap:10px; flex:none;">
         <span style="font-family:var(--font-mono); font-size:12px; background:#fff; border:1px solid #e7e5e1; padding:9px 14px; border-radius:999px; font-weight:700; text-align:center;">+ WIĘKSZE PADY</span>
         <span style="font-family:var(--font-mono); font-size:12px; background:#fff; border:1px solid #e7e5e1; padding:9px 14px; border-radius:999px; font-weight:700; text-align:center;">+ WIĘKSZA FLOTA</span>
         <span style="font-family:var(--font-mono); font-size:12px; background:#fff; border:1px solid #e7e5e1; padding:9px 14px; border-radius:999px; font-weight:700; text-align:center;">+ AKCESORIA</span>
@@ -348,11 +407,11 @@
   </div>
 
   <!-- PUNKTY ODBIORU -->
-  <div id="punkty" style="background:#faf9f7; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
-    <div style="max-width:1200px; margin:0 auto; padding:80px 40px;">
+  <div id="punkty" class="points-band" style="background:#faf9f7; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
+    <div class="section-inner" style="max-width:1200px; margin:0 auto; padding:80px 40px;">
       <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">04 · Gdzie odbierzesz</div>
-      <h2 style="margin:12px 0 36px; font-size:42px; font-weight:800; letter-spacing:-0.03em;">Odbiór we Wrocławiu</h2>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+      <h2 class="points-title" style="margin:12px 0 36px; font-size:42px; font-weight:800; letter-spacing:-0.03em;">Odbiór we Wrocławiu</h2>
+      <div class="points-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
         <div style="background:#fff; border:1px solid #e7e5e1; border-radius:var(--r-xl); overflow:hidden;">
           <div style="height:200px; background:repeating-linear-gradient(45deg,#eef0ec 0 12px,#e6e9e3 12px 24px); position:relative;">
             <span style="position:absolute; left:16px; top:14px; font-family:var(--font-mono); font-size:11px; color:#9a968e;">[ MAPA ]</span>
@@ -381,14 +440,14 @@
   </div>
 
   <!-- DOWOZ -->
-  <div style="max-width:1200px; margin:0 auto; padding:80px 40px;">
-    <div style="background:var(--accent); border-radius:var(--r-xl); padding:56px; color:#fff; display:grid; grid-template-columns:1.3fr 1fr; gap:48px; align-items:center;">
+  <div class="delivery-section section-inner" style="max-width:1200px; margin:0 auto; padding:80px 40px;">
+    <div class="delivery-card" style="background:var(--accent); border-radius:var(--r-xl); padding:56px; color:#fff; display:grid; grid-template-columns:1.3fr 1fr; gap:48px; align-items:center;">
       <div>
         <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:color-mix(in srgb, var(--accent) 18%, #fff); font-weight:700; text-transform:uppercase;">05 · Dowóz</div>
-        <h2 style="margin:14px 0 16px; font-size:44px; font-weight:800; letter-spacing:-0.03em; line-height:1.0;">Nie chce ci się jeździć?</h2>
+        <h2 class="delivery-title" style="margin:14px 0 16px; font-size:44px; font-weight:800; letter-spacing:-0.03em; line-height:1.0;">Nie chce ci się jeździć?</h2>
         <p style="margin:0; font-size:19px; line-height:1.5; color:color-mix(in srgb, var(--accent) 8%, #fff); max-width:48ch;">Dowozimy pady na terenie Wrocławia i okolic. Koszt dowozu <strong>ustalamy indywidualnie</strong> — zależnie od miejsca i liczby padów. Umawiamy się w wyznaczonym miejscu i przedziale godzin — pod blok, pod ścianę, pod sektor.</p>
       </div>
-      <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="delivery-tags" style="display:flex; flex-direction:column; gap:12px;">
         <span style="font-family:var(--font-mono); font-size:13px; background:rgba(255,255,255,0.18); padding:14px 18px; border-radius:var(--r-md); font-weight:700;">WROCŁAW</span>
         <span style="font-family:var(--font-mono); font-size:13px; background:rgba(255,255,255,0.18); padding:14px 18px; border-radius:var(--r-md); font-weight:700;">+ OKOLICE</span>
         <span style="font-family:var(--font-mono); font-size:13px; background:rgba(255,255,255,0.18); padding:14px 18px; border-radius:var(--r-md); font-weight:700;">UMÓWIONA GODZINA</span>
@@ -397,14 +456,14 @@
   </div>
 
   <!-- FAQ -->
-  <div id="faq" style="background:#faf9f7; border-top:1px solid #ededea;">
-    <div style="max-width:1200px; margin:0 auto; padding:80px 40px; display:grid; grid-template-columns:0.8fr 1.2fr; gap:56px; align-items:start;">
-      <div style="position:sticky; top:90px;">
+  <div id="faq" class="faq-band" style="background:#faf9f7; border-top:1px solid #ededea;">
+    <div class="faq-layout section-inner" style="max-width:1200px; margin:0 auto; padding:80px 40px; display:grid; grid-template-columns:0.8fr 1.2fr; gap:56px; align-items:start;">
+      <div class="faq-intro" style="position:sticky; top:90px;">
         <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">06 · FAQ</div>
-        <h2 style="margin:12px 0 0; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Częste pytania</h2>
+        <h2 class="faq-title" style="margin:12px 0 0; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Częste pytania</h2>
         <p style="margin:16px 0 0; font-size:16px; color:#6b6862; line-height:1.5;">Nie ma tu Twojego pytania? Napisz na WhatsApp — odpiszemy szybciej niż przeczytasz ten akapit.</p>
       </div>
-      <div style="display:flex; flex-direction:column;">
+      <div class="faq-list" style="display:flex; flex-direction:column;">
         <sc-for list="{{ faqs }}" as="f" hint-placeholder-count="5">
           <div style="border-top:1px solid #e2e0db;">
             <button onClick="{{ f.onToggle }}" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:16px; background:none; border:none; padding:22px 0; cursor:pointer; text-align:left;">
@@ -420,19 +479,29 @@
   </div>
 
   <!-- FOOTER / KONTAKT -->
-  <div style="background:var(--ink); color:#fff;">
-    <div style="max-width:1200px; margin:0 auto; padding:64px 40px; display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center;">
+  <div class="site-footer" style="background:var(--ink); color:#fff;">
+    <div class="site-footer-inner" style="max-width:1200px; margin:0 auto; padding:64px 40px; display:grid; grid-template-columns:1fr 1fr; gap:48px; align-items:center;">
       <div>
         <div style="font-size:44px; font-weight:900; letter-spacing:-0.04em;">SKUCHA<span style="color:var(--accent);">.</span></div>
         <p style="margin:12px 0 0; font-size:17px; color:#b3afa8; max-width:40ch;">Wypożyczalnia crash padów we Wrocławiu. Jasne warunki, szybka i wygodna rezerwacja.</p>
         <div style="font-family:var(--font-mono); font-size:11px; color:#7c7972; margin-top:28px;">© 2026 SKUCHA · WROCŁAW</div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:12px; max-width:380px; margin-left:auto; width:100%;">
+      <div class="footer-actions" style="display:flex; flex-direction:column; gap:12px; max-width:380px; margin-left:auto; width:100%;">
         <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; gap:8px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md);">Napisz na WhatsApp</a>
         <a href="{{ telHref }}" style="display:flex; align-items:center; justify-content:center; gap:8px; background:transparent; border:1px solid #3a3833; color:#fff; text-decoration:none; font-weight:700; font-size:17px; padding:17px; border-radius:var(--r-md);">{{ phoneLabel }}</a>
       </div>
     </div>
   </div>
+
+  <sc-if value="{{ showSticky }}" hint-placeholder-val="{{ true }}">
+    <div class="mobile-sticky-cta">
+      <div>
+        <div style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">{{ daysLabel }}</div>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; line-height:1;">{{ totalLabel }} <span style="font-size:13px; color:#9a968e;">zł</span></div>
+      </div>
+      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" style="background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:15px; padding:14px 22px; border-radius:var(--r-md);">Rezerwuj →</a>
+    </div>
+  </sc-if>
 
 </div>
 </x-dc>
@@ -771,7 +840,7 @@ class Component extends DCLogic {
     const faqData = [
       { q:'Na jak długo mogę wypożyczyć?', a:'Od jednego dnia po cały wyjazd. Wybierasz daty od–do, a cena liczy się za każdy dzień osobno.' },
       { q:'Jak działa dowóz?', a:'Dowozimy na terenie Wrocławia i okolic. Koszt dowozu ustalamy indywidualnie — zależy od miejsca i liczby padów. Umawiamy konkretne miejsce i przedział godzin — pod blok albo pod sektor.' },
-      { q:'Czy muszę płacić z góry?', a:'Nie. Rezerwujesz przez WhatsApp, a płatność ustalamy przy odbiorze. Bez przedpłat.' },
+      { q:'Czy płatność odbywa się online?', a:'Tak. Po wysłaniu rezerwacji przejdziesz do bezpiecznej płatności online przez Stripe. Rezerwacja zostanie potwierdzona po opłaceniu.' },
       { q:'Co jeśli pad się zabrudzi?', a:'Normalne ślady terenu to żaden problem — to crash pad, nie kanapa. Liczą się tylko realne uszkodzenia.' },
       { q:'Ile padów wziąć?', a:'Na jeden problem zwykle 2–3. Na trudniejsze lądowania albo wyższe boulderingi — więcej. Jak nie wiesz, napisz, doradzimy.' }
     ];
@@ -896,7 +965,8 @@ class Component extends DCLogic {
       totalLabel: c.total,
       waLink, telHref, phoneLabel,
       pwLabel: pw, weLabel: we, dfLabel: df,
-      faqs
+      faqs,
+      showSticky: (this.props.stickyBar ?? true)
     };
   }
 }

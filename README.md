@@ -133,16 +133,17 @@ The repository uses the resources shown in the deployment subscription:
 Configure ACS email in the Azure portal:
 
 1. Open `skucha-communication-email-services` and open the `MailFrom` or Domains area. Confirm that the `skucha.co` domain is provisioned and verified. Do not continue until its status is ready.
-2. Use `noreply@skucha.co` as the sender address. It must belong to the verified `skucha.co` domain.
-3. Open `skucha-communication-services`, select **Keys**, and copy the **Primary connection string**. Treat it as a secret; do not commit it or paste it into source control.
-4. Open `skucha-web`, select **Configuration**, then **Application settings**, and add these settings for the production environment:
+2. Open `skucha-communication-services`, open **Email** or **Domains**, and connect the verified `skucha.co` domain from `skucha-communication-email-services`. The domain must show as linked or connected to this Communication Services resource; verification in the Email resource alone is not sufficient.
+3. Use the exact MailFrom address shown for the linked domain, for example `noreply@skucha.co`, as the sender address.
+4. In `skucha-communication-services`, select **Keys** and copy the **Primary connection string**. Treat it as a secret; do not commit it or paste it into source control.
+5. Open `skucha-web`, select **Configuration**, then **Application settings**, and add these settings for the production environment:
 	- `MAIL_MODE` = `acs-email`
 	- `ACS_CONNECTION_STRING` = the copied Primary connection string
 	- `ACS_SENDER_ADDRESS` = `noreply@skucha.co`
 	- `RESERVATION_PUBLIC_BASE_URL` = the public `skucha-web` domain
 	- `RESERVATION_CANCEL_TOKEN_SECRET` = a long random secret
 	- `RESERVATION_CANCEL_TOKEN_TTL_HOURS` = `72`
-5. Save the settings and restart the Static Web App. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
+6. Save the settings and restart the Static Web App. For `development-preview`, add the same settings under the preview environment's configuration; Static Web Apps does not automatically copy production application settings to branch environments. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
 
 For local development, use the same variable names in `api/local.settings.json`; keep that file out of version control.
 

@@ -111,8 +111,7 @@ Every new module (payments, inventory, products, orders, auth, admin panel) must
 Main entry points:
 
 - `index.html` (redirect shell)
-- `skucha-mobile.html` (mobile booking experience)
-- `skucha-desktop.html` (desktop booking experience)
+- `skucha.html` (responsive booking experience for desktop and mobile)
 - `skucha-print.html` (print-oriented variant)
 
 Frontend responsibilities:
@@ -231,8 +230,7 @@ Azure Static Web Apps configuration (from repository conventions):
 ## Repository Map (Current)
 
 - `/index.html`
-- `/skucha-mobile.html`
-- `/skucha-desktop.html`
+- `/skucha.html`
 - `/skucha-print.html`
 - `/config/config.json`
 - `/config/config-loader.js`
