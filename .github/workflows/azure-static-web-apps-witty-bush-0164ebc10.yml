@@ -64,6 +64,8 @@ jobs:
         run: npm ci
       - name: Verify source build and Function entrypoints
         run: npm run verify:build
+      - name: Build deployable API bundle
+        run: npm run build:api
       - name: Install production dependencies
         run: npm ci --omit=dev
       - name: Verify production build and Function entrypoints
@@ -85,9 +87,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: api/package-lock.json
-      - name: Prepare API dependencies
+      - name: Build deployable API bundle
         working-directory: api
-        run: npm ci --omit=dev
+        run: |
+          npm ci
+          npm run build:api
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -98,7 +102,7 @@ jobs:
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
           app_location: "/" # App source code path
-          api_location: "api" # Api source code path - optional
+          api_location: "api-dist" # Bundled API output path - optional
           output_location: "" # Built app content directory - optional
           skip_app_build: true
           ###### End of Repository/Build Configurations ######

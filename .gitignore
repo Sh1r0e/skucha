@@ -17,6 +17,7 @@ node_modules/
 dist/
 build/
 coverage/
+api-dist/
 
 # Temporary files
 *.tmp
