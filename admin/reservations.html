@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Skucha - Reservations</title>
+  <style>
+    :root { --bg: #f5f4f1; --card: #fffdf9; --ink: #1a1916; --muted: #6b6862; --line: #dfddd7; --accent: #fb5a12; --ok: #1f8a5b; --error: #b42318; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; color: var(--ink); background: var(--bg); font-family: "Segoe UI", sans-serif; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--line); background: var(--card); }
+    h1 { margin: 0; font-size: clamp(24px, 4vw, 40px); letter-spacing: -.04em; }
+    header a { color: var(--muted); font-weight: 700; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 28px auto 60px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+    button, select { min-height: 40px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); font: inherit; font-weight: 700; }
+    button { cursor: pointer; }
+    button.primary { border-color: var(--accent); color: #fff; background: var(--accent); }
+    .status { min-height: 24px; margin-bottom: 14px; color: var(--muted); }
+    .status.error { color: var(--error); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    table { width: 100%; border-collapse: collapse; min-width: 920px; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
+    tr:last-child td { border-bottom: 0; }
+    .meta { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .actions button { min-height: 34px; padding: 7px 9px; font-size: 13px; }
+    .empty { padding: 30px; color: var(--muted); text-align: center; }
+    @media (max-width: 620px) { header { align-items: flex-start; flex-direction: column; } main { width: min(100% - 20px, 1180px); margin-top: 16px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Reservations</h1>
+    <a href="/.auth/logout">Sign out</a>
+  </header>
+  <main>
+    <div class="toolbar">
+      <select id="statusFilter" aria-label="Status filter">
+        <option value="">All statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="InProgress">In progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
+        <option value="Expired">Expired</option>
+      </select>
+      <button id="activeFilter" type="button">Active only</button>
+      <button id="refreshButton" class="primary" type="button">Refresh</button>
+      <button id="housekeepingButton" type="button">Run housekeeping</button>
+    </div>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Customer</th><th>Dates</th><th>Inventory</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead>
+        <tbody id="reservationsBody"><tr><td class="empty" colspan="6">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var body = document.getElementById("reservationsBody");
+      var status = document.getElementById("status");
+      var statusFilter = document.getElementById("statusFilter");
+      var activeFilter = document.getElementById("activeFilter");
+      var activeOnly = false;
+
+      function setStatus(message, isError) {
+        status.textContent = message || "";
+        status.className = "status" + (isError ? " error" : "");
+      }
+
+      function render(reservations) {
+        body.innerHTML = "";
+        if (!reservations.length) {
+          body.innerHTML = '<tr><td class="empty" colspan="6">No reservations found.</td></tr>';
+          return;
+        }
+
+        reservations.forEach(function (reservation) {
+          var row = document.createElement("tr");
+          var customer = document.createElement("td");
+          var customerName = document.createElement("strong");
+          customerName.textContent = reservation.customerName || "-";
+          var customerMeta = document.createElement("div");
+          customerMeta.className = "meta";
+          customerMeta.appendChild(document.createTextNode(reservation.customerEmail || "-"));
+          customerMeta.appendChild(document.createElement("br"));
+          customerMeta.appendChild(document.createTextNode(reservation.customerPhone || "-"));
+          customer.appendChild(customerName);
+          customer.appendChild(customerMeta);
+          var dates = document.createElement("td");
+          dates.appendChild(document.createTextNode(reservation.fromDate || "-"));
+          dates.appendChild(document.createElement("br"));
+          dates.appendChild(document.createTextNode(reservation.toDate || "-"));
+          var dateMeta = document.createElement("div");
+          dateMeta.className = "meta";
+          dateMeta.textContent = reservation.pickupPoint || reservation.deliveryMethod || "-";
+          dates.appendChild(dateMeta);
+          var inventory = document.createElement("td");
+          inventory.textContent = String(reservation.pads || 0) + " pad(s)";
+          var lifecycle = document.createElement("td");
+          lifecycle.textContent = reservation.status;
+          var payment = document.createElement("td");
+          payment.textContent = reservation.paymentStatus || "-";
+          var actions = document.createElement("td");
+          actions.className = "actions";
+
+          if (reservation.status === "Confirmed") {
+            var collect = document.createElement("button");
+            collect.textContent = "Collect";
+            collect.addEventListener("click", function () { collectReservation(reservation); });
+            actions.appendChild(collect);
+          }
+          if (reservation.status === "InProgress") {
+            var complete = document.createElement("button");
+            complete.textContent = "Mark returned";
+            complete.addEventListener("click", function () { completeReservation(reservation); });
+            actions.appendChild(complete);
+          }
+          if (!actions.childNodes.length) { actions.textContent = "-"; }
+
+          row.appendChild(customer); row.appendChild(dates); row.appendChild(inventory); row.appendChild(lifecycle); row.appendChild(payment); row.appendChild(actions);
+          body.appendChild(row);
+        });
+      }
+
+      function loadReservations() {
+        var query = new URLSearchParams();
+        if (statusFilter.value) { query.set("status", statusFilter.value); }
+        if (activeOnly) { query.set("active", "true"); }
+        setStatus("Loading...");
+        fetch("/api/admin/reservations?" + query.toString(), { headers: { Accept: "application/json" } })
+          .then(function (response) { return response.json().then(function (payload) { return { ok: response.ok, payload: payload }; }); })
+          .then(function (result) {
+            if (!result.ok) { throw new Error(result.payload.message || "Unable to load reservations."); }
+            render(result.payload.reservations || []);
+            setStatus("");
+          })
+          .catch(function (error) { setStatus(error.message, true); });
+      }
+
+      function postAction(payload, successMessage) {
+        fetch("/api/admin/reservations", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) })
+          .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+          .then(function (result) { if (!result.ok) { throw new Error(result.data.message || "Operation failed."); } setStatus(successMessage); loadReservations(); })
+          .catch(function (error) { setStatus(error.message, true); });
+      }
+
+      function collectReservation(reservation) {
+        var expectedReturnAt = window.prompt("Expected return (ISO date/time)", reservation.toDate + "T18:00:00+02:00");
+        if (expectedReturnAt) { postAction({ action: "collect", reservationId: reservation.id, expectedReturnAt: expectedReturnAt }, "Reservation collected."); }
+      }
+
+      function completeReservation(reservation) {
+        if (window.confirm("Mark all pads returned for this reservation?")) { postAction({ action: "complete", reservationId: reservation.id }, "Reservation completed."); }
+      }
+
+      activeFilter.addEventListener("click", function () { activeOnly = !activeOnly; activeFilter.textContent = activeOnly ? "Active only: on" : "Active only"; loadReservations(); });
+      document.getElementById("refreshButton").addEventListener("click", loadReservations);
+      document.getElementById("housekeepingButton").addEventListener("click", function () {
+        fetch("/api/admin/housekeeping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
+          .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+          .then(function (result) { if (!result.ok) { throw new Error(result.data.message || "Housekeeping failed."); } setStatus("Housekeeping expired " + result.data.expired + " reservation(s)."); loadReservations(); })
+          .catch(function (error) { setStatus(error.message, true); });
+      });
+      statusFilter.addEventListener("change", loadReservations);
+      loadReservations();
+    })();
+  </script>
+</body>
+</html>

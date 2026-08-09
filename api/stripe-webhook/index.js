@@ -1,6 +1,8 @@
 const StripeService = require("../services/StripeService");
 const ReservationRepository = require("../repositories/ReservationRepository");
+const StripeEventRepository = require("../repositories/StripeEventRepository");
 const MailService = require("../services/MailService");
+const Lifecycle = require("../services/ReservationLifecycleService");
 
 // Maps Stripe checkout.session payment_status to internal reservation payment status.
 const PAYMENT_STATUS_MAP = {
@@ -27,6 +29,7 @@ function createWebhookHandler(customDependencies) {
     StripeService,
     ReservationRepository,
     MailService,
+    StripeEventRepository,
     ...(customDependencies || {})
   };
 
@@ -98,9 +101,45 @@ function createWebhookHandler(customDependencies) {
 
     context.log("Stripe webhook received", { type: event.type, id: event.id });
 
+    let eventClaim;
+    try {
+      eventClaim = await dependencies.StripeEventRepository.claimEvent(event);
+    } catch (error) {
+      context.log.error("Stripe webhook: unable to claim event", {
+        eventId: event.id,
+        message: error.message,
+        code: error.code
+      });
+      context.res = {
+        status: error.statusCode || 503,
+        headers: { "Content-Type": "application/json" },
+        body: { error: "Event claim failed", code: error.code || "EventClaimFailed" }
+      };
+      return;
+    }
+
+    if (eventClaim && eventClaim.duplicate) {
+      context.log("Stripe webhook: duplicate event ignored", { eventId: event.id });
+      context.res = {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+        body: { received: true, duplicate: true, type: event.type }
+      };
+      return;
+    }
+
     try {
       await handleEvent(context, event, dependencies);
     } catch (error) {
+      try {
+        await dependencies.StripeEventRepository.markEvent(event.id, "Retryable", { error: error.message });
+      } catch (markError) {
+        context.log.error("Stripe webhook: unable to mark retryable event", {
+          eventId: event.id,
+          message: markError.message,
+          code: markError.code
+        });
+      }
       // Return 500 so Stripe retries the delivery.
       context.log.error("Stripe webhook: event handling failed", {
         eventType: event.type,
@@ -112,6 +151,22 @@ function createWebhookHandler(customDependencies) {
         status: 500,
         headers: { "Content-Type": "application/json" },
         body: { error: "Event handling failed", code: error.code || "InternalError" }
+      };
+      return;
+    }
+
+    try {
+      await dependencies.StripeEventRepository.markEvent(event.id, "Processed");
+    } catch (error) {
+      context.log.error("Stripe webhook: unable to mark event processed", {
+        eventId: event.id,
+        message: error.message,
+        code: error.code
+      });
+      context.res = {
+        status: error.statusCode || 503,
+        headers: { "Content-Type": "application/json" },
+        body: { error: "Event completion tracking failed", code: error.code || "EventTrackingFailed" }
       };
       return;
     }
@@ -151,10 +206,41 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
   const internalPaymentStatus = PAYMENT_STATUS_MAP[stripePaymentStatus] || "Unpaid";
   const reservationStatus = RESERVATION_STATUS_ON_PAYMENT[internalPaymentStatus] || "Pending";
 
+  const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+
+  if (!reservation) {
+    throw createWebhookHandlingError(
+      "Reservation not found while loading payment state",
+      "ReservationNotFound"
+    );
+  }
+
+  if ([
+    Lifecycle.RESERVATION_STATUS.CANCELLED,
+    Lifecycle.RESERVATION_STATUS.EXPIRED,
+    Lifecycle.RESERVATION_STATUS.IN_PROGRESS,
+    Lifecycle.RESERVATION_STATUS.COMPLETED
+  ].includes(reservation.status)) {
+    if (internalPaymentStatus === "Paid"
+      && String(reservation.paymentStatus || "").toLowerCase() !== "refunded") {
+      await reconcileLatePayment(context, reservation, session, dependencies);
+    }
+    return;
+  }
+
+  if (reservation.status === Lifecycle.RESERVATION_STATUS.CANCELLATION_PENDING) {
+    context.log("Stripe webhook: payment ignored while cancellation is pending", { reservationId });
+    return;
+  }
+
   const payment = {
     sessionId: session.id,
     paymentStatus: internalPaymentStatus
   };
+
+  if (session.payment_intent) {
+    payment.paymentIntentId = String(session.payment_intent.id || session.payment_intent);
+  }
 
   if (session.url) {
     payment.paymentUrl = session.url;
@@ -168,7 +254,12 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
     payment.currency = session.currency;
   }
 
-  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, payment);
+  const paymentUpdate = await attachPaymentConditionally(
+    dependencies.ReservationRepository,
+    reservationId,
+    payment,
+    reservation
+  );
 
   if (!paymentUpdate) {
     throw createWebhookHandlingError(
@@ -177,7 +268,18 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
     );
   }
 
-  const statusUpdate = await dependencies.ReservationRepository.updateStatus(reservationId, reservationStatus);
+  let statusUpdate = paymentUpdate;
+
+  if (reservation.status === Lifecycle.RESERVATION_STATUS.PENDING
+    && reservationStatus === Lifecycle.RESERVATION_STATUS.CONFIRMED) {
+    statusUpdate = await updateStatusConditionally(
+      dependencies.ReservationRepository,
+      reservationId,
+      reservationStatus,
+      paymentUpdate || reservation,
+      reservation.status
+    );
+  }
 
   if (!statusUpdate) {
     throw createWebhookHandlingError(
@@ -186,9 +288,9 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
     );
   }
 
-  const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+  const updatedReservation = await dependencies.ReservationRepository.getReservation(reservationId);
 
-  if (!reservation) {
+  if (!updatedReservation) {
     throw createWebhookHandlingError(
       "Reservation not found while loading notification details",
       "ReservationNotFound"
@@ -196,7 +298,7 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
   }
 
   const notificationReservation = buildNotificationReservation(
-    reservation,
+    updatedReservation,
     session,
     internalPaymentStatus,
     reservationStatus
@@ -223,9 +325,29 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
     return;
   }
 
+  const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+
+  if (!reservation) {
+    throw createWebhookHandlingError(
+      "Reservation not found while loading expiration state",
+      "ReservationNotFound"
+    );
+  }
+
+  if (reservation.status !== Lifecycle.RESERVATION_STATUS.PENDING
+    || String(reservation.paymentStatus || "").toLowerCase() === "paid") {
+    context.log("Stripe webhook: checkout expiry ignored for non-pending reservation", {
+      reservationId,
+      status: reservation.status,
+      paymentStatus: reservation.paymentStatus
+    });
+    return;
+  }
+
   const payment = {
     sessionId: session.id,
-    paymentStatus: "Expired"
+    paymentStatus: "Expired",
+    expiredAt: new Date().toISOString()
   };
 
   if (Number.isInteger(session.amount_total)) {
@@ -236,7 +358,12 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
     payment.currency = session.currency;
   }
 
-  const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservationId, payment);
+  const paymentUpdate = await attachPaymentConditionally(
+    dependencies.ReservationRepository,
+    reservationId,
+    payment,
+    reservation
+  );
 
   if (!paymentUpdate) {
     throw createWebhookHandlingError(
@@ -245,9 +372,24 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
     );
   }
 
-  const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+  const statusUpdate = await updateStatusConditionally(
+    dependencies.ReservationRepository,
+    reservationId,
+    Lifecycle.RESERVATION_STATUS.EXPIRED,
+    paymentUpdate || reservation,
+    Lifecycle.RESERVATION_STATUS.PENDING
+  );
 
-  if (!reservation) {
+  if (!statusUpdate) {
+    throw createWebhookHandlingError(
+      "Reservation not found while marking reservation expired",
+      "ReservationNotFound"
+    );
+  }
+
+  const updatedReservation = await dependencies.ReservationRepository.getReservation(reservationId);
+
+  if (!updatedReservation) {
     throw createWebhookHandlingError(
       "Reservation not found while loading expiration notification details",
       "ReservationNotFound"
@@ -255,10 +397,67 @@ async function handleCheckoutSessionExpired(context, session, dependencies) {
   }
 
   await dependencies.MailService.sendPaymentExpiredNotification(
-    buildNotificationReservation(reservation, session, "Expired", reservation.status)
+    buildNotificationReservation(updatedReservation, session, "Expired", Lifecycle.RESERVATION_STATUS.EXPIRED)
   );
 
-  context.log("Stripe webhook: reservation payment marked Expired", { reservationId });
+  context.log("Stripe webhook: reservation marked Expired", { reservationId });
+}
+
+async function attachPaymentConditionally(repository, reservationId, payment, reservation) {
+  const options = reservation && reservation.etag
+    ? { expectedStatus: reservation.status, expectedEtag: reservation.etag }
+    : null;
+
+  return options
+    ? repository.attachPayment(reservationId, payment, options)
+    : repository.attachPayment(reservationId, payment);
+}
+
+async function updateStatusConditionally(repository, reservationId, status, reservation, expectedStatus) {
+  const options = reservation && reservation.etag
+    ? { expectedStatus: expectedStatus, expectedEtag: reservation.etag }
+    : null;
+
+  return options
+    ? repository.updateStatus(reservationId, status, options)
+    : repository.updateStatus(reservationId, status);
+}
+
+async function reconcileLatePayment(context, reservation, session, dependencies) {
+  if (typeof dependencies.StripeService.refundCheckoutSessionPayment !== "function") {
+    throw createWebhookHandlingError(
+      "Stripe refund reconciliation is not configured",
+      "RefundReconciliationNotConfigured"
+    );
+  }
+
+  const refund = await dependencies.StripeService.refundCheckoutSessionPayment({
+    sessionId: session.id,
+    paymentIntentId: reservation.paymentIntentId,
+    refundId: reservation.refundId,
+    reservationId: reservation.id,
+    idempotencyKey: "reservation-refund:" + reservation.id,
+    reason: "requested_by_customer"
+  });
+
+  const paymentStatus = refund.status === "succeeded" ? "Refunded" : "RefundPending";
+  await attachPaymentConditionally(
+    dependencies.ReservationRepository,
+    reservation.id,
+    {
+      sessionId: session.id,
+      paymentStatus: paymentStatus,
+      paymentIntentId: refund.paymentIntentId,
+      refundId: refund.refundId,
+      refundCompletedAt: refund.status === "succeeded" ? new Date().toISOString() : undefined
+    },
+    reservation
+  );
+
+  context.log("Stripe webhook: late payment reconciled without resurrecting reservation", {
+    reservationId: reservation.id,
+    paymentStatus: paymentStatus
+  });
 }
 
 function buildNotificationReservation(reservation, session, paymentStatus, reservationStatus) {

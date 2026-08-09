@@ -248,6 +248,7 @@
 
       var statusText = payment.status || params.get('payment_status') || 'pending_confirmation';
       var hasReservationId = reservationId !== '-';
+      var hasSessionId = sessionId !== '-';
       var statusChecksRemaining = 12;
       var statusCheckDelayMs = 2500;
 
@@ -295,18 +296,15 @@
           byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
         }
         if (data.pads) { byId('padsCount').textContent = String(data.pads); }
-        if (data.customerEmail) { byId('email').textContent = data.customerEmail; }
-        if (data.payment && data.payment.sessionId) { byId('sessionId').textContent = data.payment.sessionId; }
-
         return paid;
       }
 
       function fetchStatusWithRetry() {
-        if (!hasReservationId || statusChecksRemaining < 1) { return; }
+        if (!hasReservationId || !hasSessionId || statusChecksRemaining < 1) { return; }
 
         statusChecksRemaining -= 1;
 
-        fetch('/api/reservation?id=' + encodeURIComponent(reservationId))
+        fetch('/api/reservation?id=' + encodeURIComponent(reservationId) + '&session_id=' + encodeURIComponent(sessionId))
           .then(function (res) { return res.ok ? res.json() : null; })
           .then(function (data) {
             var paid = updateStatusFromApi(data);

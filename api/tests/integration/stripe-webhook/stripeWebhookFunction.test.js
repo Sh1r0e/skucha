@@ -11,7 +11,7 @@ function buildMockDependencies(overrides) {
       updateStatus: vi.fn().mockResolvedValue({}),
       getReservation: vi.fn().mockResolvedValue({
         id: "res-1",
-        status: "Confirmed",
+        status: "Pending",
         customerName: "Jan Kowalski",
         customerEmail: "jan@example.com",
         customerPhone: "+48500500500",
@@ -22,13 +22,17 @@ function buildMockDependencies(overrides) {
         deliveryMethod: "pickup",
         pickupPoint: "Stablowice",
         paymentSessionId: "cs_test_123",
-        paymentStatus: "Paid",
+        paymentStatus: "Unpaid",
         paymentAmountMinor: 12000,
         paymentCurrency: "PLN",
         paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
-        cancellationUrl: "https://www.skucha.co/api/reservation/cancel?reservation_id=res-1&token=abc",
+        cancellationUrl: "https://www.skucha.co/reservation-cancel.html?reservation_id=res-1&token=abc",
         cancellationExpiresAt: "2026-08-20T12:00:00.000Z"
       })
+    },
+    StripeEventRepository: {
+      claimEvent: vi.fn().mockResolvedValue({ claimed: true, duplicate: false }),
+      markEvent: vi.fn().mockResolvedValue(undefined)
     },
     MailService: {
       sendPaymentPendingNotification: vi.fn().mockResolvedValue({ queued: true }),
@@ -140,7 +144,7 @@ describe("stripe-webhook function", function () {
         notes: "Bring extra straps",
         amount: 120,
         currency: "PLN",
-        cancelUrl: expect.stringContaining("/api/reservation/cancel"),
+        cancelUrl: expect.stringContaining("/reservation-cancel.html"),
         payment: expect.objectContaining({ status: "Paid", sessionId: "cs_test_123" })
       })
     );
@@ -193,7 +197,7 @@ describe("stripe-webhook function", function () {
       "res-1",
       expect.objectContaining({ paymentStatus: "Unpaid" })
     );
-    expect(deps.ReservationRepository.updateStatus).toHaveBeenCalledWith("res-1", "Pending");
+    expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
     expect(deps.MailService.sendPaymentPendingNotification).toHaveBeenCalledWith(
       expect.objectContaining({ paymentStatus: "Unpaid" })
     );
@@ -223,7 +227,7 @@ describe("stripe-webhook function", function () {
       "res-1",
       expect.objectContaining({ paymentStatus: "Expired" })
     );
-    expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.ReservationRepository.updateStatus).toHaveBeenCalledWith("res-1", "Expired");
     expect(deps.MailService.sendPaymentExpiredNotification).toHaveBeenCalledWith(
       expect.objectContaining({ paymentStatus: "Expired" })
     );
@@ -250,6 +254,33 @@ describe("stripe-webhook function", function () {
     expect(context.res.status).toBe(200);
     expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
     expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it("should_ignore_a_duplicate_event_before_touching_reservation_storage()", async function () {
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt-duplicate",
+          data: { object: buildCompletedSession() }
+        })
+      },
+      StripeEventRepository: {
+        claimEvent: vi.fn().mockResolvedValue({ claimed: false, duplicate: true, status: "Processed" }),
+        markEvent: vi.fn()
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(200);
+    expect(context.res.body.duplicate).toBe(true);
+    expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
   });
 
   it("should_return_500_when_repository_throws_during_event_handling()", async function () {
@@ -293,7 +324,8 @@ describe("stripe-webhook function", function () {
       },
       ReservationRepository: {
         attachPayment: vi.fn().mockResolvedValue(null),
-        updateStatus: vi.fn().mockResolvedValue(null)
+        updateStatus: vi.fn().mockResolvedValue(null),
+        getReservation: vi.fn().mockResolvedValue(null)
       }
     });
     handler.__setDependencies(deps);

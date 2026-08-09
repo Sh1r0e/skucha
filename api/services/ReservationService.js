@@ -7,6 +7,9 @@ const ConfigurationService = require("./ConfigurationService");
 const MailService = require("./MailService");
 const StripeService = require("./StripeService");
 const ReservationRepository = require("../repositories/ReservationRepository");
+const Lifecycle = require("./ReservationLifecycleService");
+const TimeService = require("./ReservationTimeService");
+const InventoryLeaseRepository = require("../repositories/InventoryLeaseRepository");
 
 const defaultDependencies = {
   AvailabilityService,
@@ -14,15 +17,15 @@ const defaultDependencies = {
   ConfigurationService,
   MailService,
   StripeService,
-  ReservationRepository
+  ReservationRepository,
+  InventoryLeaseRepository,
+  TimeService,
+  now: function now() {
+    return new Date();
+  }
 };
 
-const RESERVATION_STATUS = {
-  PENDING: "Pending",
-  CONFIRMED: "Confirmed",
-  CANCELLED: "Cancelled",
-  COMPLETED: "Completed"
-};
+const RESERVATION_STATUS = Lifecycle.RESERVATION_STATUS;
 
 function badRequest(message) {
   const error = new Error(message);
@@ -133,8 +136,7 @@ function validateReservation(reservation, config) {
 }
 
 function parseIsoDate(value) {
-  const parts = String(value || "").split("-").map(Number);
-  return new Date(parts[0], parts[1] - 1, parts[2]);
+  return TimeService.parseDateOnlyAsUtc(value);
 }
 
 function countDaysInRange(fromDate, toDateValue) {
@@ -197,14 +199,54 @@ function createReservationService(customDependencies) {
       throw serverError("Reservation cancellation token secret is not configured", "CancellationNotConfigured");
     }
 
-    const baseUrl = String(dependencies.ConfigurationService.getReservationPublicBaseUrl() || "").replace(/\/$/, "");
-    const ttlHours = Number(dependencies.ConfigurationService.getReservationCancelTokenTtlHours() || 72);
+    const baseUrl = String(
+      typeof dependencies.ConfigurationService.getReservationPublicBaseUrl === "function"
+        ? dependencies.ConfigurationService.getReservationPublicBaseUrl()
+        : ""
+    ).replace(/\/$/, "");
+    const cutoffHours = typeof dependencies.ConfigurationService.getReservationCancellationCutoffHours === "function"
+      ? Number(dependencies.ConfigurationService.getReservationCancellationCutoffHours())
+      : 24;
+    const timezone = typeof dependencies.ConfigurationService.getReservationTimezone === "function"
+      ? dependencies.ConfigurationService.getReservationTimezone()
+      : "Europe/Warsaw";
 
     return {
       secret,
       baseUrl: baseUrl || "https://www.skucha.co",
-      ttlHours: Number.isFinite(ttlHours) && ttlHours > 0 ? ttlHours : 72
+      cutoffHours: Number.isFinite(cutoffHours) && cutoffHours >= 0 ? cutoffHours : 24,
+      timezone: timezone || "Europe/Warsaw"
     };
+  }
+
+  function currentTime() {
+    const value = dependencies.now();
+    return value instanceof Date ? value : new Date(value);
+  }
+
+  async function withInventoryLease(owner, work) {
+    const leaseRepository = dependencies.InventoryLeaseRepository;
+    const storageConfigured = typeof dependencies.ConfigurationService.getStorageConnectionString === "function"
+      && dependencies.ConfigurationService.getStorageConnectionString();
+
+    if (!storageConfigured || !leaseRepository || typeof leaseRepository.acquireLease !== "function") {
+      return work();
+    }
+
+    const ttl = typeof dependencies.ConfigurationService.getInventoryLeaseTtlMs === "function"
+      ? dependencies.ConfigurationService.getInventoryLeaseTtlMs()
+      : 30000;
+    const lease = await leaseRepository.acquireLease(owner, ttl);
+
+    try {
+      return await work();
+    } finally {
+      try {
+        await leaseRepository.releaseLease(lease);
+      } catch (_error) {
+        // The lease expires automatically if release fails.
+      }
+    }
   }
 
   function signCancellationToken(encodedPayload, secret) {
@@ -214,9 +256,14 @@ function createReservationService(customDependencies) {
       .digest("hex");
   }
 
-  function generateCancellationToken(reservationId, sessionId) {
+  function generateCancellationToken(reservationId, sessionId, dateFrom) {
     const settings = getCancellationSettings();
-    const expiresAtUnix = Math.floor(Date.now() / 1000) + (settings.ttlHours * 60 * 60);
+    const deadline = dependencies.TimeService.getCancellationDeadline(
+      dateFrom,
+      settings.cutoffHours,
+      settings.timezone
+    );
+    const expiresAtUnix = Math.ceil(deadline.getTime() / 1000);
     const payload = {
       reservationId: String(reservationId || ""),
       sessionId: String(sessionId || ""),
@@ -267,7 +314,7 @@ function createReservationService(customDependencies) {
       throw badRequest("Cancellation token does not match payment session");
     }
 
-    if (!payload.exp || Number(payload.exp) < Math.floor(Date.now() / 1000)) {
+    if (!payload.exp || Number(payload.exp) < Math.floor(currentTime().getTime() / 1000)) {
       throw gone("Cancellation token expired", "TokenExpired");
     }
 
@@ -277,11 +324,19 @@ function createReservationService(customDependencies) {
   function buildCancellationUrl(reservationId, token) {
     const settings = getCancellationSettings();
     return settings.baseUrl
-      + "/api/reservation/cancel?reservation_id=" + encodeURIComponent(reservationId)
+      + "/reservation-cancel.html?reservation_id=" + encodeURIComponent(reservationId)
       + "&token=" + encodeURIComponent(token);
   }
 
   async function createReservation(reservation) {
+    const production = process.env.NODE_ENV === "production" || process.env.SKUCHA_ENV === "production";
+    if (production && typeof dependencies.ConfigurationService.getRuntimeConfigurationIssues === "function") {
+      const issues = dependencies.ConfigurationService.getRuntimeConfigurationIssues({ production: true });
+      if (issues.length) {
+        throw serverError("Runtime configuration is incomplete", "RuntimeConfigurationInvalid");
+      }
+    }
+
     if (!(reservation instanceof Reservation)) {
       reservation = new Reservation(reservation || {});
     }
@@ -290,26 +345,29 @@ function createReservationService(customDependencies) {
 
     validateReservation(reservation, config);
 
-    const availability = await dependencies.AvailabilityService.getAvailability({
-      from: reservation.dateFrom,
-      to: reservation.dateTo
-    });
+    let savedReservation;
+    await withInventoryLease("reservation-create", async function () {
+      const availability = await dependencies.AvailabilityService.getAvailability({
+        from: reservation.dateFrom,
+        to: reservation.dateTo
+      });
 
-    if (!availability.available || availability.remainingPads < reservation.padsCount) {
-      throw badRequest("Requested number of pads is not available for selected dates");
-    }
+      if (!availability.available || availability.remainingPads < reservation.padsCount) {
+        throw badRequest("Requested number of pads is not available for selected dates");
+      }
 
-    const savedReservation = await dependencies.ReservationRepository.saveReservation({
-      fullName: reservation.fullName,
-      email: reservation.email,
-      phone: reservation.phone,
-      dateFrom: reservation.dateFrom,
-      dateTo: reservation.dateTo,
-      padsCount: reservation.padsCount,
-      notes: reservation.notes,
-      deliveryMethod: reservation.deliveryMethod,
-      pickupPoint: reservation.pickupPoint,
-      status: RESERVATION_STATUS.PENDING
+      savedReservation = await dependencies.ReservationRepository.saveReservation({
+        fullName: reservation.fullName,
+        email: reservation.email,
+        phone: reservation.phone,
+        dateFrom: reservation.dateFrom,
+        dateTo: reservation.dateTo,
+        padsCount: reservation.padsCount,
+        notes: reservation.notes,
+        deliveryMethod: reservation.deliveryMethod,
+        pickupPoint: reservation.pickupPoint,
+        status: RESERVATION_STATUS.PENDING
+      });
     });
 
     const currency = String((config.pricing && config.pricing.currency) || "PLN").toLowerCase();
@@ -329,8 +387,18 @@ function createReservationService(customDependencies) {
       description: daysCount + " day(s), " + reservation.padsCount + " pad(s)"
     });
 
-    const cancellationToken = generateCancellationToken(savedReservation.id, payment.sessionId);
+    const cancellationToken = generateCancellationToken(
+      savedReservation.id,
+      payment.sessionId,
+      reservation.dateFrom
+    );
     const cancellationUrl = buildCancellationUrl(savedReservation.id, cancellationToken.token);
+    const pendingExpiryHours = typeof dependencies.ConfigurationService.getReservationPendingExpiryHours === "function"
+      ? dependencies.ConfigurationService.getReservationPendingExpiryHours()
+      : 2;
+    const pendingExpiresAt = savedReservation.createdAt
+      ? dependencies.TimeService.getPendingExpiration(savedReservation.createdAt, pendingExpiryHours).toISOString()
+      : "";
 
     await dependencies.ReservationRepository.attachPayment(savedReservation.id, {
       sessionId: payment.sessionId,
@@ -339,7 +407,8 @@ function createReservationService(customDependencies) {
       amountInMinorUnit: amountInMinorUnit,
       currency: currency,
       cancellationUrl: cancellationUrl,
-      cancellationExpiresAt: cancellationToken.expiresAt
+      cancellationExpiresAt: cancellationToken.expiresAt,
+      pendingExpiresAt: pendingExpiresAt
     });
 
     const mailResult = await dependencies.MailService.sendReservationNotification({
@@ -411,6 +480,8 @@ function createReservationService(customDependencies) {
       throw notFound("Reservation not found", "NotFound");
     }
 
+    const tokenPayload = verifyCancellationToken(token, reservation.id, reservation.paymentSessionId);
+
     if (reservation.status === RESERVATION_STATUS.CANCELLED) {
       return {
         reservationId: reservation.id,
@@ -425,27 +496,113 @@ function createReservationService(customDependencies) {
       throw conflict("Completed reservations cannot be cancelled", "AlreadyCompleted");
     }
 
-    verifyCancellationToken(token, reservation.id, reservation.paymentSessionId);
+    if (reservation.status === RESERVATION_STATUS.EXPIRED) {
+      throw conflict("Expired reservations cannot be cancelled", "AlreadyExpired");
+    }
+
+    if (reservation.status === RESERVATION_STATUS.IN_PROGRESS) {
+      throw conflict("Collected reservations cannot be cancelled", "AlreadyCollected");
+    }
+
+    const settings = getCancellationSettings();
+    const cancellationAllowed = dependencies.TimeService.isCancellationAllowed(
+      reservation.fromDate,
+      settings.cutoffHours,
+      currentTime(),
+      settings.timezone
+    );
+
+    if (!cancellationAllowed) {
+      throw conflict(
+        "Reservations can only be cancelled at least " + settings.cutoffHours + " hours before rental start",
+        "CancellationWindowClosed"
+      );
+    }
+
+    if (!tokenPayload) {
+      throw badRequest("Invalid cancellation token");
+    }
 
     let refund = null;
     let paymentStatus = reservation.paymentStatus || "";
+    let cancellationReservation = reservation;
 
-    if (String(paymentStatus).toLowerCase() === "paid") {
-      refund = await dependencies.StripeService.refundCheckoutSessionPayment({
-        sessionId: reservation.paymentSessionId,
-        reservationId: reservation.id,
-        reason: "requested_by_customer"
-      });
+    if (["paid", "refundpending", "refundfailed"].indexOf(String(paymentStatus).toLowerCase()) !== -1) {
+      if (reservation.status !== RESERVATION_STATUS.CANCELLATION_PENDING) {
+        Lifecycle.assertTransition(
+          reservation.status,
+          RESERVATION_STATUS.CANCELLATION_PENDING,
+          Lifecycle.ACTOR.CUSTOMER
+        );
+        const claim = await dependencies.ReservationRepository.updateStatus(
+          reservation.id,
+          RESERVATION_STATUS.CANCELLATION_PENDING,
+          {
+            expectedStatus: reservation.status,
+            expectedEtag: reservation.etag
+          }
+        );
+
+        if (!claim) {
+          throw notFound("Reservation not found while claiming cancellation", "NotFound");
+        }
+
+        cancellationReservation = {
+          ...reservation,
+          ...claim,
+          status: RESERVATION_STATUS.CANCELLATION_PENDING
+        };
+      }
+
+      try {
+        refund = await dependencies.StripeService.refundCheckoutSessionPayment({
+          sessionId: cancellationReservation.paymentSessionId,
+          paymentIntentId: cancellationReservation.paymentIntentId,
+          refundId: cancellationReservation.refundId,
+          reservationId: cancellationReservation.id,
+          idempotencyKey: "reservation-refund:" + cancellationReservation.id,
+          reason: "requested_by_customer"
+        });
+      } catch (error) {
+        try {
+          await dependencies.ReservationRepository.attachPayment(
+            cancellationReservation.id,
+            {
+              paymentStatus: "RefundFailed",
+              refundRequestedAt: currentTime().toISOString()
+            },
+            {
+              expectedStatus: RESERVATION_STATUS.CANCELLATION_PENDING,
+              expectedEtag: cancellationReservation.etag
+            }
+          );
+        } catch (_updateError) {
+          // Preserve the Stripe error; reconciliation can retry the claimed reservation.
+        }
+        throw error;
+      }
 
       paymentStatus = refund.status === "succeeded" ? "Refunded" : "RefundPending";
     } else if (!paymentStatus || ["unpaid", "pending", "expired"].indexOf(String(paymentStatus).toLowerCase()) !== -1) {
       paymentStatus = "Cancelled";
+      Lifecycle.assertTransition(
+        reservation.status,
+        RESERVATION_STATUS.CANCELLED,
+        Lifecycle.ACTOR.CUSTOMER
+      );
     }
 
     const paymentUpdate = await dependencies.ReservationRepository.attachPayment(reservation.id, {
       sessionId: reservation.paymentSessionId,
       paymentStatus: paymentStatus,
-      paymentUrl: reservation.paymentUrl
+      paymentUrl: reservation.paymentUrl,
+      paymentIntentId: refund && refund.paymentIntentId,
+      refundId: refund && refund.refundId,
+      refundRequestedAt: refund ? currentTime().toISOString() : undefined,
+      refundCompletedAt: refund && refund.status === "succeeded" ? currentTime().toISOString() : undefined
+    }, {
+      expectedStatus: cancellationReservation.status,
+      expectedEtag: cancellationReservation.etag
     });
 
     if (!paymentUpdate) {
@@ -454,7 +611,11 @@ function createReservationService(customDependencies) {
 
     const statusUpdate = await dependencies.ReservationRepository.updateStatus(
       reservation.id,
-      RESERVATION_STATUS.CANCELLED
+      RESERVATION_STATUS.CANCELLED,
+      {
+        expectedStatus: cancellationReservation.status,
+        expectedEtag: paymentUpdate.etag
+      }
     );
 
     if (!statusUpdate) {

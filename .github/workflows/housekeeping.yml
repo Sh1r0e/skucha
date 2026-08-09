@@ -1,0 +1,23 @@
+name: Skucha Housekeeping
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  expire-pending-reservations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Expire stale pending reservations
+        env:
+          SKUCHA_PUBLIC_BASE_URL: ${{ secrets.SKUCHA_PUBLIC_BASE_URL }}
+          HOUSEKEEPING_SECRET: ${{ secrets.HOUSEKEEPING_SECRET }}
+        run: |
+          test -n "$SKUCHA_PUBLIC_BASE_URL"
+          test -n "$HOUSEKEEPING_SECRET"
+          curl --fail-with-body --silent --show-error \
+            --request POST "$SKUCHA_PUBLIC_BASE_URL/api/internal/housekeeping" \
+            --header "Content-Type: application/json" \
+            --header "x-housekeeping-secret: $HOUSEKEEPING_SECRET" \
+            --data '{"limit":100}'

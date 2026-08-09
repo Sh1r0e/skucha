@@ -267,7 +267,7 @@
 
       // Fetch authoritative status — reservation may have been confirmed by webhook already.
       if (reservationId !== '-') {
-        fetch('/api/reservation?id=' + encodeURIComponent(reservationId))
+        fetch('/api/reservation?id=' + encodeURIComponent(reservationId) + '&session_id=' + encodeURIComponent(sessionId))
           .then(function (res) { return res.ok ? res.json() : null; })
           .then(function (data) {
             if (!data) { return; }
@@ -280,8 +280,6 @@
               byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
             }
             if (data.pads) { byId('padsCount').textContent = String(data.pads); }
-            if (data.customerEmail) { byId('email').textContent = data.customerEmail; }
-            if (data.payment && data.payment.sessionId) { byId('sessionId').textContent = data.payment.sessionId; }
           })
           .catch(function () { /* keep localStorage fallback on network error */ });
       }

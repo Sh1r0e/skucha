@@ -86,7 +86,7 @@ describe("AvailabilityService", function () {
     expect(result.available).toBe(false);
   });
 
-  it("should_ignore_repository_failures_and_return_config_based_response()", async function () {
+  it("should_fail_closed_when_repository_is_unavailable()", async function () {
     AvailabilityService.__setDependencies({
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
@@ -96,9 +96,36 @@ describe("AvailabilityService", function () {
       }
     });
 
+    await expect(
+      AvailabilityService.getAvailability(createAvailabilityParams())
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "AvailabilityUnavailable"
+    });
+  });
+
+  it("should_ignore_stale_unpaid_pending_reservations_before_housekeeping_runs()", async function () {
+    AvailabilityService.__setDependencies({
+      ConfigService: {
+        loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
+      },
+      ConfigurationService: {
+        getReservationPendingExpiryHours: vi.fn().mockReturnValue(2)
+      },
+      ReservationRepository: {
+        getReservations: vi.fn().mockResolvedValue([
+          createAvailabilityReservation({
+            pads: 4,
+            createdAt: "2026-08-09T08:00:00.000Z",
+            paymentStatus: "unpaid"
+          })
+        ])
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-09T11:00:00.000Z"))
+    });
+
     const result = await AvailabilityService.getAvailability(createAvailabilityParams());
 
-    expect(result.available).toBe(true);
     expect(result.remainingPads).toBe(4);
   });
 

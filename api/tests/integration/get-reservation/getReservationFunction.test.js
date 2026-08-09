@@ -31,15 +31,14 @@ describe("get-reservation function", function () {
     });
     const context = createMockContext();
 
-    await handler(context, { query: { id: "res-1" } });
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
 
     expect(context.res.status).toBe(200);
     expect(context.res.body.id).toBe("res-1");
     expect(context.res.body.status).toBe("Confirmed");
-    expect(context.res.body.payment.sessionId).toBe("cs_test_123");
     expect(context.res.body.payment.status).toBe("Paid");
-    expect(context.res.body.customerName).toBe("Jan Kowalski");
-    expect(context.res.body.customerEmail).toBe("jan@example.com");
+    expect(context.res.body.customerName).toBeUndefined();
+    expect(context.res.body.customerEmail).toBeUndefined();
   });
 
   it("should_return_404_when_reservation_does_not_exist()", async function () {
@@ -48,7 +47,7 @@ describe("get-reservation function", function () {
     });
     const context = createMockContext();
 
-    await handler(context, { query: { id: "missing" } });
+    await handler(context, { query: { id: "missing", session_id: "cs_test_123" } });
 
     expect(context.res.status).toBe(404);
     expect(context.res.body.code).toBe("NotFound");
@@ -88,21 +87,55 @@ describe("get-reservation function", function () {
     });
     const context = createMockContext();
 
-    await handler(context, { query: { id: "res-1" } });
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
 
     expect(context.res.status).toBe(503);
     expect(context.res.body.code).toBe("StorageError");
+  });
+
+  it("should_return_404_when_session_id_does_not_match()", async function () {
+    handler.__setDependencies({
+      ReservationRepository: { getReservation: vi.fn().mockResolvedValue(MOCK_RESERVATION) }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "wrong-session" } });
+
+    expect(context.res.status).toBe(404);
+    expect(context.res.body.code).toBe("NotFound");
+  });
+
+  it("should_require_a_matching_stripe_session_id()", async function () {
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1" } });
+
+    expect(context.res.status).toBe(400);
+    expect(context.res.body.code).toBe("MissingSessionId");
   });
 
   it("should_use_context_req_when_second_argument_is_missing()", async function () {
     handler.__setDependencies({
       ReservationRepository: { getReservation: vi.fn().mockResolvedValue(MOCK_RESERVATION) }
     });
-    const context = createMockContext({ req: { query: { id: "res-1" } } });
+    const context = createMockContext({ req: { query: { id: "res-1", session_id: "cs_test_123" } } });
 
     await handler(context);
 
     expect(context.res.status).toBe(200);
     expect(context.res.body.id).toBe("res-1");
+  });
+
+  it("should_parse_ids_from_the_request_url()", async function () {
+    handler.__setDependencies({
+      ReservationRepository: { getReservation: vi.fn().mockResolvedValue(MOCK_RESERVATION) }
+    });
+    const context = createMockContext();
+
+    await handler(context, {
+      url: "https://www.skucha.co/api/reservation?id=res-1&session_id=cs_test_123"
+    });
+
+    expect(context.res.status).toBe(200);
   });
 });

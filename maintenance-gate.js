@@ -4,6 +4,7 @@
   var STATUS_URL = "/api/site-status";
   var MAINTENANCE_PAGE = "/under-construction.html";
   var localHostPattern = /^(localhost|127\.0\.0\.1|\[::1\])$/i;
+  var existingOperationPattern = /(?:skucha-payment-success|skucha-payment-cancel|reservation-cancel)\.html$/i;
 
   document.documentElement.setAttribute("data-site-status", "checking");
 
@@ -30,6 +31,10 @@
     return true;
   }
 
+  function isExistingOperationPage() {
+    return existingOperationPattern.test(window.location.pathname || "");
+  }
+
   function redirectToMaintenance() {
     document.documentElement.setAttribute("data-site-status", "maintenance");
     window.location.replace(maintenanceUrl());
@@ -37,6 +42,10 @@
   }
 
   function checkSiteStatus() {
+    if (isExistingOperationPage()) {
+      return Promise.resolve(openSite());
+    }
+
     if (typeof window.fetch !== "function") {
       return Promise.resolve(isLocalDevelopment() ? openSite() : redirectToMaintenance());
     }

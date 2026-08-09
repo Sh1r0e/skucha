@@ -3,7 +3,37 @@ const { v4: uuidv4 } = require("uuid");
 const ConfigurationService = require("../services/ConfigurationService");
 
 const TABLE_NAME = "Reservations";
-const ALLOWED_STATUSES = ["Pending", "Confirmed", "Cancelled", "Completed"];
+const ALLOWED_STATUSES = [
+  "Pending",
+  "Confirmed",
+  "Cancelled",
+  "Expired",
+  "CancellationPending",
+  "InProgress",
+  "Completed"
+];
+
+const FIELD_MAP = {
+  status: "Status",
+  paymentSessionId: "PaymentSessionId",
+  paymentStatus: "PaymentStatus",
+  paymentUrl: "PaymentUrl",
+  paymentAmountMinor: "PaymentAmountMinor",
+  paymentCurrency: "PaymentCurrency",
+  paymentIntentId: "PaymentIntentId",
+  refundId: "RefundId",
+  refundRequestedAt: "RefundRequestedAt",
+  refundCompletedAt: "RefundCompletedAt",
+  pendingExpiresAt: "PendingExpiresAt",
+  expiredAt: "ExpiredAt",
+  cancellationUrl: "CancellationUrl",
+  cancellationExpiresAt: "CancellationExpiresAt",
+  collectedAt: "CollectedAt",
+  expectedReturnAt: "ExpectedReturnAt",
+  returnedAt: "ReturnedAt",
+  handledBy: "HandledBy",
+  handoverNotes: "HandoverNotes"
+};
 
 const defaultDependencies = {
   TableClient,
@@ -18,6 +48,13 @@ function createStorageError(message, error, fallbackCode) {
   wrappedError.code = error && error.code ? error.code : (fallbackCode || "StorageError");
   wrappedError.details = error && error.message ? error.message : undefined;
   return wrappedError;
+}
+
+function createStorageConflict(message) {
+  const error = new Error(message || "Reservation was changed by another request");
+  error.statusCode = 409;
+  error.code = "StorageConflict";
+  return error;
 }
 
 function monthPartitionKey(dateValue) {
@@ -47,6 +84,7 @@ function toPublicReservation(entity) {
   return {
     id: entity.rowKey,
     partitionKey: entity.partitionKey,
+    etag: entity.etag || entity.ETag || "",
     createdAt: entity.CreatedAt,
     status: entity.Status,
     customerName: entity.CustomerName,
@@ -63,8 +101,19 @@ function toPublicReservation(entity) {
     paymentUrl: entity.PaymentUrl || "",
     paymentAmountMinor: Number(entity.PaymentAmountMinor || 0),
     paymentCurrency: entity.PaymentCurrency || "",
+    paymentIntentId: entity.PaymentIntentId || "",
+    refundId: entity.RefundId || "",
+    refundRequestedAt: entity.RefundRequestedAt || "",
+    refundCompletedAt: entity.RefundCompletedAt || "",
+    pendingExpiresAt: entity.PendingExpiresAt || "",
+    expiredAt: entity.ExpiredAt || "",
     cancellationUrl: entity.CancellationUrl || "",
-    cancellationExpiresAt: entity.CancellationExpiresAt || ""
+    cancellationExpiresAt: entity.CancellationExpiresAt || "",
+    collectedAt: entity.CollectedAt || "",
+    expectedReturnAt: entity.ExpectedReturnAt || "",
+    returnedAt: entity.ReturnedAt || "",
+    handledBy: entity.HandledBy || "",
+    handoverNotes: entity.HandoverNotes || ""
   };
 }
 
@@ -126,7 +175,13 @@ function createReservationRepository(customDependencies) {
       PickupPoint: reservation.pickupPoint || "",
       PaymentSessionId: reservation.paymentSessionId || "",
       PaymentStatus: reservation.paymentStatus || "",
-      PaymentUrl: reservation.paymentUrl || ""
+      PaymentUrl: reservation.paymentUrl || "",
+      PendingExpiresAt: reservation.pendingExpiresAt || "",
+      CollectedAt: reservation.collectedAt || "",
+      ExpectedReturnAt: reservation.expectedReturnAt || "",
+      ReturnedAt: reservation.returnedAt || "",
+      HandledBy: reservation.handledBy || "",
+      HandoverNotes: reservation.handoverNotes || ""
     };
 
     try {
@@ -168,32 +223,14 @@ function createReservationRepository(customDependencies) {
     }
   }
 
-  async function updateStatus(id, status) {
-    const client = await getClient();
-    const existing = await getReservation(id);
-
-    if (!existing) {
-      return null;
-    }
-
-    const entity = {
-      partitionKey: existing.partitionKey,
-      rowKey: existing.id,
-      Status: normalizeStatus(status)
-    };
-
-    try {
-      await client.updateEntity(entity, "Merge");
-      return {
-        ...existing,
-        status: entity.Status
-      };
-    } catch (error) {
-      throw createStorageError("Unable to update reservation status", error, "StorageUpdateFailed");
-    }
+  async function updateStatus(id, status, options) {
+    return updateReservation(id, { status: status }, {
+      ...(options || {}),
+      errorMessage: "Unable to update reservation status"
+    });
   }
 
-  async function attachPayment(id, payment) {
+  async function updateReservation(id, updates, options) {
     const client = await getClient();
     const existing = await getReservation(id);
 
@@ -201,53 +238,107 @@ function createReservationRepository(customDependencies) {
       return null;
     }
 
+    const requested = updates || {};
+    const expectedStatus = options && options.expectedStatus;
+    const expectedEtag = options && options.expectedEtag;
+
+    if (expectedStatus && existing.status !== expectedStatus) {
+      throw createStorageConflict("Reservation status changed before update");
+    }
+
+    if (expectedEtag && existing.etag && existing.etag !== expectedEtag) {
+      throw createStorageConflict("Reservation version changed before update");
+    }
+
     const entity = {
       partitionKey: existing.partitionKey,
-      rowKey: existing.id,
-      PaymentSessionId: payment && payment.sessionId
-        ? payment.sessionId
-        : (existing.paymentSessionId || ""),
-      PaymentStatus: payment && payment.paymentStatus
-        ? payment.paymentStatus
-        : (existing.paymentStatus || ""),
-      PaymentUrl: payment && payment.paymentUrl
-        ? payment.paymentUrl
-        : (existing.paymentUrl || "")
+      rowKey: existing.id
     };
 
-    if (payment && payment.amountInMinorUnit !== undefined) {
-      entity.PaymentAmountMinor = Number(payment.amountInMinorUnit || 0);
-    }
+    Object.keys(requested).forEach(function (field) {
+      if (!Object.prototype.hasOwnProperty.call(FIELD_MAP, field)) {
+        return;
+      }
 
-    if (payment && payment.currency) {
-      entity.PaymentCurrency = String(payment.currency).toUpperCase();
-    }
+      const entityField = FIELD_MAP[field];
+      entity[entityField] = field === "status"
+        ? normalizeStatus(requested[field])
+        : requested[field];
+    });
 
-    if (payment && payment.cancellationUrl) {
-      entity.CancellationUrl = payment.cancellationUrl;
-    }
+    const etag = expectedEtag || existing.etag;
 
-    if (payment && payment.cancellationExpiresAt) {
-      entity.CancellationExpiresAt = payment.cancellationExpiresAt;
-    }
+    let updateResult;
 
     try {
-      await client.updateEntity(entity, "Merge");
-      return {
-        ...existing,
-        paymentSessionId: entity.PaymentSessionId,
-        paymentStatus: entity.PaymentStatus,
-        paymentUrl: entity.PaymentUrl,
-        paymentAmountMinor: entity.PaymentAmountMinor !== undefined
-          ? entity.PaymentAmountMinor
-          : (existing.paymentAmountMinor || 0),
-        paymentCurrency: entity.PaymentCurrency || existing.paymentCurrency || "",
-        cancellationUrl: entity.CancellationUrl || existing.cancellationUrl || "",
-        cancellationExpiresAt: entity.CancellationExpiresAt || existing.cancellationExpiresAt || ""
-      };
+      if (etag) {
+        updateResult = await client.updateEntity(entity, "Merge", { etag: etag });
+      } else {
+        updateResult = await client.updateEntity(entity, "Merge");
+      }
     } catch (error) {
-      throw createStorageError("Unable to attach reservation payment", error, "StorageUpdateFailed");
+      if (error && error.statusCode === 412) {
+        throw createStorageConflict("Reservation version changed during update");
+      }
+
+      throw createStorageError(
+        (options && options.errorMessage) || "Unable to update reservation",
+        error,
+        "StorageUpdateFailed"
+      );
     }
+
+    const result = { ...existing };
+    Object.keys(requested).forEach(function (field) {
+      if (Object.prototype.hasOwnProperty.call(FIELD_MAP, field)) {
+        result[field] = entity[FIELD_MAP[field]];
+      }
+    });
+    result.etag = (updateResult && updateResult.etag) || existing.etag || "";
+    return result;
+  }
+
+  async function attachPayment(id, payment, options) {
+    const existing = await getReservation(id);
+
+    if (!existing) {
+      return null;
+    }
+
+    const paymentData = payment || {};
+    const updates = {
+      paymentSessionId: paymentData.sessionId || existing.paymentSessionId || "",
+      paymentStatus: paymentData.paymentStatus || existing.paymentStatus || "",
+      paymentUrl: paymentData.paymentUrl || existing.paymentUrl || ""
+    };
+
+    if (paymentData.amountInMinorUnit !== undefined) {
+      updates.paymentAmountMinor = Number(paymentData.amountInMinorUnit || 0);
+    }
+
+    if (paymentData.currency) {
+      updates.paymentCurrency = String(paymentData.currency).toUpperCase();
+    }
+
+    [
+      "paymentIntentId",
+      "refundId",
+      "refundRequestedAt",
+      "refundCompletedAt",
+      "pendingExpiresAt",
+      "expiredAt",
+      "cancellationUrl",
+      "cancellationExpiresAt"
+    ].forEach(function (field) {
+      if (paymentData[field] !== undefined) {
+        updates[field] = paymentData[field];
+      }
+    });
+
+    return updateReservation(id, updates, {
+      ...(options || {}),
+      errorMessage: "Unable to attach reservation payment"
+    });
   }
 
   return {
@@ -255,7 +346,8 @@ function createReservationRepository(customDependencies) {
     getReservation,
     getReservations,
     updateStatus,
-    attachPayment
+    attachPayment,
+    updateReservation
   };
 }
 
@@ -279,11 +371,14 @@ module.exports = {
   getReservations: function getReservationsProxy() {
     return activeRepository.getReservations();
   },
-  updateStatus: function updateStatusProxy(id, status) {
-    return activeRepository.updateStatus(id, status);
+  updateStatus: function updateStatusProxy(id, status, options) {
+    return activeRepository.updateStatus(id, status, options);
   },
-  attachPayment: function attachPaymentProxy(id, payment) {
-    return activeRepository.attachPayment(id, payment);
+  attachPayment: function attachPaymentProxy(id, payment, options) {
+    return activeRepository.attachPayment(id, payment, options);
+  },
+  updateReservation: function updateReservationProxy(id, updates, options) {
+    return activeRepository.updateReservation(id, updates, options);
   },
   createReservationRepository,
   __setDependencies,

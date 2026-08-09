@@ -165,6 +165,86 @@ describe("ReservationRepository", function () {
     expect(updated.status).toBe("Confirmed");
   });
 
+  it("should_use_the_entity_etag_for_conditional_updates()", async function () {
+    mockClient.listEntities.mockReturnValue(
+      createAsyncIterable([
+        {
+          partitionKey: "2026-08",
+          rowKey: "res-etag",
+          etag: "etag-old",
+          Status: "Pending",
+          FromDate: "2026-08-12",
+          ToDate: "2026-08-13",
+          Pads: 1
+        }
+      ])
+    );
+    mockClient.updateEntity.mockResolvedValue({ etag: "etag-new" });
+
+    const updated = await ReservationRepository.updateStatus("res-etag", "Expired", {
+      expectedStatus: "Pending",
+      expectedEtag: "etag-old"
+    });
+
+    expect(mockClient.updateEntity).toHaveBeenCalledWith(
+      expect.objectContaining({ Status: "Expired" }),
+      "Merge",
+      { etag: "etag-old" }
+    );
+    expect(updated.etag).toBe("etag-new");
+  });
+
+  it("should_reject_status_and_etag_conflicts_before_writing()", async function () {
+    mockClient.listEntities.mockReturnValue(createAsyncIterable([
+      { partitionKey: "2026-08", rowKey: "res-conflict", etag: "etag-current", Status: "Confirmed" }
+    ]));
+
+    await expect(ReservationRepository.updateReservation("res-conflict", { status: "Expired" }, {
+      expectedStatus: "Pending",
+      expectedEtag: "etag-old"
+    })).rejects.toMatchObject({ statusCode: 409, code: "StorageConflict" });
+    expect(mockClient.updateEntity).not.toHaveBeenCalled();
+  });
+
+  it("should_persist_extended_payment_audit_fields()", async function () {
+    mockClient.listEntities.mockReturnValue(createAsyncIterable([
+      { partitionKey: "2026-08", rowKey: "res-audit", Status: "Pending", etag: "etag-audit" }
+    ]));
+    mockClient.updateEntity.mockResolvedValue({ etag: "etag-audit-2" });
+
+    await ReservationRepository.attachPayment("res-audit", {
+      paymentStatus: "Refunded",
+      paymentIntentId: "pi-1",
+      refundId: "re-1",
+      refundRequestedAt: "2026-08-09T10:00:00.000Z",
+      refundCompletedAt: "2026-08-09T10:01:00.000Z",
+      pendingExpiresAt: "2026-08-09T08:00:00.000Z",
+      expiredAt: "2026-08-09T10:02:00.000Z"
+    });
+
+    expect(mockClient.updateEntity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        PaymentIntentId: "pi-1",
+        RefundId: "re-1",
+        RefundCompletedAt: "2026-08-09T10:01:00.000Z",
+        PendingExpiresAt: "2026-08-09T08:00:00.000Z",
+        ExpiredAt: "2026-08-09T10:02:00.000Z"
+      }),
+      "Merge",
+      { etag: "etag-audit" }
+    );
+  });
+
+  it("should_expose_the_update_reservation_proxy()", async function () {
+    mockClient.listEntities.mockReturnValue(createAsyncIterable([
+      { partitionKey: "2026-08", rowKey: "res-proxy", Status: "Pending" }
+    ]));
+
+    const result = await ReservationRepository.updateReservation("res-proxy", { status: "Expired" });
+
+    expect(result.status).toBe("Expired");
+  });
+
   it("should_return_null_when_attachPayment_target_does_not_exist()", async function () {
     mockClient.listEntities.mockReturnValue(createAsyncIterable([]));
 

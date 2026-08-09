@@ -156,15 +156,34 @@ function createStripeService(customDependencies) {
 
     const stripeClient = getClient();
 
-    let session;
-
-    try {
-      session = await stripeClient.checkout.sessions.retrieve(sessionId);
-    } catch (error) {
-      throw createPaymentError("Unable to load Stripe checkout session", error, "PaymentProviderError");
+    if (params && params.refundId) {
+      try {
+        const existingRefund = await stripeClient.refunds.retrieve(String(params.refundId));
+        return {
+          refundId: existingRefund.id,
+          status: existingRefund.status || "pending",
+          paymentIntentId: existingRefund.payment_intent || params.paymentIntentId || ""
+        };
+      } catch (error) {
+        throw createPaymentError("Unable to load existing Stripe refund", error, "PaymentProviderError");
+      }
     }
 
-    const paymentIntentId = session && session.payment_intent ? String(session.payment_intent) : "";
+    let session;
+
+    let paymentIntentId = String((params && params.paymentIntentId) || "").trim();
+
+    if (!paymentIntentId) {
+      try {
+        session = await stripeClient.checkout.sessions.retrieve(sessionId);
+      } catch (error) {
+        throw createPaymentError("Unable to load Stripe checkout session", error, "PaymentProviderError");
+      }
+
+      paymentIntentId = session && session.payment_intent
+        ? String(session.payment_intent.id || session.payment_intent)
+        : "";
+    }
 
     if (!paymentIntentId) {
       const notRefundable = new Error("Checkout session has no payment intent to refund");
@@ -174,13 +193,19 @@ function createStripeService(customDependencies) {
     }
 
     try {
-      const refund = await stripeClient.refunds.create({
+      const refundParams = {
         payment_intent: paymentIntentId,
         reason: (params && params.reason) || "requested_by_customer",
         metadata: {
           reservationId: (params && params.reservationId) || ""
         }
-      });
+      };
+      const requestOptions = params && params.idempotencyKey
+        ? { idempotencyKey: String(params.idempotencyKey) }
+        : undefined;
+      const refund = requestOptions
+        ? await stripeClient.refunds.create(refundParams, requestOptions)
+        : await stripeClient.refunds.create(refundParams);
 
       return {
         refundId: refund.id,
@@ -192,10 +217,61 @@ function createStripeService(customDependencies) {
     }
   }
 
+  async function expireCheckoutSession(sessionId) {
+    const normalizedSessionId = String(sessionId || "").trim();
+
+    if (!normalizedSessionId) {
+      const validationError = new Error("sessionId is required to expire checkout");
+      validationError.statusCode = 400;
+      validationError.code = "MissingSessionId";
+      throw validationError;
+    }
+
+    const stripeClient = getClient();
+    let session;
+
+    try {
+      session = await stripeClient.checkout.sessions.retrieve(normalizedSessionId);
+    } catch (error) {
+      throw createPaymentError("Unable to load Stripe checkout session", error, "PaymentProviderError");
+    }
+
+    if (session.payment_status === "paid" || session.status === "complete") {
+      return {
+        sessionId: normalizedSessionId,
+        status: session.status || "complete",
+        paymentStatus: "Paid",
+        expired: false
+      };
+    }
+
+    if (session.status && session.status !== "open") {
+      return {
+        sessionId: normalizedSessionId,
+        status: session.status,
+        paymentStatus: session.payment_status || "expired",
+        expired: session.status === "expired"
+      };
+    }
+
+    try {
+      const expired = await stripeClient.checkout.sessions.expire(normalizedSessionId);
+      return {
+        sessionId: normalizedSessionId,
+        status: expired.status || "expired",
+        paymentStatus: expired.payment_status || "expired",
+        expired: true
+      };
+    } catch (error) {
+      throw createPaymentError("Unable to expire Stripe checkout session", error, "CheckoutExpirationFailed");
+    }
+  }
+
   return {
     createCheckoutSession,
     verifyWebhookSignature,
-    refundCheckoutSessionPayment
+    refundCheckoutSessionPayment,
+    expireCheckoutSession
   };
 }
 
@@ -218,6 +294,9 @@ module.exports = {
   },
   refundCheckoutSessionPayment: function refundCheckoutSessionPaymentProxy(params) {
     return activeService.refundCheckoutSessionPayment(params);
+  },
+  expireCheckoutSession: function expireCheckoutSessionProxy(sessionId) {
+    return activeService.expireCheckoutSession(sessionId);
   },
   createStripeService,
   __setDependencies,

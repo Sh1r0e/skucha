@@ -90,4 +90,16 @@ describe("reservation-cancel function", function () {
     expect(context.res.status).toBe(410);
     expect(context.res.body.code).toBe("TokenExpired");
   });
+
+  it("should_reject_non_post_requests()", async function () {
+    const context = createMockContext();
+
+    await handler(context, {
+      method: "GET",
+      query: { reservation_id: "res-1", token: "abc" }
+    });
+
+    expect(context.res.status).toBe(405);
+    expect(context.res.body.code).toBe("MethodNotAllowed");
+  });
 });

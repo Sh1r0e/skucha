@@ -12,7 +12,7 @@
     "ci": "npm run lint && npm run test:coverage"
   },
   "engines": {
-    "node": "18.x"
+    "node": "22.x"
   },
   "dependencies": {
     "@azure/communication-email": "1.0.0",
