@@ -217,7 +217,7 @@ Current GitHub Actions workflow uses:
 - `app_location: "/"`
 - `api_location: "api"`
 - `output_location: "/"`
-- Node.js `20` for quality checks and API dependency installation
+- Node.js `22` for quality checks and API dependency installation
 
 ## Roadmap
 
