@@ -4,6 +4,7 @@
   var STATUS_URL = "/api/site-status";
   var MAINTENANCE_PAGE = "/under-construction.html";
   var localHostPattern = /^(localhost|127\.0\.0\.1|\[::1\])$/i;
+  var productionHostPattern = /^(www\.)?skucha\.co$/i;
   var existingOperationPattern = /(?:skucha-payment-success|skucha-payment-cancel|reservation-cancel)\.html$/i;
 
   document.documentElement.setAttribute("data-site-status", "checking");
@@ -18,6 +19,10 @@
 
   function isLocalDevelopment() {
     return window.location.protocol === "file:" || localHostPattern.test(window.location.hostname);
+  }
+
+  function isProductionSite() {
+    return productionHostPattern.test(window.location.hostname || "");
   }
 
   function maintenanceUrl() {
@@ -47,7 +52,7 @@
     }
 
     if (typeof window.fetch !== "function") {
-      return Promise.resolve(isLocalDevelopment() ? openSite() : redirectToMaintenance());
+      return Promise.resolve(isLocalDevelopment() || !isProductionSite() ? openSite() : redirectToMaintenance());
     }
 
     return fetch(STATUS_URL, {
@@ -67,8 +72,12 @@
 
         return payload.maintenanceMode ? redirectToMaintenance() : openSite();
       })
-      .catch(function () {
-        return isLocalDevelopment() ? openSite() : redirectToMaintenance();
+      .catch(function (error) {
+        if (window.console && typeof window.console.error === "function") {
+          window.console.error("SKUCHA site status check failed", error);
+        }
+
+        return isLocalDevelopment() || !isProductionSite() ? openSite() : redirectToMaintenance();
       });
   }
 
