@@ -35,6 +35,7 @@ Never trust frontend input. Reservation acceptance is backend-controlled.
 - `POST /api/stripe-webhook`
 - `GET /api/reservation/cancel?reservation_id={reservationId}&token={token}`
 - `POST /api/reservation/cancel`
+- `GET /api/site-status`
 
 ## Checkout and Email Lifecycle
 
@@ -121,6 +122,14 @@ Azure Communication Service email settings:
 - `ACS_CONNECTION_STRING` - connection string for ACS Email resource
 - `ACS_SENDER_ADDRESS` - sender address (for example `noreply@skucha.co`)
 
+### Maintenance Mode
+
+The public site has a fail-closed maintenance gate. Set `MAINTENANCE_MODE` to `true` in the production Static Web App application settings, save the setting, and restart the app. Every public HTML entry point then redirects to `under-construction.html`, and reservation, availability, lookup, and cancellation API calls return `503 Service Unavailable` with `code: "MaintenanceMode"`.
+
+Set `MAINTENANCE_MODE` to `false` or remove it and restart the app to reopen the site. The `/api/site-status` endpoint remains available so the frontend can make this decision without exposing the environment variable. The health endpoint and Stripe webhook remain available for operational monitoring and already-started payment flows.
+
+For local development, omit the variable or set `MAINTENANCE_MODE=false` in `api/local.settings.json`. To exercise the maintenance screen locally, set it to `true` and run the frontend through the local Static Web Apps/Functions host so `/api/site-status` is available.
+
 ### Azure Portal Setup
 
 The repository uses the resources shown in the deployment subscription:
@@ -133,16 +142,17 @@ The repository uses the resources shown in the deployment subscription:
 Configure ACS email in the Azure portal:
 
 1. Open `skucha-communication-email-services` and open the `MailFrom` or Domains area. Confirm that the `skucha.co` domain is provisioned and verified. Do not continue until its status is ready.
-2. Use `noreply@skucha.co` as the sender address. It must belong to the verified `skucha.co` domain.
-3. Open `skucha-communication-services`, select **Keys**, and copy the **Primary connection string**. Treat it as a secret; do not commit it or paste it into source control.
-4. Open `skucha-web`, select **Configuration**, then **Application settings**, and add these settings for the production environment:
+2. Open `skucha-communication-services`, open **Email** or **Domains**, and connect the verified `skucha.co` domain from `skucha-communication-email-services`. The domain must show as linked or connected to this Communication Services resource; verification in the Email resource alone is not sufficient.
+3. Use the exact MailFrom address shown for the linked domain, for example `noreply@skucha.co`, as the sender address.
+4. In `skucha-communication-services`, select **Keys** and copy the **Primary connection string**. Treat it as a secret; do not commit it or paste it into source control.
+5. Open `skucha-web`, select **Configuration**, then **Application settings**, and add these settings for the production environment:
 	- `MAIL_MODE` = `acs-email`
 	- `ACS_CONNECTION_STRING` = the copied Primary connection string
 	- `ACS_SENDER_ADDRESS` = `noreply@skucha.co`
 	- `RESERVATION_PUBLIC_BASE_URL` = the public `skucha-web` domain
 	- `RESERVATION_CANCEL_TOKEN_SECRET` = a long random secret
 	- `RESERVATION_CANCEL_TOKEN_TTL_HOURS` = `72`
-5. Save the settings and restart the Static Web App. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
+6. Save the settings and restart the Static Web App. For `development-preview`, add the same settings under the preview environment's configuration; Static Web Apps does not automatically copy production application settings to branch environments. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
 
 For local development, use the same variable names in `api/local.settings.json`; keep that file out of version control.
 

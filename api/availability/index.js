@@ -1,4 +1,5 @@
 const AvailabilityService = require("../services/AvailabilityService");
+const { rejectDuringMaintenance } = require("../helpers/maintenance");
 
 function createAvailabilityHandler(customDependencies) {
   const dependencies = {
@@ -7,6 +8,10 @@ function createAvailabilityHandler(customDependencies) {
   };
 
   return async function availabilityHandler(context, req) {
+    if (rejectDuringMaintenance(context)) {
+      return;
+    }
+
     try {
       const request = req || context.req || {};
       let query = request.query || {};

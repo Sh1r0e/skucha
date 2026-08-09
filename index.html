@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./maintenance-gate.js"></script>
     <title>Skucha - Wypozyczalnia crash padow</title>
     <style>
         :root {
@@ -79,10 +80,9 @@
 <body>
     <main class="card">
         <h1>Skucha. Ląduj miękko.</h1>
-        <p>Strona automatycznie otwiera wersję mobilną lub desktopową. Jeśli przekierowanie nie zadziała, użyj linków poniżej.</p>
+        <p>Strona automatycznie otwiera responsywny widok rezerwacji. Jeśli przekierowanie nie zadziała, użyj linku poniżej.</p>
         <div class="actions">
-            <a class="primary" href="skucha-mobile.html">Wersja mobilna</a>
-            <a href="skucha-desktop.html">Wersja desktop</a>
+            <a class="primary" href="skucha.html">Przejdź do rezerwacji</a>
             <a href="skucha-print.html">Wersja print</a>
         </div>
         <div class="hint" id="redirectHint">Trwa przekierowanie...</div>
@@ -90,15 +90,21 @@
 
     <script>
         (function () {
-            var isDesktop = window.matchMedia("(min-width: 1024px)").matches;
-            var target = isDesktop ? "skucha-desktop.html" : "skucha-mobile.html";
+            var target = "skucha.html";
             var hint = document.getElementById("redirectHint");
+            var ready = window.SKUCHA_SITE_READY || Promise.resolve(true);
 
-            if (hint) {
-                hint.textContent = "Przekierowanie do: " + target;
-            }
+            ready.then(function (siteIsOpen) {
+                if (!siteIsOpen) {
+                    return;
+                }
 
-            window.location.replace(target);
+                if (hint) {
+                    hint.textContent = "Przekierowanie do: " + target;
+                }
+
+                window.location.replace(target);
+            });
         })();
     </script>
 </body>

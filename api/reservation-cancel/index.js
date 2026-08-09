@@ -1,4 +1,5 @@
 const ReservationService = require("../services/ReservationService");
+const { rejectDuringMaintenance } = require("../helpers/maintenance");
 
 function createReservationCancelHandler(customDependencies) {
   const dependencies = {
@@ -7,6 +8,10 @@ function createReservationCancelHandler(customDependencies) {
   };
 
   return async function reservationCancelHandler(context, req) {
+    if (rejectDuringMaintenance(context)) {
+      return;
+    }
+
     const request = req || context.req || {};
     const query = request.query || {};
 

@@ -13,6 +13,7 @@
 </style>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./maintenance-gate.js"></script>
 <script src="./support.js"></script>
 <script src="./config/config-loader.js"></script>
 </head>
@@ -163,7 +164,7 @@
       <a href="{{ waLink }}" target="_blank" rel="noopener" style="margin-top:14px; display:flex; align-items:center; justify-content:center; gap:9px; background:#FB5A12; color:#fff; text-decoration:none; font-weight:800; font-size:16px; padding:16px; border-radius:14px; letter-spacing:-0.01em;">
         Rezerwuj<span style="font-size: 18px;">→</span>
       </a>
-      <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10.5px; color:#b0aca4; margin-top:9px;">Bez przedpłaty · potwierdzasz w czacie</div>
+      <div style="text-align:center; font-family:'Space Mono',monospace; font-size:10.5px; color:#b0aca4; margin-top:9px;">Płatność online przez Stripe · kaucja gotówką przy odbiorze</div>
     </div>
   </div>
 
@@ -189,7 +190,7 @@
       </div>
       <div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid #ededea;">
         <span style="font-family:'Space Mono',monospace; font-weight:700; color:#FB5A12; font-size:13px; padding-top:2px;">03</span>
-        <div><div style="font-size:17px; font-weight:700;">Potwierdź na WhatsApp</div><div style="font-size:14px; color:#6b6862; margin-top:3px;">Wiadomość uzupełnia się sama. Dogadujemy miejsce i godzinę.</div></div>
+        <div><div style="font-size:17px; font-weight:700;">Opłać rezerwację online</div><div style="font-size:14px; color:#6b6862; margin-top:3px;">Po akceptacji terminu przejdziesz do bezpiecznej płatności online przez Stripe.</div></div>
       </div>
       <div style="display:flex; gap:14px; padding:16px 0; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
         <span style="font-family:'Space Mono',monospace; font-weight:700; color:#FB5A12; font-size:13px; padding-top:2px;">04</span>
@@ -484,7 +485,7 @@ class Component extends DCLogic {
     const faqData = [
       { q:'Na jak długo mogę wypożyczyć?', a:'Od jednego dnia po cały wyjazd. Wybierasz daty od–do, a cena liczy się za każdy dzień osobno.' },
       { q:'Jak działa dowóz?', a:'Dowozimy na terenie Wrocławia i okolic za 15 zł od pada. Umawiamy konkretne miejsce i przedział godzin — pod blok albo pod sektor.' },
-      { q:'Czy muszę płacić z góry?', a:'Nie. Rezerwujesz przez WhatsApp, a płatność ustalamy przy odbiorze. Bez przedpłat.' },
+      { q:'Czy płatność odbywa się online?', a:'Tak. Po wysłaniu rezerwacji przejdziesz do bezpiecznej płatności online przez Stripe. Rezerwacja zostanie potwierdzona po opłaceniu.' },
       { q:'Co jeśli pad się zabrudzi?', a:'Normalne ślady terenu to żaden problem — to crash pad, nie kanapa. Liczą się tylko realne uszkodzenia.' },
       { q:'Ile padów wziąć?', a:'Na jeden problem zwykle 2–3. Na trudniejsze lądowania albo wyższe boulderingi — więcej. Jak nie wiesz, napisz, doradzimy.' }
     ];

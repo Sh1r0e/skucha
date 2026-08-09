@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Strona SKUCHA jest obecnie w trakcie budowy.">
+  <title>Skucha - Strona w budowie</title>
+  <style>
+    :root {
+      --paper: #f5f4f1;
+      --card: #fffdf9;
+      --ink: #1a1916;
+      --muted: #6b6862;
+      --line: #dfddd7;
+      --accent: #fb5a12;
+      --green: #1f8a5b;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-height: 100%; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(rgba(26, 25, 22, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26, 25, 22, 0.035) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: "Bricolage Grotesque", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .notice {
+      width: min(720px, 100%);
+      padding: clamp(28px, 6vw, 64px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--card);
+      box-shadow: 0 28px 80px -48px rgba(26, 25, 22, 0.55);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font: 700 12px/1.2 "Space Mono", Consolas, monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      background: var(--accent);
+      transform: rotate(45deg);
+    }
+
+    h1 {
+      max-width: 11ch;
+      margin: 30px 0 0;
+      font-size: clamp(44px, 9vw, 88px);
+      line-height: 0.94;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      max-width: 52ch;
+      margin: 26px 0 0;
+      color: var(--muted);
+      font-size: clamp(17px, 2.4vw, 21px);
+      line-height: 1.5;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 34px;
+      padding: 11px 14px;
+      border: 1px solid rgba(31, 138, 91, 0.25);
+      border-radius: 999px;
+      color: var(--green);
+      background: rgba(31, 138, 91, 0.07);
+      font: 700 11px/1.2 "Space Mono", Consolas, monospace;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(31, 138, 91, 0.12);
+    }
+
+    .footer {
+      margin-top: 56px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+      color: #9a968e;
+      font: 11px/1.5 "Space Mono", Consolas, monospace;
+    }
+
+    @media (max-width: 540px) {
+      body { padding: 14px; }
+      .notice { border-radius: 18px; }
+      h1 { margin-top: 24px; }
+      .footer { margin-top: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="notice" aria-labelledby="page-title">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span>SKUCHA / WROCLAW</div>
+    <h1 id="page-title">Strona w budowie.</h1>
+    <p class="lead">Aktywnie pracujemy nad serwisem. Wrocimy wkrotce z gotowa strona i mozliwoscia rezerwacji crash padów.</p>
+    <div class="status"><span class="status-dot" aria-hidden="true"></span>Prace trwaja</div>
+    <div class="footer">Dziekujemy za cierpliwosc.</div>
+  </main>
+</body>
+</html>
