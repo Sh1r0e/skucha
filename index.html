@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./maintenance-gate.js"></script>
     <title>Skucha - Wypozyczalnia crash padow</title>
     <style>
         :root {
@@ -91,12 +92,19 @@
         (function () {
             var target = "skucha.html";
             var hint = document.getElementById("redirectHint");
+            var ready = window.SKUCHA_SITE_READY || Promise.resolve(true);
 
-            if (hint) {
-                hint.textContent = "Przekierowanie do: " + target;
-            }
+            ready.then(function (siteIsOpen) {
+                if (!siteIsOpen) {
+                    return;
+                }
 
-            window.location.replace(target);
+                if (hint) {
+                    hint.textContent = "Przekierowanie do: " + target;
+                }
+
+                window.location.replace(target);
+            });
         })();
     </script>
 </body>

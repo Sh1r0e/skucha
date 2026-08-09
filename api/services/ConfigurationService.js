@@ -39,6 +39,12 @@ function getReservationCancelTokenTtlHours() {
   return Number.isFinite(raw) && raw > 0 ? raw : 72;
 }
 
+function getMaintenanceMode() {
+  return ["1", "true", "yes", "on"].includes(
+    String(process.env.MAINTENANCE_MODE || "").trim().toLowerCase()
+  );
+}
+
 module.exports = {
   getStorageConnectionString,
   getStripeSecretKey,
@@ -49,5 +55,6 @@ module.exports = {
   getAcsSenderAddress,
   getReservationPublicBaseUrl,
   getReservationCancelTokenSecret,
-  getReservationCancelTokenTtlHours
+  getReservationCancelTokenTtlHours,
+  getMaintenanceMode
 };

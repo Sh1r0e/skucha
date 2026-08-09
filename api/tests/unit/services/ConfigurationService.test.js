@@ -76,4 +76,39 @@ describe("ConfigurationService", function () {
     process.env.RESERVATION_CANCEL_TOKEN_SECRET = prevSecret;
     process.env.RESERVATION_CANCEL_TOKEN_TTL_HOURS = prevTtl;
   });
+
+  it("should_enable_maintenance_mode_for_truthy_environment_values()", function () {
+    const previous = process.env.MAINTENANCE_MODE;
+
+    try {
+      ["1", "true", "yes", "on", " TRUE "].forEach(function (value) {
+        process.env.MAINTENANCE_MODE = value;
+        expect(ConfigurationService.getMaintenanceMode()).toBe(true);
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MAINTENANCE_MODE;
+      } else {
+        process.env.MAINTENANCE_MODE = previous;
+      }
+    }
+  });
+
+  it("should_disable_maintenance_mode_when_environment_value_is_not_truthy()", function () {
+    const previous = process.env.MAINTENANCE_MODE;
+
+    try {
+      process.env.MAINTENANCE_MODE = "false";
+      expect(ConfigurationService.getMaintenanceMode()).toBe(false);
+
+      delete process.env.MAINTENANCE_MODE;
+      expect(ConfigurationService.getMaintenanceMode()).toBe(false);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MAINTENANCE_MODE;
+      } else {
+        process.env.MAINTENANCE_MODE = previous;
+      }
+    }
+  });
 });

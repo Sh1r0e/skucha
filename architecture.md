@@ -120,6 +120,8 @@ Frontend responsibilities:
 - call `/api/availability` for calendar day availability
 - call `/api/reservation` to create reservation requests
 - do basic client-side validation (required fields, email format)
+- check `/api/site-status` before exposing public page interaction
+- redirect to `under-construction.html` when maintenance mode is enabled
 
 Frontend data sources:
 
@@ -131,6 +133,7 @@ HTTP functions:
 
 - `GET /api/availability` in `api/availability/index.js`
 - `POST /api/reservation` in `api/reservation/index.js`
+- `GET /api/site-status` in `api/site-status/index.js`
 
 Service layer:
 
@@ -142,6 +145,12 @@ Service layer:
 Model layer:
 
 - `api/models/Reservation.js`
+
+Maintenance behavior:
+
+- `MAINTENANCE_MODE` is read only by the API runtime and defaults to disabled.
+- `api/helpers/maintenance.js` rejects public reservation operations with `503` while the flag is enabled.
+- Stripe webhook processing and the health endpoint remain available for operational continuity.
 
 ## Runtime Flows
 

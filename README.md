@@ -35,6 +35,7 @@ Never trust frontend input. Reservation acceptance is backend-controlled.
 - `POST /api/stripe-webhook`
 - `GET /api/reservation/cancel?reservation_id={reservationId}&token={token}`
 - `POST /api/reservation/cancel`
+- `GET /api/site-status`
 
 ## Checkout and Email Lifecycle
 
@@ -120,6 +121,14 @@ Azure Communication Service email settings:
 - `MAIL_MODE` - set to `acs-email` to send real emails (`log-only` keeps local placeholder behavior)
 - `ACS_CONNECTION_STRING` - connection string for ACS Email resource
 - `ACS_SENDER_ADDRESS` - sender address (for example `noreply@skucha.co`)
+
+### Maintenance Mode
+
+The public site has a fail-closed maintenance gate. Set `MAINTENANCE_MODE` to `true` in the production Static Web App application settings, save the setting, and restart the app. Every public HTML entry point then redirects to `under-construction.html`, and reservation, availability, lookup, and cancellation API calls return `503 Service Unavailable` with `code: "MaintenanceMode"`.
+
+Set `MAINTENANCE_MODE` to `false` or remove it and restart the app to reopen the site. The `/api/site-status` endpoint remains available so the frontend can make this decision without exposing the environment variable. The health endpoint and Stripe webhook remain available for operational monitoring and already-started payment flows.
+
+For local development, omit the variable or set `MAINTENANCE_MODE=false` in `api/local.settings.json`. To exercise the maintenance screen locally, set it to `true` and run the frontend through the local Static Web Apps/Functions host so `/api/site-status` is available.
 
 ### Azure Portal Setup
 
