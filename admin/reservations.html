@@ -73,6 +73,34 @@
         status.className = "status" + (isError ? " error" : "");
       }
 
+      function readApiResponse(response) {
+        return response.text().then(function (raw) {
+          var payload = {};
+
+          if (raw) {
+            try {
+              payload = JSON.parse(raw);
+            } catch (_error) {
+              payload = { message: raw.slice(0, 240) };
+            }
+          }
+
+          if (!payload.message) {
+            if (response.status === 401) {
+              payload.message = "Admin sign-in is required. Sign in again and reload this page.";
+            } else if (response.status === 403) {
+              payload.message = "Your account does not have the admin role.";
+            } else if (response.status === 404) {
+              payload.message = "The admin API is not available in this preview deployment.";
+            } else {
+              payload.message = "Admin API returned HTTP " + response.status + ".";
+            }
+          }
+
+          return { ok: response.ok, status: response.status, payload: payload };
+        });
+      }
+
       function render(reservations) {
         body.innerHTML = "";
         if (!reservations.length) {
@@ -133,8 +161,8 @@
         if (statusFilter.value) { query.set("status", statusFilter.value); }
         if (activeOnly) { query.set("active", "true"); }
         setStatus("Loading...");
-        fetch("/api/admin/reservations?" + query.toString(), { headers: { Accept: "application/json" } })
-          .then(function (response) { return response.json().then(function (payload) { return { ok: response.ok, payload: payload }; }); })
+        fetch("/api/admin/reservations?" + query.toString(), { credentials: "same-origin", headers: { Accept: "application/json" } })
+          .then(readApiResponse)
           .then(function (result) {
             if (!result.ok) { throw new Error(result.payload.message || "Unable to load reservations."); }
             render(result.payload.reservations || []);
@@ -144,9 +172,9 @@
       }
 
       function postAction(payload, successMessage) {
-        fetch("/api/admin/reservations", { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) })
-          .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
-          .then(function (result) { if (!result.ok) { throw new Error(result.data.message || "Operation failed."); } setStatus(successMessage); loadReservations(); })
+        fetch("/api/admin/reservations", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(payload) })
+          .then(readApiResponse)
+          .then(function (result) { if (!result.ok) { throw new Error(result.payload.message || "Operation failed."); } setStatus(successMessage); loadReservations(); })
           .catch(function (error) { setStatus(error.message, true); });
       }
 
@@ -162,9 +190,9 @@
       activeFilter.addEventListener("click", function () { activeOnly = !activeOnly; activeFilter.textContent = activeOnly ? "Active only: on" : "Active only"; loadReservations(); });
       document.getElementById("refreshButton").addEventListener("click", loadReservations);
       document.getElementById("housekeepingButton").addEventListener("click", function () {
-        fetch("/api/admin/housekeeping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
-          .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
-          .then(function (result) { if (!result.ok) { throw new Error(result.data.message || "Housekeeping failed."); } setStatus("Housekeeping expired " + result.data.expired + " reservation(s)."); loadReservations(); })
+        fetch("/api/admin/housekeeping", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({}) })
+          .then(readApiResponse)
+          .then(function (result) { if (!result.ok) { throw new Error(result.payload.message || "Housekeeping failed."); } setStatus("Housekeeping expired " + result.payload.expired + " reservation(s)."); loadReservations(); })
           .catch(function (error) { setStatus(error.message, true); });
       });
       statusFilter.addEventListener("change", loadReservations);
