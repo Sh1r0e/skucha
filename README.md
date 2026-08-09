@@ -7,7 +7,7 @@ This project is intentionally lightweight:
 - Azure Static Web Apps
 - static HTML/CSS/JavaScript frontend
 - Azure Functions integrated in `/api`
-- no bundlers
+- API deployment bundle generated with esbuild
 
 ## Architecture
 
@@ -215,11 +215,11 @@ For Azure Static Web Apps production, use your deployed domain with the same pat
 Current GitHub Actions workflow uses:
 
 - `app_location: "/"`
-- `api_location: "api"`
+- `api_location: "api-dist"` with `skip_api_build: true`
 - `output_location: "/"`
 - Node.js `22` for quality checks and API dependency installation
 - runtime compatibility checks on Node.js `22` and `24`
-- production dependency install and Function entrypoint verification before deployment
+- published-version checks, production dependency install, Function entrypoint verification, and API bundle builds before deployment
 
 ## Roadmap
 
