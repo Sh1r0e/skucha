@@ -218,6 +218,8 @@ Current GitHub Actions workflow uses:
 - `api_location: "api"`
 - `output_location: "/"`
 - Node.js `22` for quality checks and API dependency installation
+- runtime compatibility checks on Node.js `22` and `24`
+- production dependency install and Function entrypoint verification before deployment
 
 ## Roadmap
 

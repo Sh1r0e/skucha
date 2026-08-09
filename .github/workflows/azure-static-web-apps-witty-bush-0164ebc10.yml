@@ -35,9 +35,43 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
+  runtime_compatibility:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Runtime Compatibility
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.x, 24.x]
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Verify pinned production package versions are published
+        run: |
+          test "$(npm view @azure/communication-email@1.0.0 version)" = "1.0.0"
+          test "$(npm view @azure/data-tables@13.2.2 version)" = "13.2.2"
+          test "$(npm view stripe@22.3.2 version)" = "22.3.2"
+          test "$(npm view uuid@11.0.5 version)" = "11.0.5"
+      - name: Install development dependencies
+        run: npm ci
+      - name: Verify source build and Function entrypoints
+        run: npm run verify:build
+      - name: Install production dependencies
+        run: npm ci --omit=dev
+      - name: Verify production build and Function entrypoints
+        run: npm run verify:build
+
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    needs: quality_checks
+    needs: [quality_checks, runtime_compatibility]
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:

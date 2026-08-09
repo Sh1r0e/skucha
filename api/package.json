@@ -8,11 +8,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "verify:build": "node scripts/verify-runtime.js",
     "lint": "eslint . --max-warnings=0",
     "ci": "npm run lint && npm run test:coverage"
   },
   "engines": {
-    "node": "22.x"
+    "node": ">=22 <25"
   },
   "dependencies": {
     "@azure/communication-email": "1.0.0",
