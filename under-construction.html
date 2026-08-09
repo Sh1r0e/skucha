@@ -103,6 +103,37 @@
       box-shadow: 0 0 0 4px rgba(31, 138, 91, 0.12);
     }
 
+    .phone-note {
+      margin-top: 24px;
+      padding: 18px 20px;
+      border: 1px solid rgba(251, 90, 18, 0.24);
+      border-radius: 16px;
+      background: rgba(251, 90, 18, 0.06);
+    }
+
+    .phone-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .phone-link {
+      display: inline-block;
+      margin-top: 6px;
+      color: var(--ink);
+      font: 700 clamp(20px, 4vw, 27px)/1.2 "Space Mono", Consolas, monospace;
+      text-decoration: none;
+      letter-spacing: 0.01em;
+    }
+
+    .phone-link:hover,
+    .phone-link:focus-visible {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
     .footer {
       margin-top: 56px;
       padding-top: 16px;
@@ -125,6 +156,10 @@
     <h1 id="page-title">Strona w budowie.</h1>
     <p class="lead">Aktywnie pracujemy nad serwisem. Wrocimy wkrotce z gotowa strona i mozliwoscia rezerwacji crash padów.</p>
     <div class="status"><span class="status-dot" aria-hidden="true"></span>Prace trwaja</div>
+    <div class="phone-note">
+      <p class="phone-label">Nadal przyjmujemy rezerwacje telefonicznie:</p>
+      <a class="phone-link" href="tel:+48532657655" aria-label="Zadzwoń: plus 48 532 657 655">+48 532 657 655</a>
+    </div>
     <div class="footer">Dziekujemy za cierpliwosc.</div>
   </main>
 </body>
