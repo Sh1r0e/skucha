@@ -26,8 +26,10 @@
     th { color: var(--muted); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
     tr:last-child td { border-bottom: 0; }
     .meta { color: var(--muted); font-size: 13px; line-height: 1.45; }
-    .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    .actions button { min-height: 34px; padding: 7px 9px; font-size: 13px; }
+    .actions-cell { vertical-align: middle; white-space: nowrap; }
+    .actions-cell button { min-height: 34px; padding: 7px 9px; font-size: 13px; }
+    #activeFilter[aria-pressed="true"] { border-color: var(--ok); color: #fff; background: var(--ok); }
+    #activeFilter[aria-pressed="true"]:hover { border-color: #176b46; background: #176b46; }
     .empty { padding: 30px; color: var(--muted); text-align: center; }
     @media (max-width: 620px) { header { align-items: flex-start; flex-direction: column; } main { width: min(100% - 20px, 1180px); margin-top: 16px; } }
   </style>
@@ -48,7 +50,7 @@
         <option value="Cancelled">Cancelled</option>
         <option value="Expired">Expired</option>
       </select>
-      <button id="activeFilter" type="button">Active only</button>
+      <button id="activeFilter" type="button" aria-pressed="false">Active only</button>
       <button id="refreshButton" class="primary" type="button">Refresh</button>
       <button id="housekeepingButton" type="button">Run housekeeping</button>
     </div>
@@ -135,11 +137,11 @@
           var payment = document.createElement("td");
           payment.textContent = reservation.paymentStatus || "-";
           var actions = document.createElement("td");
-          actions.className = "actions";
+          actions.className = "actions-cell";
 
           if (reservation.status === "Confirmed") {
             var collect = document.createElement("button");
-            collect.textContent = "Collect";
+            collect.textContent = "Mark collected";
             collect.addEventListener("click", function () { collectReservation(reservation); });
             actions.appendChild(collect);
           }
@@ -187,7 +189,11 @@
         if (window.confirm("Mark all pads returned for this reservation?")) { postAction({ action: "complete", reservationId: reservation.id }, "Reservation completed."); }
       }
 
-      activeFilter.addEventListener("click", function () { activeOnly = !activeOnly; activeFilter.textContent = activeOnly ? "Active only: on" : "Active only"; loadReservations(); });
+      activeFilter.addEventListener("click", function () {
+        activeOnly = !activeOnly;
+        activeFilter.setAttribute("aria-pressed", String(activeOnly));
+        loadReservations();
+      });
       document.getElementById("refreshButton").addEventListener("click", loadReservations);
       document.getElementById("housekeepingButton").addEventListener("click", function () {
         fetch("/api/backoffice/housekeeping", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({}) })
