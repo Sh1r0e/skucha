@@ -6,10 +6,6 @@
       "headers": { "Cache-Control": "no-store" }
     },
     {
-      "route": "/api/admin*",
-      "allowedRoles": ["admin"]
-    },
-    {
       "route": "/reservation-cancel.html",
       "headers": {
         "Cache-Control": "no-store",

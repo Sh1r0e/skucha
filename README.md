@@ -39,10 +39,10 @@ Never trust frontend input. Reservation acceptance is backend-controlled.
 - `POST /api/reservation/cancel`
 - `GET /api/site-status`
 - `POST /api/internal/housekeeping` (scheduler secret)
-- `GET|POST /api/admin/reservations` (Static Web Apps `admin` role)
-- `POST /api/admin/housekeeping` (Static Web Apps `admin` role)
+- `GET|POST /api/admin/reservations` (API-enforced `admin` role)
+- `POST /api/admin/housekeeping` (API-enforced `admin` role)
 
-Signing in with Microsoft Entra ID grants the built-in `authenticated` role; staff must also receive the custom `admin` role through Static Web Apps Role Management to load the admin page and call its API endpoints.
+Signing in with Microsoft Entra ID grants the built-in `authenticated` role; staff must also receive the custom `admin` role through Static Web Apps Role Management to load the admin page. The admin API handlers independently validate the same role from `x-ms-client-principal`.
 
 ## Checkout and Email Lifecycle
 

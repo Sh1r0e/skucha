@@ -10,6 +10,7 @@ const workflowPath = path.resolve(
   "workflows",
   "azure-static-web-apps-witty-bush-0164ebc10.yml"
 );
+const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
 
 describe("deployment workflow", function () {
   it("should deploy only main to production and development-preview to a preview environment", function () {
@@ -27,5 +28,14 @@ describe("deployment workflow", function () {
 
     expect(uploadJob).toMatch(/uses: Azure\/static-web-apps-deploy@v1/);
     expect(uploadJob).toMatch(/^\s+production_branch: "main"\s*$/m);
+  });
+
+  it("should leave admin API authorization to the Function handlers", function () {
+    const staticWebAppConfig = JSON.parse(fs.readFileSync(staticWebAppConfigPath, "utf8"));
+    const adminApiRule = staticWebAppConfig.routes.find(function (route) {
+      return route.route === "/api/admin*";
+    });
+
+    expect(adminApiRule).toBeUndefined();
   });
 });
