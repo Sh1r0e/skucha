@@ -11,6 +11,8 @@ const workflowPath = path.resolve(
   "azure-static-web-apps-witty-bush-0164ebc10.yml"
 );
 const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
+const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
+const adminHousekeepingConfigPath = path.resolve(__dirname, "../../admin/housekeeping/function.json");
 
 describe("deployment workflow", function () {
   it("should deploy only main to production and development-preview to a preview environment", function () {
@@ -37,5 +39,19 @@ describe("deployment workflow", function () {
     });
 
     expect(adminApiRule).toBeUndefined();
+  });
+
+  it("should keep admin API routes outside the Static Web Apps admin namespace", function () {
+    const reservationsConfig = JSON.parse(fs.readFileSync(adminReservationsConfigPath, "utf8"));
+    const housekeepingConfig = JSON.parse(fs.readFileSync(adminHousekeepingConfigPath, "utf8"));
+    const reservationsTrigger = reservationsConfig.bindings.find(function (binding) {
+      return binding.type === "httpTrigger";
+    });
+    const housekeepingTrigger = housekeepingConfig.bindings.find(function (binding) {
+      return binding.type === "httpTrigger";
+    });
+
+    expect(reservationsTrigger.route).toBe("backoffice/reservations");
+    expect(housekeepingTrigger.route).toBe("backoffice/housekeeping");
   });
 });

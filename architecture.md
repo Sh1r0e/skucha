@@ -138,8 +138,8 @@ HTTP functions:
 - `GET /api/site-status` in `api/site-status/index.js`
 - `POST /api/reservation/cancel` in `api/reservation-cancel/index.js`
 - `POST /api/internal/housekeeping` in `api/internal/housekeeping/index.js`
-- `GET|POST /api/admin/reservations` in `api/admin/reservations/index.js`
-- `POST /api/admin/housekeeping` in `api/admin/housekeeping/index.js`
+- `GET|POST /api/backoffice/reservations` in `api/admin/reservations/index.js`
+- `POST /api/backoffice/housekeeping` in `api/admin/housekeeping/index.js`
 
 Service layer:
 
@@ -161,7 +161,7 @@ Maintenance behavior:
 - `MAINTENANCE_MODE` is read only by the API runtime and defaults to disabled.
 - `api/helpers/maintenance.js` rejects every operational API endpoint with `503` while the flag is enabled; only `GET /api/site-status` remains available for the frontend gate.
 - The API deployment bundle flattens nested source Function directories (`admin/reservations` -> `admin-reservations`) because Static Web Apps discovers Function folders directly under `api_location`; each copied `function.json` retains its nested HTTP route.
-- Do not add a Static Web Apps `/api/admin*` authorization route: this environment returns empty 404s for the managed admin API despite a valid `admin` principal. Admin Functions enforce the role through `x-ms-client-principal`; keep only the `/admin*` page rule at the edge.
+- Do not use the Static Web Apps `/api/admin*` namespace: this environment returns empty 404s for managed API routes there despite a valid `admin` principal. Admin Functions use `/api/backoffice/*` and enforce the role through `x-ms-client-principal`; keep only the `/admin*` page rule at the edge.
 
 Reservation lifecycle:
 
