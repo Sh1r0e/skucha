@@ -1,7 +1,12 @@
 const HousekeepingService = require("../../services/HousekeepingService");
 const { getRequest, requireAdmin } = require("../../helpers/auth");
+const { rejectDuringMaintenance } = require("../../helpers/maintenance");
 
 module.exports = async function (context, req) {
+  if (rejectDuringMaintenance(context)) {
+    return;
+  }
+
   const request = getRequest(context, req);
 
   if (requireAdmin(context, request)) {

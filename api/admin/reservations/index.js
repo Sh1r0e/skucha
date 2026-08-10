@@ -1,5 +1,6 @@
 const AdminReservationService = require("../../services/AdminReservationService");
 const { getRequest, requireAdmin } = require("../../helpers/auth");
+const { rejectDuringMaintenance } = require("../../helpers/maintenance");
 
 function response(context, status, body) {
   context.res = {
@@ -33,6 +34,10 @@ function createAdminReservationsHandler(customDependencies) {
   };
 
   return async function adminReservationsHandler(context, req) {
+    if (rejectDuringMaintenance(context)) {
+      return;
+    }
+
     const request = getRequest(context, req);
     if (requireAdmin(context, request)) {
       return;

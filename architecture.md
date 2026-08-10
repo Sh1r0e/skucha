@@ -159,8 +159,8 @@ Model layer:
 Maintenance behavior:
 
 - `MAINTENANCE_MODE` is read only by the API runtime and defaults to disabled.
-- `api/helpers/maintenance.js` rejects new availability and reservation-creation operations with `503` while the flag is enabled.
-- Existing payment result, lookup, cancellation, housekeeping, and Stripe webhook operations remain available.
+- `api/helpers/maintenance.js` rejects every operational API endpoint with `503` while the flag is enabled; only `GET /api/site-status` remains available for the frontend gate.
+- The API deployment bundle flattens nested source Function directories (`admin/reservations` -> `admin-reservations`) because Static Web Apps discovers Function folders directly under `api_location`; each copied `function.json` retains its nested HTTP route.
 
 Reservation lifecycle:
 

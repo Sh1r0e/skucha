@@ -35,6 +35,10 @@ function relativeFunctionPath(directory) {
   return path.relative(apiRoot, directory);
 }
 
+function deploymentDirectory(relativePath) {
+  return relativePath.split(/[\\/]/).filter(Boolean).join("-");
+}
+
 async function buildApi() {
   fs.rmSync(outputRoot, { recursive: true, force: true });
   fs.mkdirSync(outputRoot, { recursive: true });
@@ -59,7 +63,7 @@ async function buildApi() {
 
   for (const functionInfo of functions) {
     const relativePath = relativeFunctionPath(functionInfo.directory);
-    const outputDirectory = path.join(outputRoot, relativePath);
+    const outputDirectory = path.join(outputRoot, deploymentDirectory(relativePath));
     fs.mkdirSync(outputDirectory, { recursive: true });
     fs.copyFileSync(functionInfo.functionJson, path.join(outputDirectory, "function.json"));
 
@@ -82,7 +86,16 @@ async function buildApi() {
   }));
 }
 
-buildApi().catch(function (error) {
-  console.error(error.stack || error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  buildApi().catch(function (error) {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  buildApi,
+  deploymentDirectory,
+  findFunctionDirectories,
+  relativeFunctionPath
+};

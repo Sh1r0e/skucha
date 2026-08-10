@@ -3,6 +3,7 @@ const ReservationRepository = require("../repositories/ReservationRepository");
 const StripeEventRepository = require("../repositories/StripeEventRepository");
 const MailService = require("../services/MailService");
 const Lifecycle = require("../services/ReservationLifecycleService");
+const { rejectDuringMaintenance } = require("../helpers/maintenance");
 
 // Maps Stripe checkout.session payment_status to internal reservation payment status.
 const PAYMENT_STATUS_MAP = {
@@ -57,6 +58,10 @@ function createWebhookHandler(customDependencies) {
   }
 
   return async function stripeWebhookHandler(context, req) {
+    if (rejectDuringMaintenance(context)) {
+      return;
+    }
+
     const request = req || context.req || {};
 
     // Stripe signature verification requires the original body payload bytes.

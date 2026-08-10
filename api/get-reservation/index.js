@@ -1,4 +1,5 @@
 const ReservationRepository = require("../repositories/ReservationRepository");
+const { rejectDuringMaintenance } = require("../helpers/maintenance");
 
 const defaultDependencies = {
   ReservationRepository
@@ -11,6 +12,10 @@ function createGetReservationHandler(customDependencies) {
   };
 
   return async function getReservationHandler(context, req) {
+    if (rejectDuringMaintenance(context)) {
+      return;
+    }
+
     const request = req || context.req || {};
     let query = request.query || {};
 

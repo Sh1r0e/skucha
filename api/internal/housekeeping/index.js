@@ -1,6 +1,7 @@
 const HousekeepingService = require("../../services/HousekeepingService");
 const ConfigurationService = require("../../services/ConfigurationService");
 const { getRequest, requireInternalSecret } = require("../../helpers/auth");
+const { rejectDuringMaintenance } = require("../../helpers/maintenance");
 
 function parseBody(request) {
   if (!request.body) {
@@ -22,6 +23,10 @@ function parseBody(request) {
 }
 
 module.exports = async function (context, req) {
+  if (rejectDuringMaintenance(context)) {
+    return;
+  }
+
   const request = getRequest(context, req);
   const secret = ConfigurationService.getHousekeepingSecret();
 

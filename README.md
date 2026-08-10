@@ -42,6 +42,8 @@ Never trust frontend input. Reservation acceptance is backend-controlled.
 - `GET|POST /api/admin/reservations` (Static Web Apps `admin` role)
 - `POST /api/admin/housekeeping` (Static Web Apps `admin` role)
 
+Signing in with Microsoft Entra ID grants the built-in `authenticated` role; staff must also receive the custom `admin` role through Static Web Apps Role Management to load the admin page and call its API endpoints.
+
 ## Checkout and Email Lifecycle
 
 1. `POST /api/reservation` acquires the inventory lease, re-checks availability, saves a `Pending` reservation, creates a Stripe Checkout session, stores payment/cancellation data, and sends the checkout-start email.
@@ -157,9 +159,9 @@ Azure Communication Service email settings:
 
 ### Maintenance Mode
 
-The public site has a fail-closed maintenance gate. Set `MAINTENANCE_MODE` to `true` in the production Static Web App application settings, save the setting, and restart the app. New booking pages and availability/reservation-creation calls are blocked with `503 Service Unavailable` and `code: "MaintenanceMode"`.
+The public site has a fail-closed maintenance gate. Set `MAINTENANCE_MODE` to `true` in the production Static Web App application settings, save the setting, and restart the app. Every operational API endpoint is blocked with `503 Service Unavailable` and `code: "MaintenanceMode"` before authentication, storage, payment, or housekeeping work begins.
 
-Set `MAINTENANCE_MODE` to `false` or remove it and restart the app to reopen the site. The `/api/site-status` endpoint remains available so the frontend can make this decision without exposing the environment variable. Payment result, reservation lookup, cancellation, housekeeping, and Stripe webhook operations remain available for existing workflows.
+Set `MAINTENANCE_MODE` to `false` or remove it and restart the app to reopen the site. Only `/api/site-status` remains available so the frontend can make this decision without exposing the environment variable.
 
 For local development, omit the variable or set `MAINTENANCE_MODE=false` in `api/local.settings.json`. To exercise the maintenance screen locally, set it to `true` and run the frontend through the local Static Web Apps/Functions host so `/api/site-status` is available.
 
