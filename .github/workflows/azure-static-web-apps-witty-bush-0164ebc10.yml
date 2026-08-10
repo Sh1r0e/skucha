@@ -106,6 +106,7 @@ jobs:
           output_location: "" # Built app content directory - optional
           skip_app_build: true
           skip_api_build: true
+          production_branch: "main"
           ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:

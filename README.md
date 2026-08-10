@@ -221,6 +221,8 @@ Current GitHub Actions workflow uses:
 - runtime compatibility checks on Node.js `22` and `24`
 - published-version checks, production dependency install, Function entrypoint verification, and API bundle builds before deployment
 
+`main` is the only production branch. `development-preview` is deployed to its branch preview environment. Keep `production_branch: "main"` in the upload job; the deployment test fails if this routing guard is removed.
+
 ## Roadmap
 
 1. Static website, reservations, payments, and email notifications
