@@ -21,6 +21,7 @@
   body{ font-family:var(--font-main); color:var(--ink); -webkit-font-smoothing:antialiased; }
   a{ color:inherit; }
   .mobile-sticky-cta{ display:none; }
+  @keyframes skucha-reservation-spin{ to{ transform:rotate(360deg); } }
 
   @media (max-width:960px){
     #skucha-root.site-shell{ overflow:hidden; }
@@ -282,8 +283,8 @@
         </label>
       </div>
 
-      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" style="margin-top:16px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em;">
-        Rezerwuj<span style="font-size: 18px;">→</span>
+      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="margin-top:16px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em;">
+        <span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span><span>{{ reservationButtonLabel }}</span><span style="font-size: 18px;">→</span>
       </a>
       <div style="text-align:center; font-family:var(--font-mono); font-size:11.5px; font-weight:400; color:#6b6862; margin-top:10px;">Kaucja płatna gotówką przy odbiorze</div>
       <div style="{{ reservationStatusStyle }}">{{ reservationStatus }}</div>
@@ -514,7 +515,7 @@
         <div style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">{{ daysLabel }}</div>
         <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; line-height:1;">{{ totalLabel }} <span style="font-size:13px; color:#9a968e;">zł</span></div>
       </div>
-      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" style="background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:15px; padding:14px 22px; border-radius:var(--r-md);">Rezerwuj →</a>
+      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:15px; padding:14px 22px; border-radius:var(--r-md);"><span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span>{{ reservationButtonLabel }} →</a>
     </div>
   </sc-if>
 
@@ -547,7 +548,8 @@ class Component extends DCLogic {
       email: '',
       phoneInput: '',
       reservationStatus: '',
-      reservationStatusColor: '#6b6862'
+      reservationStatusColor: '#6b6862',
+      reservationSubmitting: false
     };
   })();
 
@@ -709,6 +711,7 @@ class Component extends DCLogic {
 
   async reserveClick(e){
     e.preventDefault();
+    if (this.state.reservationSubmitting) return;
     const firstName = this.state.firstName.trim();
     const lastName = this.state.lastName.trim();
     const email = this.state.email.trim();
@@ -740,7 +743,7 @@ class Component extends DCLogic {
       return;
     }
 
-    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862' });
+    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862', reservationSubmitting: true });
 
     const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
     const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
@@ -774,7 +777,7 @@ class Component extends DCLogic {
           + ((result && result.code) ? ', ' + result.code : '')
           + ((result && result.requestId) ? ', id: ' + result.requestId : '')
           + ']';
-        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318' });
+        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318', reservationSubmitting: false });
         return;
       }
 
@@ -798,10 +801,10 @@ class Component extends DCLogic {
         return;
       }
 
-      this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b' });
+      this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b', reservationSubmitting: false });
       window.open(this.buildWaLink(), '_blank', 'noopener');
     } catch (error) {
-      this.setState({ reservationStatus: 'Błąd połączenia z API.', reservationStatusColor: '#b42318' });
+      this.setState({ reservationStatus: 'Błąd połączenia z API.', reservationStatusColor: '#b42318', reservationSubmitting: false });
     }
   }
 
@@ -973,6 +976,9 @@ class Component extends DCLogic {
       reserveClick: (e) => this.reserveClick(e),
       reservationStatus: this.state.reservationStatus,
       reservationStatusColor: this.state.reservationStatusColor,
+      reservationSubmitting: this.state.reservationSubmitting ? 'true' : 'false',
+      reservationButtonLabel: this.state.reservationSubmitting ? 'Przetwarzam...' : 'Rezerwuj',
+      reservationSpinnerStyle: 'display:' + (this.state.reservationSubmitting ? 'inline-block' : 'none') + '; width:12px; height:12px; border:2px solid rgba(255,255,255,.45); border-top-color:#fff; border-radius:50%; animation:skucha-reservation-spin .8s linear infinite; vertical-align:-1px; flex:none;',
       reservationStatusStyle: "margin-top:8px; min-height:18px; font-family:var(--font-mono); font-size:11px; color:" + this.state.reservationStatusColor + ";",
       showPoints: !this.state.dowoz,
       dowoz: this.state.dowoz,

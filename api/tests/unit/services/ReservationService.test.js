@@ -668,7 +668,8 @@ describe("ReservationService", function () {
         getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
         getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
         getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
-      }
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-08T00:00:00.000Z"))
     });
 
     await expect(
@@ -704,6 +705,7 @@ describe("ReservationService", function () {
         getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
         getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
       },
+      now: vi.fn().mockReturnValue(new Date("2026-08-08T00:00:00.000Z"))
     });
 
     await expect(
