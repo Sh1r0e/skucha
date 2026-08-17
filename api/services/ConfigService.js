@@ -27,7 +27,7 @@ const DEFAULT_CONFIG = {
   pickupPoints: [
     {
       name: "Stabłowice",
-      address: "ul. Przykładowa 12, 54-100 Wrocław",
+      address: "ul. Lubomierska 24, Wrocław",
       enabled: true
     }
   ]

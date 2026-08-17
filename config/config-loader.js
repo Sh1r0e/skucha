@@ -11,7 +11,7 @@
       deliveryPerPad: 15
     },
     pickupPoints: [
-      { name: "Stablowice", address: "ul. Przykladowa 12, 54-100 Wroclaw", enabled: true },
+      { name: "Stablowice", address: "ul. Lubomierska 24, Wrocław", enabled: true },
       { name: "Brochow", address: "ul. Przykladowa 8, 52-200 Wroclaw", enabled: false }
     ],
     branding: {
@@ -59,7 +59,7 @@
 
     replaceTextInNode(document.body, "Stabłowice", p1.name || "Stabłowice");
     replaceTextInNode(document.body, "Brochów", p2.name || "Brochów");
-    replaceTextInNode(document.body, "ul. Przykładowa 12, 54-100 Wrocław", p1.address || "ul. Przykładowa 12, 54-100 Wrocław");
+    replaceTextInNode(document.body, "ul. Lubomierska 24, Wrocław", p1.address || "ul. Lubomierska 24, Wrocław");
     replaceTextInNode(document.body, "ul. Przykładowa 8, 52-200 Wrocław", p2.address || "ul. Przykładowa 8, 52-200 Wrocław");
 
     if (config.contact && config.contact.email) {
@@ -83,7 +83,7 @@
       accent: (config.branding && config.branding.accent) || "#FB5A12",
       ink: (config.branding && config.branding.ink) || "#1a1916",
       pickupPoint1Name: p1.name || "Stabłowice",
-      pickupPoint1Address: p1.address || "ul. Przykładowa 12, 54-100 Wrocław",
+      pickupPoint1Address: p1.address || "ul. Lubomierska 24, Wrocław",
       pickupPoint2Name: p2.name || "Brochów",
       pickupPoint2Address: p2.address || "ul. Przykładowa 8, 52-200 Wrocław"
     });
