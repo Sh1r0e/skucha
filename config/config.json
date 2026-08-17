@@ -6,7 +6,7 @@
   "contact": {
     "phone": "+48 532 657 655",
     "whatsapp": "+48 532 657 655",
-    "email": "kontakt@skucha.pl"
+    "email": "rental@skucha.co"
   },
   "pricing": {
     "weekday": 40,
@@ -26,7 +26,7 @@
     },
     {
       "name": "Brochów",
-      "address": "ul. Przykładowa 8, 52-200 Wrocław",
+      "address": "Adres zostanie podany po uruchomieniu punktu",
       "enabled": false
     }
   ],

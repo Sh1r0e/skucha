@@ -32,7 +32,16 @@ const FIELD_MAP = {
   expectedReturnAt: "ExpectedReturnAt",
   returnedAt: "ReturnedAt",
   handledBy: "HandledBy",
-  handoverNotes: "HandoverNotes"
+  handoverNotes: "HandoverNotes",
+  termsVersion: "TermsVersion",
+  privacyVersion: "PrivacyVersion",
+  termsAcceptedAt: "TermsAcceptedAt",
+  privacyAcceptedAt: "PrivacyAcceptedAt",
+  earlyStartRequested: "EarlyStartRequested",
+  marketingEmail: "MarketingEmail",
+  consentRecordedAt: "ConsentRecordedAt",
+  consentIp: "ConsentIp",
+  consentUserAgent: "ConsentUserAgent"
 };
 
 const defaultDependencies = {
@@ -113,7 +122,14 @@ function toPublicReservation(entity) {
     expectedReturnAt: entity.ExpectedReturnAt || "",
     returnedAt: entity.ReturnedAt || "",
     handledBy: entity.HandledBy || "",
-    handoverNotes: entity.HandoverNotes || ""
+    handoverNotes: entity.HandoverNotes || "",
+    termsVersion: entity.TermsVersion || "",
+    privacyVersion: entity.PrivacyVersion || "",
+    termsAcceptedAt: entity.TermsAcceptedAt || "",
+    privacyAcceptedAt: entity.PrivacyAcceptedAt || "",
+    earlyStartRequested: Boolean(entity.EarlyStartRequested),
+    marketingEmail: Boolean(entity.MarketingEmail),
+    consentRecordedAt: entity.ConsentRecordedAt || ""
   };
 }
 
@@ -181,7 +197,16 @@ function createReservationRepository(customDependencies) {
       ExpectedReturnAt: reservation.expectedReturnAt || "",
       ReturnedAt: reservation.returnedAt || "",
       HandledBy: reservation.handledBy || "",
-      HandoverNotes: reservation.handoverNotes || ""
+      HandoverNotes: reservation.handoverNotes || "",
+      TermsVersion: reservation.termsVersion || "",
+      PrivacyVersion: reservation.privacyVersion || "",
+      TermsAcceptedAt: reservation.termsAcceptedAt || "",
+      PrivacyAcceptedAt: reservation.privacyAcceptedAt || "",
+      EarlyStartRequested: Boolean(reservation.earlyStartRequested),
+      MarketingEmail: Boolean(reservation.marketingEmail),
+      ConsentRecordedAt: reservation.consentRecordedAt || "",
+      ConsentIp: reservation.consentIp || "",
+      ConsentUserAgent: reservation.consentUserAgent || ""
     };
 
     try {

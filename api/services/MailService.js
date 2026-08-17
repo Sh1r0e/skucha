@@ -1,9 +1,13 @@
 const { EmailClient } = require("@azure/communication-email");
+const fs = require("fs");
+const path = require("path");
 const ConfigurationService = require("./ConfigurationService");
 
 const defaultDependencies = {
   EmailClient,
-  ConfigurationService
+  ConfigurationService,
+  readFileSync: fs.readFileSync,
+  legalDirectory: path.join(__dirname, "..", "legal")
 };
 
 function normalizeMailMode(value) {
@@ -116,7 +120,7 @@ function buildReservationEmail(reservation) {
     lines.push("");
   }
 
-  lines.push("Wiadomosc automatyczna z adresu noreply@skucha.co.");
+  lines.push("Wiadomosc automatyczna z adresu rental@skucha.co.");
 
   return lines.join("\n");
 }
@@ -137,7 +141,7 @@ function buildPaymentEmail(reservation, title, introduction) {
     lines.push("", ...cancellationDetails);
   }
 
-  lines.push("", "Wiadomosc automatyczna z adresu noreply@skucha.co.");
+  lines.push("", "Wiadomosc automatyczna z adresu rental@skucha.co.");
   return lines.join("\n");
 }
 
@@ -154,8 +158,30 @@ function buildCancellationEmail(reservation, cancellationResult) {
     "- Stripe refund id: " + ((cancellationResult.refund && cancellationResult.refund.refundId) || "-"),
     "",
     "Jesli potrzebujesz wsparcia, odpowiedz na wiadomosc z formularza kontaktowego na stronie.",
-    "Wiadomosc automatyczna z adresu noreply@skucha.co."
+    "Wiadomosc automatyczna z adresu rental@skucha.co."
   ].join("\n");
+}
+
+function loadLegalAttachments(dependencies) {
+  const files = [
+    {
+      name: "rental-terms-v1.0.pdf",
+      contentType: "application/pdf"
+    },
+    {
+      name: "privacy-policy-v1.0.pdf",
+      contentType: "application/pdf"
+    }
+  ];
+
+  return files.map(function (file) {
+    const filePath = path.join(dependencies.legalDirectory, file.name);
+    return {
+      name: file.name,
+      contentType: file.contentType,
+      contentInBase64: dependencies.readFileSync(filePath).toString("base64")
+    };
+  });
 }
 
 function createMailService(customDependencies) {
@@ -205,13 +231,18 @@ function createMailService(customDependencies) {
     }
 
     const emailClient = getClient();
+    const content = {
+      subject: message.subject,
+      plainText: message.bodyText
+    };
+
+    if (Array.isArray(message.attachments) && message.attachments.length) {
+      content.attachments = message.attachments;
+    }
 
     const poller = await emailClient.beginSend({
       senderAddress: senderAddress,
-      content: {
-        subject: message.subject,
-        plainText: message.bodyText
-      },
+      content: content,
       recipients: {
         to: [
           {
@@ -236,7 +267,7 @@ function createMailService(customDependencies) {
     const bodyText = buildReservationEmail(reservation || {});
 
     return sendMessage({
-      to: (reservation && reservation.email) || process.env.RESERVATION_NOTIFY_EMAIL || "kontakt@skucha.pl",
+      to: (reservation && reservation.email) || process.env.RESERVATION_NOTIFY_EMAIL || "rental@skucha.co",
       toName: (reservation && reservation.fullName) || "Klient",
       subject: "Skucha - rezerwacja utworzona - oczekiwanie na platnosc",
       bodyText: bodyText
@@ -269,7 +300,8 @@ function createMailService(customDependencies) {
       to: (reservation && (reservation.email || reservation.customerEmail)) || "",
       toName: (reservation && (reservation.fullName || reservation.customerName)) || "Klient",
       subject: "Skucha - platnosc potwierdzona",
-      bodyText: bodyText
+      bodyText: bodyText + "\n\nW zalacznikach: Regulamin SKUCHA oraz Polityka prywatnosci w wersji zaakceptowanej przy rezerwacji.",
+      attachments: loadLegalAttachments(dependencies)
     });
   }
 

@@ -25,6 +25,7 @@ Backend responsibilities:
 - check availability
 - persist reservations in Azure Table Storage
 - serialize reservation creation with the inventory lease
+- enforce production request idempotency and persist versioned legal-consent evidence
 - send checkout-stage, payment, and cancellation notifications through Azure Communication Services Email
 - create Stripe Checkout sessions for reservation payments
 
@@ -46,11 +47,17 @@ Signing in with Microsoft Entra ID grants the built-in `authenticated` role; sta
 
 ## Checkout and Email Lifecycle
 
-1. `POST /api/reservation` acquires the inventory lease, re-checks availability, saves a `Pending` reservation, creates a Stripe Checkout session, stores payment/cancellation data, and sends the checkout-start email.
+1. `POST /api/reservation` validates the required legal acknowledgements, claims the production `Idempotency-Key`, acquires the inventory lease, re-checks availability, saves a `Pending` reservation with consent evidence, creates a Stripe Checkout session, stores payment/cancellation data, and sends the checkout-start email.
 2. `checkout.session.completed` is durably deduplicated. A paid `Pending` reservation becomes `Confirmed`; late events never resurrect `Cancelled`, `Expired`, `InProgress`, or `Completed` reservations.
 3. `checkout.session.expired` conditionally changes unpaid `Pending` reservations to `Expired` and releases inventory.
 4. The emailed cancellation link opens a confirmation page. Only its explicit `POST /api/reservation/cancel` request can mutate state. Cancellation is allowed through 24 hours before rental start in `Europe/Warsaw`; paid refunds use Stripe idempotency and `CancellationPending` recovery.
 5. Staff use `/admin/reservations.html` to move `Confirmed` reservations to `InProgress` at collection and to `Completed` after all pads are returned.
+
+Published legal documents:
+
+- `/rental-terms.html` and `/rental-terms-v1.0.pdf`
+- `/privacy-policy.html` and `/privacy-policy-v1.0.pdf`
+- The paid confirmation email attaches both versioned PDFs. The withdrawal form is included in the rental-terms document.
 
 The Stripe webhook must be configured to send `checkout.session.completed` and `checkout.session.expired` events to `/api/stripe-webhook`. Webhook failures return a non-2xx response so Stripe retries delivery.
 
@@ -89,8 +96,12 @@ Reservation statuses:
 			housekeeping/
 		repositories/
 			InventoryLeaseRepository.js
+			ReservationIdempotencyRepository.js
 			ReservationRepository.js
 			StripeEventRepository.js
+		legal/
+			rental-terms-v1.0.pdf
+			privacy-policy-v1.0.pdf
 
 		reservation/
 			index.js
@@ -155,7 +166,7 @@ Azure Communication Service email settings:
 
 - `MAIL_MODE` - set to `acs-email` to send real emails (`log-only` keeps local placeholder behavior)
 - `ACS_CONNECTION_STRING` - connection string for ACS Email resource
-- `ACS_SENDER_ADDRESS` - sender address (for example `noreply@skucha.co`)
+- `ACS_SENDER_ADDRESS` - sender address (for example `rental@skucha.co`)
 
 ### Maintenance Mode
 
@@ -178,13 +189,13 @@ Configure ACS email in the Azure portal:
 
 1. Open `skucha-communication-email-services` and open the `MailFrom` or Domains area. Confirm that the `skucha.co` domain is provisioned and verified. Do not continue until its status is ready.
 2. Open `skucha-communication-services`, open **Email** or **Domains**, and connect the verified `skucha.co` domain from `skucha-communication-email-services`. The domain must show as linked or connected to this Communication Services resource; verification in the Email resource alone is not sufficient.
-3. Use the exact MailFrom address shown for the linked domain, for example `noreply@skucha.co`, as the sender address.
+3. Use the exact MailFrom address shown for the linked domain, for example `rental@skucha.co`, as the sender address.
 4. In `skucha-communication-services`, select **Keys** and copy the **Primary connection string**. Treat it as a secret; do not commit it or paste it into source control.
 5. Open `skucha-web`, select **Configuration**, then **Application settings**, and add these settings for the production environment:
 	- `MAIL_MODE` = `acs-email`
 	- `SKUCHA_ENV` = `production`
 	- `ACS_CONNECTION_STRING` = the copied Primary connection string
-	- `ACS_SENDER_ADDRESS` = `noreply@skucha.co`
+	- `ACS_SENDER_ADDRESS` = `rental@skucha.co`
 	- `RESERVATION_PUBLIC_BASE_URL` = the public `skucha-web` domain
 	- `RESERVATION_CANCEL_TOKEN_SECRET` = a long random secret
 	- `RESERVATION_CANCELLATION_CUTOFF_HOURS` = `24`

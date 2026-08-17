@@ -40,7 +40,17 @@ function createReservationHandler(customDependencies) {
 
       reservation = new dependencies.Reservation(payload);
 
-      const result = await dependencies.ReservationService.createReservation(reservation);
+      const forwardedFor = getHeader(request, "x-forwarded-for");
+      const clientIp = String(forwardedFor || getHeader(request, "x-real-ip") || "")
+        .split(",")[0]
+        .trim();
+      const requestOptions = {
+        idempotencyKey: getHeader(request, "Idempotency-Key"),
+        clientIp: clientIp,
+        userAgent: getHeader(request, "user-agent")
+      };
+
+      const result = await dependencies.ReservationService.createReservation(reservation, requestOptions);
 
       context.log("Reservation accepted", { reservationId: result.reservationId });
 
@@ -57,7 +67,6 @@ function createReservationHandler(customDependencies) {
       const requestId = context.invocationId;
 
       context.log.error("Reservation error", {
-        reservationId: reservation ? reservation.email : undefined,
         requestId: requestId,
         statusCode: statusCode,
         message: error.message,
@@ -77,6 +86,23 @@ function createReservationHandler(customDependencies) {
       };
     }
   };
+}
+
+function getHeader(request, name) {
+  if (!request || !request.headers) {
+    return "";
+  }
+
+  if (typeof request.headers.get === "function") {
+    return request.headers.get(name) || "";
+  }
+
+  const target = String(name).toLowerCase();
+  const headerName = Object.keys(request.headers).find(function (key) {
+    return key.toLowerCase() === target;
+  });
+
+  return headerName ? request.headers[headerName] : "";
 }
 
 let activeHandler = createReservationHandler();

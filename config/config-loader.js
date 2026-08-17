@@ -3,7 +3,7 @@
     contact: {
       phone: "+48 600 123 456",
       whatsapp: "+48 600 123 456",
-      email: "kontakt@skucha.pl"
+      email: "rental@skucha.co"
     },
     pricing: {
       weekday: 40,
@@ -12,7 +12,7 @@
     },
     pickupPoints: [
       { name: "Stablowice", address: "ul. Lubomierska 24, Wrocław", enabled: true },
-      { name: "Brochow", address: "ul. Przykladowa 8, 52-200 Wroclaw", enabled: false }
+      { name: "Brochow", address: "Adres zostanie podany po uruchomieniu punktu", enabled: false }
     ],
     branding: {
       accent: "#FB5A12",
@@ -60,7 +60,7 @@
     replaceTextInNode(document.body, "Stabłowice", p1.name || "Stabłowice");
     replaceTextInNode(document.body, "Brochów", p2.name || "Brochów");
     replaceTextInNode(document.body, "ul. Lubomierska 24, Wrocław", p1.address || "ul. Lubomierska 24, Wrocław");
-    replaceTextInNode(document.body, "ul. Przykładowa 8, 52-200 Wrocław", p2.address || "ul. Przykładowa 8, 52-200 Wrocław");
+    replaceTextInNode(document.body, "ul. Przykładowa 8, 52-200 Wrocław", p2.address || "Adres zostanie podany po uruchomieniu punktu");
 
     if (config.contact && config.contact.email) {
       document.documentElement.setAttribute("data-contact-email", config.contact.email);
@@ -85,7 +85,7 @@
       pickupPoint1Name: p1.name || "Stabłowice",
       pickupPoint1Address: p1.address || "ul. Lubomierska 24, Wrocław",
       pickupPoint2Name: p2.name || "Brochów",
-      pickupPoint2Address: p2.address || "ul. Przykładowa 8, 52-200 Wrocław"
+      pickupPoint2Address: p2.address || "Adres zostanie podany po uruchomieniu punktu"
     });
 
     return true;

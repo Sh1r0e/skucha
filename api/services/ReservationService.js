@@ -10,6 +10,7 @@ const ReservationRepository = require("../repositories/ReservationRepository");
 const Lifecycle = require("./ReservationLifecycleService");
 const TimeService = require("./ReservationTimeService");
 const InventoryLeaseRepository = require("../repositories/InventoryLeaseRepository");
+const ReservationIdempotencyRepository = require("../repositories/ReservationIdempotencyRepository");
 
 const defaultDependencies = {
   AvailabilityService,
@@ -19,6 +20,7 @@ const defaultDependencies = {
   StripeService,
   ReservationRepository,
   InventoryLeaseRepository,
+  ReservationIdempotencyRepository,
   TimeService,
   now: function now() {
     return new Date();
@@ -26,6 +28,11 @@ const defaultDependencies = {
 };
 
 const RESERVATION_STATUS = Lifecycle.RESERVATION_STATUS;
+const LEGAL_DOCUMENTS = {
+  termsVersion: "1.0",
+  privacyVersion: "1.0",
+  effectiveDate: "2026-08-17"
+};
 
 function badRequest(message) {
   const error = new Error(message);
@@ -61,7 +68,52 @@ function serverError(message, code) {
   return error;
 }
 
-function validateReservation(reservation, config) {
+function isProductionEnvironment() {
+  return process.env.NODE_ENV === "production" || process.env.SKUCHA_ENV === "production";
+}
+
+function normalizeIdempotencyKey(value) {
+  const key = String(value || "").trim();
+
+  if (!key) {
+    return "";
+  }
+
+  const hasControlCharacter = key.split("").some(function (character) {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+
+  if (key.length < 8 || key.length > 200 || hasControlCharacter) {
+    throw badRequest("Idempotency-Key must be between 8 and 200 characters");
+  }
+
+  return key;
+}
+
+function reservationFingerprint(reservation) {
+  const normalized = {
+    firstName: reservation.firstName,
+    lastName: reservation.lastName,
+    fullName: reservation.fullName,
+    email: reservation.email,
+    phone: reservation.phone,
+    dateFrom: reservation.dateFrom,
+    dateTo: reservation.dateTo,
+    padsCount: reservation.padsCount,
+    deliveryMethod: reservation.deliveryMethod,
+    pickupPoint: reservation.pickupPoint,
+    notes: reservation.notes,
+    acceptTerms: reservation.acceptTerms,
+    acceptPrivacy: reservation.acceptPrivacy,
+    earlyStartRequested: reservation.earlyStartRequested,
+    marketingEmail: reservation.marketingEmail
+  };
+
+  return crypto.createHash("sha256").update(JSON.stringify(normalized), "utf8").digest("hex");
+}
+
+function validateReservation(reservation, config, now) {
   var namePattern = /^[A-Za-zÀ-ž\-\s']{2,60}$/;
   var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   var datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -114,6 +166,23 @@ function validateReservation(reservation, config) {
 
   if (reservation.deliveryMethod !== "pickup" && reservation.deliveryMethod !== "delivery") {
     throw badRequest("deliveryMethod must be pickup or delivery");
+  }
+
+  if (!reservation.acceptTerms) {
+    throw badRequest("acceptTerms is required");
+  }
+
+  if (!reservation.acceptPrivacy) {
+    throw badRequest("acceptPrivacy is required");
+  }
+
+  const startDate = parseIsoDate(reservation.dateFrom);
+  const today = parseIsoDate(new Date(now || new Date()).toISOString().slice(0, 10));
+  const earlyStartDeadline = new Date(today);
+  earlyStartDeadline.setUTCDate(earlyStartDeadline.getUTCDate() + 14);
+
+  if (startDate.getTime() < earlyStartDeadline.getTime() && !reservation.earlyStartRequested) {
+    throw badRequest("earlyStartRequested is required for reservations starting within 14 days");
   }
 
   const enabledPickupNames = (config.pickupPoints || [])
@@ -328,8 +397,9 @@ function createReservationService(customDependencies) {
       + "&token=" + encodeURIComponent(token);
   }
 
-  async function createReservation(reservation) {
-    const production = process.env.NODE_ENV === "production" || process.env.SKUCHA_ENV === "production";
+  async function createReservation(reservation, options) {
+    const requestOptions = options || {};
+    const production = isProductionEnvironment();
     if (production && typeof dependencies.ConfigurationService.getRuntimeConfigurationIssues === "function") {
       const issues = dependencies.ConfigurationService.getRuntimeConfigurationIssues({ production: true });
       if (issues.length) {
@@ -342,9 +412,68 @@ function createReservationService(customDependencies) {
     }
 
     const config = await dependencies.ConfigService.loadConfig();
+    const requestNow = currentTime();
 
-    validateReservation(reservation, config);
+    validateReservation(reservation, config, requestNow);
 
+    const idempotencyKey = normalizeIdempotencyKey(requestOptions.idempotencyKey);
+
+    if (production && !idempotencyKey) {
+      throw badRequest("Idempotency-Key header is required");
+    }
+
+    let idempotencyClaim = null;
+    const hasStorage = typeof dependencies.ConfigurationService.getStorageConnectionString === "function"
+      && dependencies.ConfigurationService.getStorageConnectionString();
+
+    if (idempotencyKey && dependencies.ReservationIdempotencyRepository
+      && typeof dependencies.ReservationIdempotencyRepository.claimRequest === "function") {
+      if (!hasStorage) {
+        if (production) {
+          throw serverError("Reservation idempotency storage is not configured", "IdempotencyNotConfigured");
+        }
+      } else {
+        idempotencyClaim = await dependencies.ReservationIdempotencyRepository.claimRequest(
+          idempotencyKey,
+          reservationFingerprint(reservation),
+          requestNow
+        );
+
+        if (idempotencyClaim && idempotencyClaim.completed) {
+          return idempotencyClaim.response;
+        }
+      }
+    } else if (production && idempotencyKey) {
+      throw serverError("Reservation idempotency storage is not available", "IdempotencyNotConfigured");
+    }
+
+    try {
+      const result = await createReservationCore(reservation, config, requestOptions);
+
+      if (idempotencyClaim) {
+        await dependencies.ReservationIdempotencyRepository.completeRequest(
+          idempotencyKey,
+          result,
+          { expectedEtag: idempotencyClaim.etag }
+        );
+      }
+
+      return result;
+    } catch (error) {
+      if (idempotencyClaim && typeof dependencies.ReservationIdempotencyRepository.failRequest === "function") {
+        try {
+          await dependencies.ReservationIdempotencyRepository.failRequest(idempotencyKey, error);
+        } catch (_failureError) {
+          // Preserve the original reservation error; the idempotency record remains auditable.
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  async function createReservationCore(reservation, config, requestOptions) {
+    const consentRecordedAt = currentTime().toISOString();
     let savedReservation;
     await withInventoryLease("reservation-create", async function () {
       const availability = await dependencies.AvailabilityService.getAvailability({
@@ -366,6 +495,15 @@ function createReservationService(customDependencies) {
         notes: reservation.notes,
         deliveryMethod: reservation.deliveryMethod,
         pickupPoint: reservation.pickupPoint,
+        termsVersion: LEGAL_DOCUMENTS.termsVersion,
+        privacyVersion: LEGAL_DOCUMENTS.privacyVersion,
+        termsAcceptedAt: consentRecordedAt,
+        privacyAcceptedAt: consentRecordedAt,
+        earlyStartRequested: reservation.earlyStartRequested,
+        marketingEmail: reservation.marketingEmail,
+        consentRecordedAt: consentRecordedAt,
+        consentIp: String(requestOptions.clientIp || "").slice(0, 128),
+        consentUserAgent: String(requestOptions.userAgent || "").slice(0, 512),
         status: RESERVATION_STATUS.PENDING
       });
     });
@@ -656,8 +794,8 @@ function __resetDependencies() {
 
 module.exports = {
   RESERVATION_STATUS,
-  createReservation: function createReservationProxy(reservation) {
-    return activeService.createReservation(reservation);
+  createReservation: function createReservationProxy(reservation, options) {
+    return activeService.createReservation(reservation, options);
   },
   cancelReservation: function cancelReservationProxy(payload) {
     return activeService.cancelReservation(payload);

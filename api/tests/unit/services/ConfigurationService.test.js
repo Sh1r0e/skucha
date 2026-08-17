@@ -53,7 +53,7 @@ describe("ConfigurationService", function () {
     delete process.env.ACS_SENDER_ADDRESS;
 
     expect(ConfigurationService.getAcsConnectionString()).toBe("endpoint=https://example");
-    expect(ConfigurationService.getAcsSenderAddress()).toBe("noreply@skucha.co");
+    expect(ConfigurationService.getAcsSenderAddress()).toBe("rental@skucha.co");
 
     process.env.ACS_CONNECTION_STRING = previousConnection;
     process.env.ACS_SENDER_ADDRESS = previousSender;

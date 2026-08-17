@@ -12,7 +12,7 @@ const DEFAULT_CONFIG = {
   contact: {
     phone: "+48 213 767 420",
     whatsapp: "+48 213 767 420",
-    email: "kontakt@skucha.pl"
+    email: "rental@skucha.co"
   },
   pricing: {
     weekday: 40,

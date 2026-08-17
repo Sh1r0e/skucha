@@ -23,7 +23,7 @@ function getAcsConnectionString() {
 }
 
 function getAcsSenderAddress() {
-  return process.env.ACS_SENDER_ADDRESS || "noreply@skucha.co";
+  return process.env.ACS_SENDER_ADDRESS || "rental@skucha.co";
 }
 
 function getReservationPublicBaseUrl() {

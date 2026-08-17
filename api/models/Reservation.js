@@ -12,6 +12,9 @@ class Reservation {
     this.pickupPoint = String(input.pickupPoint || "").trim();
     this.notes = String(input.notes || "").trim();
     this.acceptTerms = Boolean(input.acceptTerms);
+    this.acceptPrivacy = Boolean(input.acceptPrivacy);
+    this.earlyStartRequested = Boolean(input.earlyStartRequested);
+    this.marketingEmail = Boolean(input.marketingEmail);
     this.createdAt = new Date().toISOString();
   }
 }

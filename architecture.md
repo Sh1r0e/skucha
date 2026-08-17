@@ -189,11 +189,13 @@ Reservation lifecycle:
    - last name
    - email
    - phone
-2. Frontend sends `POST /api/reservation` payload.
-3. `ReservationService` validates the payload and acquires the global inventory lease.
-4. It re-checks availability and persists the Pending reservation before releasing the lease.
-5. `MailService` sends through ACS when `MAIL_MODE=acs-email`; log-only mode is local-development behavior.
-6. API returns accepted reservation summary.
+2. Frontend requires acknowledgement of the versioned rental terms and privacy notice. If the rental starts within 14 days, it also requires the early-start request.
+3. Frontend sends `POST /api/reservation` with an `Idempotency-Key`.
+4. In production, `ReservationIdempotencyRepository` claims the key and rejects mismatched or concurrent reuse.
+5. `ReservationService` validates the payload and acquires the global inventory lease.
+6. It re-checks availability and persists the Pending reservation plus consent evidence before releasing the lease.
+7. `MailService` sends through ACS when `MAIL_MODE=acs-email`; log-only mode is local-development behavior.
+8. API returns accepted reservation summary; matching idempotent retries return the stored original response.
 
 Validation strategy:
 
@@ -203,6 +205,9 @@ Validation strategy:
 - names must be 2-60 chars and match `^[A-Za-zÀ-ž\\-\\s']+$`
 - dates must be `YYYY-MM-DD`
 - pads count must be integer in safe range (currently 1-8)
+- `acceptTerms` and `acceptPrivacy` are required; the latter acknowledges the privacy notice and is not a blanket GDPR consent
+- `earlyStartRequested` is required when the selected start date is within 14 days
+- production requests require an `Idempotency-Key` between 8 and 200 characters
 
 ## Configuration Model
 `config/config.json` currently controls:
@@ -220,6 +225,8 @@ Current persistence state:
 - reservations are stored in the `Reservations` Azure Table
 - Stripe webhook claims are stored in the `StripeEvents` Azure Table
 - the inventory creation lease is stored in the `InventoryLeases` Azure Table
+- reservation idempotency claims and completed responses are stored in the `ReservationIdempotency` Azure Table with a 24-hour retention timestamp
+- legal documents are published as `rental-terms.html`, `privacy-policy.html`, `rental-terms-v1.0.pdf`, and `privacy-policy-v1.0.pdf`; paid confirmation emails attach the two PDFs
 - existing reservation partition keys remain `YYYY-MM`; RowKey lookups currently scan partitions and should gain an index before volume grows materially
 
 ## Deployment Topology
@@ -270,6 +277,7 @@ Azure Static Web Apps configuration (from repository conventions):
 - `/api/services/AdminReservationService.js`
 - `/api/repositories/ReservationRepository.js`
 - `/api/repositories/InventoryLeaseRepository.js`
+- `/api/repositories/ReservationIdempotencyRepository.js`
 - `/api/repositories/StripeEventRepository.js`
 - `/api/services/ConfigService.js`
 - `/api/services/MailService.js`

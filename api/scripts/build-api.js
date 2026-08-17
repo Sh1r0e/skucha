@@ -46,6 +46,7 @@ async function buildApi() {
   fs.copyFileSync(path.join(apiRoot, "host.json"), path.join(outputRoot, "host.json"));
   fs.copyFileSync(path.join(apiRoot, "index.js"), path.join(outputRoot, "index.js"));
   fs.cpSync(path.join(workspaceRoot, "config"), path.join(outputRoot, "config"), { recursive: true });
+  fs.cpSync(path.join(apiRoot, "legal"), path.join(outputRoot, "legal"), { recursive: true });
 
   const packageJson = {
     name: "skucha-api-dist",

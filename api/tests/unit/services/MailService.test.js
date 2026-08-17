@@ -38,7 +38,7 @@ describe("MailService", function () {
       },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -63,7 +63,7 @@ describe("MailService", function () {
 
     expect(beginSend).toHaveBeenCalledTimes(1);
     expect(beginSend.mock.calls[0][0]).toMatchObject({
-      senderAddress: "noreply@skucha.co"
+      senderAddress: "rental@skucha.co"
     });
     expect(result).toMatchObject({
       queued: true,
@@ -86,7 +86,7 @@ describe("MailService", function () {
       },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -118,7 +118,7 @@ describe("MailService", function () {
       emailClient: { beginSend: beginSend },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -154,6 +154,13 @@ describe("MailService", function () {
     expect(message.content.plainText).toContain("120 PLN");
     expect(message.content.plainText).toContain("cs_test_123");
     expect(message.content.plainText).toContain("/api/reservation/cancel?reservation_id=res-1");
+    expect(message.content.attachments).toHaveLength(2);
+    expect(message.content.attachments.map(function (attachment) { return attachment.name; })).toEqual([
+      "rental-terms-v1.0.pdf",
+      "privacy-policy-v1.0.pdf"
+    ]);
+    expect(message.content.attachments[0].contentType).toBe("application/pdf");
+    expect(message.content.attachments[0].contentInBase64.length).toBeGreaterThan(100);
   });
 
   it("should_send_expired_checkout_notification_with_acs_when_enabled()", async function () {
@@ -167,7 +174,7 @@ describe("MailService", function () {
       emailClient: { beginSend: beginSend },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -225,7 +232,7 @@ describe("MailService", function () {
     MailService.__setDependencies({
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue(""),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -264,7 +271,7 @@ describe("MailService", function () {
       EmailClient: EmailClient,
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -299,7 +306,7 @@ describe("MailService", function () {
       emailClient: emailClient,
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 

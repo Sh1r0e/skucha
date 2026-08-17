@@ -14,8 +14,8 @@ function createCancellationToken(payload, secret) {
   return encodedPayload + "." + signature;
 }
 
-function applyHappyPathDependencies() {
-  ReservationService.__setDependencies({
+function applyHappyPathDependencies(overrides) {
+  const baseDependencies = {
     ConfigService: {
       loadConfig: vi.fn().mockResolvedValue({
         pickupPoints: [{ name: "Stablowice", enabled: true }],
@@ -57,13 +57,30 @@ function applyHappyPathDependencies() {
     ConfigurationService: {
       getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
       getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret"),
-      getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72)
+      getReservationCancelTokenTtlHours: vi.fn().mockReturnValue(72),
+      getStorageConnectionString: vi.fn().mockReturnValue("")
     },
     MailService: {
       sendReservationNotification: vi.fn().mockResolvedValue({ queued: true }),
       sendCancellationNotification: vi.fn().mockResolvedValue({ queued: true })
+    },
+    ReservationIdempotencyRepository: {
+      claimRequest: vi.fn(),
+      completeRequest: vi.fn(),
+      failRequest: vi.fn()
     }
-  });
+  };
+  const dependencies = {
+    ...baseDependencies,
+    ...(overrides || {}),
+    ConfigurationService: {
+      ...baseDependencies.ConfigurationService,
+      ...((overrides && overrides.ConfigurationService) || {})
+    }
+  };
+
+  ReservationService.__setDependencies(dependencies);
+  return dependencies;
 }
 
 describe("ReservationService", function () {
@@ -86,6 +103,94 @@ describe("ReservationService", function () {
     expect(result.payment.currency).toBe("PLN");
     expect(result.cancellation.url).toContain("/reservation-cancel.html?reservation_id=res-1");
     expect(result.mail.queued).toBe(true);
+  });
+
+  it("should_reject_an_invalid_idempotency_key()", async function () {
+    const input = buildReservation();
+
+    applyHappyPathDependencies();
+
+    await expect(
+      ReservationService.createReservation(input, { idempotencyKey: "short" })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Idempotency-Key must be between 8 and 200 characters"
+    });
+  });
+
+  it("should_persist_consent_audit_data_and_complete_a_claimed_request()", async function () {
+    const idempotencyRepository = {
+      claimRequest: vi.fn().mockResolvedValue({ claimed: true, etag: "etag-1" }),
+      completeRequest: vi.fn().mockResolvedValue({ completed: true, etag: "etag-2" }),
+      failRequest: vi.fn()
+    };
+    const dependencies = applyHappyPathDependencies({
+      ConfigurationService: {
+        getStorageConnectionString: vi.fn().mockReturnValue("storage")
+      },
+      ReservationIdempotencyRepository: idempotencyRepository,
+      InventoryLeaseRepository: {
+        acquireLease: vi.fn().mockResolvedValue({ leaseId: "lease-1" }),
+        releaseLease: vi.fn().mockResolvedValue(undefined)
+      }
+    });
+
+    const result = await ReservationService.createReservation(
+      buildReservation({ marketingEmail: true }),
+      {
+        idempotencyKey: "request-123",
+        clientIp: "192.0.2.1",
+        userAgent: "test-agent"
+      }
+    );
+
+    expect(result.reservationId).toBe("res-1");
+    expect(idempotencyRepository.claimRequest).toHaveBeenCalledWith(
+      "request-123",
+      expect.any(String),
+      expect.any(Date)
+    );
+    expect(idempotencyRepository.completeRequest).toHaveBeenCalledWith(
+      "request-123",
+      result,
+      { expectedEtag: "etag-1" }
+    );
+    expect(dependencies.ReservationRepository.saveReservation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        termsVersion: "1.0",
+        privacyVersion: "1.0",
+        earlyStartRequested: true,
+        marketingEmail: true,
+        consentIp: "192.0.2.1",
+        consentUserAgent: "test-agent"
+      })
+    );
+  });
+
+  it("should_return_the_original_result_for_a_completed_idempotency_retry()", async function () {
+    const originalResult = {
+      reservationId: "res-existing",
+      message: "Reservation accepted"
+    };
+    const dependencies = applyHappyPathDependencies({
+      ConfigurationService: {
+        getStorageConnectionString: vi.fn().mockReturnValue("storage")
+      },
+      ReservationIdempotencyRepository: {
+        claimRequest: vi.fn().mockResolvedValue({ completed: true, response: originalResult }),
+        completeRequest: vi.fn(),
+        failRequest: vi.fn()
+      }
+    });
+
+    const result = await ReservationService.createReservation(
+      buildReservation(),
+      { idempotencyKey: "request-123" }
+    );
+
+    expect(result).toEqual(originalResult);
+    expect(dependencies.ReservationRepository.saveReservation).not.toHaveBeenCalled();
+    expect(dependencies.StripeService.createCheckoutSession).not.toHaveBeenCalled();
   });
 
   it("should_reject_invalid_dates_format()", async function () {

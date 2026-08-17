@@ -23,6 +23,12 @@
   a{ color:inherit; }
   .mobile-sticky-cta{ display:none; }
   @keyframes skucha-reservation-spin{ to{ transform:rotate(360deg); } }
+  .reservation-legal{ margin-top:16px; display:grid; gap:8px; }
+  .reservation-consent{ display:flex; align-items:flex-start; gap:10px; padding:11px 12px; border:1px solid #e2e0db; border-radius:var(--r-md); background:#faf9f7; color:#4a4842; font-size:12.5px; line-height:1.45; cursor:pointer; }
+  .reservation-consent input{ width:19px; height:19px; margin:1px 0 0; flex:none; accent-color:var(--accent); cursor:pointer; }
+  .reservation-consent a{ color:var(--accent); font-weight:700; }
+  .reservation-consent small{ display:block; margin-top:3px; color:#8a867e; font-size:11px; }
+  .reservation-consent.conditional{ border-style:dashed; background:#fff8f2; }
 
   @media (max-width:960px){
     #skucha-root.site-shell{ overflow:hidden; }
@@ -284,9 +290,26 @@
         </label>
       </div>
 
-      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="margin-top:16px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em;">
+      <div class="reservation-legal" aria-label="Zgody i oświadczenia">
+        <label class="reservation-consent">
+          <input type="checkbox" checked="{{ acceptTerms }}" onChange="{{ setAcceptTerms }}">
+          <span>Akceptuję <a href="/rental-terms.html" target="_blank" rel="noopener">Regulamin wypożyczalni</a> (wersja 1.0).</span>
+        </label>
+        <label class="reservation-consent">
+          <input type="checkbox" checked="{{ acceptPrivacy }}" onChange="{{ setAcceptPrivacy }}">
+          <span>Potwierdzam zapoznanie się z <a href="/privacy-policy.html" target="_blank" rel="noopener">Polityką prywatności</a> (wersja 1.0).</span>
+        </label>
+        <sc-if value="{{ earlyStartRequired }}" hint-placeholder-val="{{ true }}">
+          <label class="reservation-consent conditional">
+            <input type="checkbox" checked="{{ earlyStartRequested }}" onChange="{{ setEarlyStartRequested }}">
+            <span>Żądam rozpoczęcia wykonywania umowy przed upływem 14 dni od jej zawarcia i przyjmuję do wiadomości, że w przypadku odstąpienia od umowy po rozpoczęciu jej wykonywania mogę być zobowiązany(-a) do zapłaty za świadczenie spełnione do chwili odstąpienia, proporcjonalnie do jego zakresu.<small>To oświadczenie jest wymagane dla wybranego terminu.</small></span>
+          </label>
+        </sc-if>
+      </div>
+
+      <button type="button" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="margin-top:16px; width:100%; display:flex; align-items:center; justify-content:center; gap:9px; border:0; background:var(--accent); color:#fff; font:800 17px/1 var(--font-main); padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em; cursor:pointer;">
         <span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span><span>{{ reservationButtonLabel }}</span><span style="font-size: 18px;">→</span>
-      </a>
+      </button>
       <div style="text-align:center; font-family:var(--font-mono); font-size:11.5px; font-weight:400; color:#6b6862; margin-top:10px;">Kaucja płatna gotówką przy odbiorze</div>
       <div style="{{ reservationStatusStyle }}">{{ reservationStatus }}</div>
 
@@ -502,6 +525,13 @@
         <div style="font-size:44px; font-weight:900; letter-spacing:-0.04em;">SKUCHA<span style="color:var(--accent);">.</span></div>
         <p style="margin:12px 0 0; font-size:17px; color:#b3afa8; max-width:40ch;">Wypożyczalnia crash padów we Wrocławiu. Jasne warunki, szybka i wygodna rezerwacja.</p>
         <div style="font-family:var(--font-mono); font-size:11px; color:#7c7972; margin-top:28px;">© 2026 SKUCHA · WROCŁAW</div>
+        <div style="font-size:12px; line-height:1.6; color:#b3afa8; margin-top:14px;">Jakub Grech · Syryjska 15/9, 52-122 Wrocław · <a href="mailto:rental@skucha.co" style="color:#fff;">rental@skucha.co</a></div>
+        <nav aria-label="Informacje prawne" style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:14px; font-size:12px;">
+          <a href="/rental-terms.html" style="color:#fff;">Regulamin</a>
+          <a href="/privacy-policy.html" style="color:#fff;">Polityka prywatności</a>
+          <a href="/rental-terms-v1.0.pdf" style="color:#fff;">Regulamin PDF</a>
+          <a href="/privacy-policy-v1.0.pdf" style="color:#fff;">Polityka PDF</a>
+        </nav>
       </div>
       <div class="footer-actions" style="display:flex; flex-direction:column; gap:12px; max-width:380px; margin-left:auto; width:100%;">
         <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; gap:8px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md);">Napisz na WhatsApp</a>
@@ -516,7 +546,7 @@
         <div style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">{{ daysLabel }}</div>
         <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; line-height:1;">{{ totalLabel }} <span style="font-size:13px; color:#9a968e;">zł</span></div>
       </div>
-      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:15px; padding:14px 22px; border-radius:var(--r-md);"><span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span>{{ reservationButtonLabel }} →</a>
+      <button type="button" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="border:0; background:var(--accent); color:#fff; font:800 15px/1 var(--font-main); padding:14px 22px; border-radius:var(--r-md); cursor:pointer;"><span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span>{{ reservationButtonLabel }} →</button>
     </div>
   </sc-if>
 
@@ -536,6 +566,10 @@ class Component extends DCLogic {
       pads: 1,
       loc: 'Stabłowice',
       dowoz: false,
+      acceptTerms: false,
+      acceptPrivacy: false,
+      earlyStartRequested: false,
+      idempotencyKey: '',
       openFaq: 0,
       calYear: now.getFullYear(),
       calMonth: now.getMonth(),
@@ -559,6 +593,19 @@ class Component extends DCLogic {
   key(d){ const m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
   todayIso(){ const t=new Date(); t.setHours(0,0,0,0); return this.key(t); }
   horizonMonths(){ return 6; }
+
+  earlyStartRequired(){
+    const start = this.mk(this.state.od);
+    const today = this.mk(this.todayIso());
+    if(!start || !today) return false;
+    const daysAhead = Math.round((start.getTime() - today.getTime()) / 86400000);
+    return daysAhead >= 0 && daysAhead < 14;
+  }
+
+  createIdempotencyKey(){
+    if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    return 'skucha-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+  }
 
   freeFor(str){
     const today = this.mk(this.todayIso());
@@ -733,6 +780,16 @@ class Component extends DCLogic {
       return;
     }
 
+    if (!this.state.acceptTerms || !this.state.acceptPrivacy) {
+      this.setState({ reservationStatus: 'Zaakceptuj Regulamin i potwierdź zapoznanie się z Polityką prywatności.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
+    if (this.earlyStartRequired() && !this.state.earlyStartRequested) {
+      this.setState({ reservationStatus: 'Potwierdź żądanie rozpoczęcia najmu przed upływem 14 dni.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
     const normalizedPhone = phone.replace(/\s+/g, '');
     if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
       this.setState({ reservationStatus: 'Podaj poprawny numer telefonu (9-15 cyfr).', reservationStatusColor: '#b54708' });
@@ -744,7 +801,8 @@ class Component extends DCLogic {
       return;
     }
 
-    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862', reservationSubmitting: true });
+    const idempotencyKey = this.state.idempotencyKey || this.createIdempotencyKey();
+    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862', reservationSubmitting: true, idempotencyKey: idempotencyKey });
 
     const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
     const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
@@ -761,13 +819,16 @@ class Component extends DCLogic {
       padsCount: this.state.pads,
       deliveryMethod: this.state.dowoz ? 'delivery' : 'pickup',
       pickupPoint: this.state.dowoz ? '' : locName,
-      notes: ''
+      notes: '',
+      acceptTerms: true,
+      acceptPrivacy: true,
+      earlyStartRequested: this.earlyStartRequired() && this.state.earlyStartRequested
     };
 
     try {
       const response = await fetch('/api/reservation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload)
       });
       const result = await this.readApiPayload(response);
@@ -778,20 +839,8 @@ class Component extends DCLogic {
           + ((result && result.code) ? ', ' + result.code : '')
           + ((result && result.requestId) ? ', id: ' + result.requestId : '')
           + ']';
-        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318', reservationSubmitting: false });
+        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318', reservationSubmitting: false, idempotencyKey: response.status >= 400 && response.status < 500 ? '' : idempotencyKey });
         return;
-      }
-
-      try {
-        localStorage.setItem('skucha_last_order', JSON.stringify({
-          savedAt: new Date().toISOString(),
-          payload: payload,
-          reservation: result && result.reservation ? result.reservation : null,
-          reservationId: result && result.reservationId ? result.reservationId : '',
-          payment: result && result.payment ? result.payment : null
-        }));
-      } catch (_storageError) {
-        // Storage can be blocked in private mode; payment flow should continue anyway.
       }
 
       const checkoutUrl = result && result.payment && result.payment.checkoutUrl;
@@ -915,7 +964,7 @@ class Component extends DCLogic {
     const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
     const locData = {
       [pickupName1]: this.props.pickupPoint1Address ?? 'ul. Lubomierska 24, Wrocław',
-      [pickupName2]: this.props.pickupPoint2Address ?? 'ul. Przykładowa 8, 52-200 Wrocław'
+      [pickupName2]: this.props.pickupPoint2Address ?? 'Adres zostanie podany po uruchomieniu punktu'
     };
     const locName = this.state.loc==='Stabłowice'
       ? pickupName1
@@ -974,11 +1023,18 @@ class Component extends DCLogic {
       setLastName: (e) => this.setState({ lastName: this.sanitizeName(e.target.value) }),
       setEmail: (e) => this.setState({ email: String(e.target.value || '').trim().toLowerCase().slice(0, 120) }),
       setPhoneInput: (e) => this.setState({ phoneInput: this.sanitizePhone(e.target.value) }),
+      acceptTerms: this.state.acceptTerms,
+      acceptPrivacy: this.state.acceptPrivacy,
+      earlyStartRequested: this.state.earlyStartRequested,
+      earlyStartRequired: this.earlyStartRequired(),
+      setAcceptTerms: (e) => this.setState({ acceptTerms: !!e.target.checked }),
+      setAcceptPrivacy: (e) => this.setState({ acceptPrivacy: !!e.target.checked }),
+      setEarlyStartRequested: (e) => this.setState({ earlyStartRequested: !!e.target.checked }),
       reserveClick: (e) => this.reserveClick(e),
       reservationStatus: this.state.reservationStatus,
       reservationStatusColor: this.state.reservationStatusColor,
       reservationSubmitting: this.state.reservationSubmitting ? 'true' : 'false',
-      reservationButtonLabel: this.state.reservationSubmitting ? 'Przetwarzam...' : 'Rezerwuj',
+      reservationButtonLabel: this.state.reservationSubmitting ? 'Przetwarzam...' : 'Rezerwuję i płacę',
       reservationSpinnerStyle: 'display:' + (this.state.reservationSubmitting ? 'inline-block' : 'none') + '; width:12px; height:12px; border:2px solid rgba(255,255,255,.45); border-top-color:#fff; border-radius:50%; animation:skucha-reservation-spin .8s linear infinite; vertical-align:-1px; flex:none;',
       reservationStatusStyle: "margin-top:8px; min-height:18px; font-family:var(--font-mono); font-size:11px; color:" + this.state.reservationStatusColor + ";",
       showPoints: !this.state.dowoz,
