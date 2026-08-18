@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./maintenance-gate.js"></script>
 <title>Wypożyczalnia crash padów wspinaczkowych Wrocław - SKUCHA</title>
-<meta name="description" content="Wypożyczalnia crash padów wspinaczkowych Wrocław - SKUCHA">
+<meta name="description" content="Description: Wypożyczalnia crash padów wspinaczkowych do boulderingu we Wrocławiu. 30 zł za wypożyczenie. Szybka rezerwacja online i odbiór. Wygodny odbiór Stabłowice.">
 <script src="./support.js"></script>
 <script src="./config/config-loader.js"></script>
 </head>
@@ -26,7 +26,10 @@
   .reservation-legal{ margin-top:16px; display:grid; gap:8px; }
   .reservation-consent{ display:flex; align-items:flex-start; gap:10px; padding:11px 12px; border:1px solid #e2e0db; border-radius:var(--r-md); background:#faf9f7; color:#4a4842; font-size:12.5px; line-height:1.45; cursor:pointer; }
   .reservation-consent input{ width:19px; height:19px; margin:1px 0 0; flex:none; accent-color:var(--accent); cursor:pointer; }
-  .reservation-consent a{ color:var(--accent); font-weight:700; }
+  .reservation-consent a{ color:#4b83b8; font-weight:700; }
+  .reservation-consent .consent-badge{ display:inline-block; margin-left:4px; padding:2px 5px; border-radius:4px; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:0.04em; line-height:1.2; vertical-align:1px; }
+  .reservation-consent .consent-required{ color:#9c4d3d; background:#fff1eb; }
+  .reservation-consent .consent-optional{ color:#6b6862; background:#eceae6; }
   .reservation-consent small{ display:block; margin-top:3px; color:#8a867e; font-size:11px; }
   .reservation-consent.conditional{ border-style:dashed; background:#fff8f2; }
 
@@ -208,7 +211,7 @@
           <span style="width:20px; height:20px; border-radius:50%; background:var(--accent); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:700; line-height:1;">✓</span>
           <div style="flex:1;">
             <div style="font-size:15px; font-weight:700;">121 × 91 × 10 cm</div>
-            <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">Black Diamond Circuit 2.0 · dostępny</div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">Black Diamond Circuit 2.0</div>
           </div>
         </div>
         <div style="font-family:var(--font-mono); font-size:11.5px; font-weight:400; color:#6b6862; margin-top:8px;">Kolejne modele i większe pady — wkrótce.</div>
@@ -227,22 +230,9 @@
         </div>
       </div>
 
-      <!-- delivery method -->
-      <div style="margin-top:14px;">
-        <div style="font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:8px;">Jak chcesz odebrać?</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <button onClick="{{ pickOdbior }}" style="{{ odbiorStyle }}">Odbiór osobisty</button>
-          <button onClick="{{ pickDowoz }}" style="{{ dowozStyle }}" disabled>Dowóz <span style="font-family:var(--font-mono); font-size:10px; font-weight:700;">wkrótce</span></button>
-        </div>
-      </div>
-
       <sc-if value="{{ showPoints }}" hint-placeholder-val="{{ true }}">
         <div style="margin-top:10px;">
           <div style="font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:8px;">Punkt odbioru</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-            <button onClick="{{ pickStab }}" style="{{ stabStyle }}">Stabłowice</button>
-            <button onClick="{{ pickBroch }}" style="{{ brochStyle }}" disabled>Brochów <span style="font-family:var(--font-mono); font-size:10px; font-weight:700;">wkrótce</span></button>
-          </div>
           <a href="{{ locMapsLink }}" target="_blank" rel="noopener" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; text-decoration:none; border:1px solid #e2e0db; background:#faf9f7; border-radius:var(--r-md); padding:11px 14px;">
             <div style="min-width:0;">
               <div style="font-size:14px; font-weight:700; color:var(--ink);">{{ locName }}</div>
@@ -250,13 +240,6 @@
             </div>
             <span style="display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--accent); white-space:nowrap; flex:none;">Dojazd<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z"></path><circle cx="12" cy="11" r="2"></circle></svg></span>
           </a>
-        </div>
-      </sc-if>
-
-      <sc-if value="{{ dowoz }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-top:10px; border:1px solid color-mix(in srgb, var(--accent) 32%, #fff); background:color-mix(in srgb, var(--accent) 8%, #fff); border-radius:var(--r-md); padding:13px;">
-          <div style="font-size:14px; font-weight:700; color:var(--ink);">Dowóz pod sektor · cena ustalana indywidualnie</div>
-          <div style="font-family:var(--font-mono); font-size:11px; color:#6b6862; margin-top:3px; line-height:1.5;">Wrocław i okolice. Miejsce, godzinę i koszt dowozu ustalamy na czacie.</div>
         </div>
       </sc-if>
 
@@ -284,27 +267,37 @@
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Email</span>
           <input type="email" value="{{ email }}" onInput="{{ setEmail }}" placeholder="jan@email.com" maxlength="120" autocomplete="email" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
-        <label style="display:block;">
-          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
-          <input type="tel" value="{{ phoneInput }}" onInput="{{ setPhoneInput }}" placeholder="+48 500 600 700" maxlength="16" inputmode="tel" autocomplete="tel" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
-        </label>
+        <div style="display:grid; grid-template-columns:72px 1fr; gap:8px;">
+          <label style="display:block;">
+            <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Kierunkowy</span>
+            <input type="tel" value="{{ phonePrefix }}" onInput="{{ setPhonePrefix }}" placeholder="+48" maxlength="4" inputmode="tel" autocomplete="tel-country-code" aria-label="Kierunkowy telefonu" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 8px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          </label>
+          <label style="display:block;">
+            <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
+            <input type="tel" value="{{ phoneNumber }}" onInput="{{ setPhoneNumber }}" placeholder="500 600 700" maxlength="15" inputmode="tel" autocomplete="tel-national" aria-label="Numer telefonu" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          </label>
+        </div>
       </div>
 
       <div class="reservation-legal" aria-label="Zgody i oświadczenia">
         <label class="reservation-consent">
           <input type="checkbox" checked="{{ acceptTerms }}" onChange="{{ setAcceptTerms }}">
-          <span>Akceptuję <a href="/rental-terms.html" target="_blank" rel="noopener">Regulamin wypożyczalni</a> (wersja 1.0).</span>
+          <span>Przeczytałem i akceptuję <a href="/rental-terms.html" target="_blank" rel="noopener">Regulamin wypożyczalni</a>. <strong class="consent-badge consent-required">WYMAGANE</strong></span>
         </label>
         <label class="reservation-consent">
           <input type="checkbox" checked="{{ acceptPrivacy }}" onChange="{{ setAcceptPrivacy }}">
-          <span>Potwierdzam zapoznanie się z <a href="/privacy-policy.html" target="_blank" rel="noopener">Polityką prywatności</a> (wersja 1.0).</span>
+          <span>Przeczytałem i przyjmuję do wiadomości <a href="/privacy-policy.html" target="_blank" rel="noopener">Politykę prywatności</a>. <strong class="consent-badge consent-required">WYMAGANE</strong></span>
         </label>
         <sc-if value="{{ earlyStartRequired }}" hint-placeholder-val="{{ true }}">
           <label class="reservation-consent conditional">
             <input type="checkbox" checked="{{ earlyStartRequested }}" onChange="{{ setEarlyStartRequested }}">
-            <span>Żądam rozpoczęcia wykonywania umowy przed upływem 14 dni od jej zawarcia i przyjmuję do wiadomości, że w przypadku odstąpienia od umowy po rozpoczęciu jej wykonywania mogę być zobowiązany(-a) do zapłaty za świadczenie spełnione do chwili odstąpienia, proporcjonalnie do jego zakresu.<small>To oświadczenie jest wymagane dla wybranego terminu.</small></span>
+            <span>Żądam rozpoczęcia wykonywania umowy przed upływem 14 dni od jej zawarcia i przyjmuję do wiadomości, że w przypadku odstąpienia od umowy po rozpoczęciu jej wykonywania mogę być zobowiązany(-a) do zapłaty za świadczenie spełnione do chwili odstąpienia, proporcjonalnie do jego zakresu. <strong class="consent-badge consent-required">WYMAGANE</strong><small>To oświadczenie pojawia się, gdy najem zaczyna się w ciągu 14 dni. Bez niego nie można wydać sprzętu przed upływem terminu na odstąpienie.</small></span>
           </label>
         </sc-if>
+        <label class="reservation-consent optional">
+          <input type="checkbox" checked="{{ marketingEmail }}" onChange="{{ setMarketingEmail }}">
+          <span>Chcę dostawać maile o dostępności padów i nowościach SKUCHA. Mogę zrezygnować w każdej chwili. <strong class="consent-badge consent-optional">OPCJONALNE</strong></span>
+        </label>
       </div>
 
       <button type="button" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="margin-top:16px; width:100%; display:flex; align-items:center; justify-content:center; gap:9px; border:0; background:var(--accent); color:#fff; font:800 17px/1 var(--font-main); padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em; cursor:pointer;">
@@ -529,8 +522,6 @@
         <nav aria-label="Informacje prawne" style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:14px; font-size:12px;">
           <a href="/rental-terms.html" style="color:#fff;">Regulamin</a>
           <a href="/privacy-policy.html" style="color:#fff;">Polityka prywatności</a>
-          <a href="/rental-terms-v1.0.pdf" style="color:#fff;">Regulamin PDF</a>
-          <a href="/privacy-policy-v1.0.pdf" style="color:#fff;">Polityka PDF</a>
         </nav>
       </div>
       <div class="footer-actions" style="display:flex; flex-direction:column; gap:12px; max-width:380px; margin-left:auto; width:100%;">
@@ -581,7 +572,9 @@ class Component extends DCLogic {
       firstName: '',
       lastName: '',
       email: '',
-      phoneInput: '',
+      phonePrefix: '+48',
+      phoneNumber: '',
+      marketingEmail: false,
       reservationStatus: '',
       reservationStatusColor: '#6b6862',
       reservationSubmitting: false
@@ -748,13 +741,23 @@ class Component extends DCLogic {
     return String(value || '').replace(/[^A-Za-zÀ-ž\-\s']/g, '').slice(0, 60);
   }
 
-  sanitizePhone(value){
-    const cleaned = String(value || '').replace(/[^0-9+\s]/g, '');
+  sanitizePhonePrefix(value){
+    const cleaned = String(value || '').replace(/[^0-9+]/g, '');
     const firstPlus = cleaned.indexOf('+');
     const normalized = firstPlus > 0
       ? cleaned.replace(/\+/g, '')
       : (firstPlus === 0 ? '+' + cleaned.slice(1).replace(/\+/g, '') : cleaned);
-    return normalized.slice(0, 16);
+    return normalized.slice(0, 4);
+  }
+
+  sanitizePhoneNumber(value){
+    return String(value || '').replace(/\D/g, '').slice(0, 15);
+  }
+
+  phoneValue(){
+    const enteredPrefix = this.state.phonePrefix.trim();
+    const prefix = /^\+\d{1,3}$/.test(enteredPrefix) ? enteredPrefix : '+48';
+    return prefix + this.state.phoneNumber;
   }
 
   async reserveClick(e){
@@ -763,7 +766,7 @@ class Component extends DCLogic {
     const firstName = this.state.firstName.trim();
     const lastName = this.state.lastName.trim();
     const email = this.state.email.trim();
-    const phone = this.state.phoneInput.trim();
+    const phone = this.phoneValue();
 
     if (!firstName || !lastName || !email || !phone) {
       this.setState({ reservationStatus: 'Uzupełnij imię, nazwisko, email i telefon.', reservationStatusColor: '#b54708' });
@@ -817,11 +820,12 @@ class Component extends DCLogic {
       dateFrom: this.state.od,
       dateTo: this.state.dod || this.state.od,
       padsCount: this.state.pads,
-      deliveryMethod: this.state.dowoz ? 'delivery' : 'pickup',
-      pickupPoint: this.state.dowoz ? '' : locName,
+      deliveryMethod: 'pickup',
+      pickupPoint: locName,
       notes: '',
-      acceptTerms: true,
-      acceptPrivacy: true,
+      acceptTerms: this.state.acceptTerms,
+      acceptPrivacy: this.state.acceptPrivacy,
+      marketingEmail: this.state.marketingEmail,
       earlyStartRequested: this.earlyStartRequired() && this.state.earlyStartRequested
     };
 
@@ -868,7 +872,7 @@ class Component extends DCLogic {
     const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
       + '• Imię i nazwisko: ' + this.state.firstName + ' ' + this.state.lastName + '\n'
       + '• Email: ' + this.state.email + '\n'
-      + '• Telefon: ' + this.state.phoneInput + '\n'
+      + '• Telefon: ' + this.phoneValue() + '\n'
       + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
       + '• Liczba padów: ' + this.state.pads + '\n'
       + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice) — koszt dowozu do ustalenia' : ('Odbiór osobisty — ' + currentPickupName)) + '\n'
@@ -996,10 +1000,6 @@ class Component extends DCLogic {
       nextMonth: () => this.shiftMonth(1),
       incPad: () => this.setState(s => ({ pads: Math.min(this.maxAvail(), s.pads + 1) })),
       decPad: () => this.setState(s => ({ pads: Math.max(1, s.pads - 1) })),
-      pickStab: () => this.setState({ loc:'Stabłowice' }),
-      pickBroch: null,
-      stabStyle: this.seg(this.state.loc === 'Stabłowice'),
-      brochStyle: this.segDisabled(),
       locName, locAddress, locMapsLink,
       todayIso, notifyOd: nOd, notifyDod: nDod, notifyDodMin: nOd || todayIso,
       notifyHeading, notifyLink, notifyBtnStyle,
@@ -1011,24 +1011,24 @@ class Component extends DCLogic {
       notifyWrapStyle: "margin-top:14px; border-top:1px solid #ededea; padding-top:14px;",
       notifyIconStyle: "font-size:22px; font-weight:400; color:var(--accent); flex:none; line-height:1; transition:transform .2s; transform:rotate(" + (this.state.notifyOpen ? '45deg' : '0deg') + ");",
       notifyBodyStyle: "overflow:hidden; transition:max-height .3s ease, opacity .2s; max-height:" + (this.state.notifyOpen ? '320px' : '0px') + "; opacity:" + (this.state.notifyOpen ? '1' : '0') + ";",
-      pickOdbior: () => this.setState({ dowoz:false }),
-      pickDowoz: null,
-      odbiorStyle: this.seg(!this.state.dowoz),
-      dowozStyle: this.segDisabled(),
       firstName: this.state.firstName,
       lastName: this.state.lastName,
       email: this.state.email,
-      phoneInput: this.state.phoneInput,
+      phonePrefix: this.state.phonePrefix,
+      phoneNumber: this.state.phoneNumber,
       setFirstName: (e) => this.setState({ firstName: this.sanitizeName(e.target.value) }),
       setLastName: (e) => this.setState({ lastName: this.sanitizeName(e.target.value) }),
       setEmail: (e) => this.setState({ email: String(e.target.value || '').trim().toLowerCase().slice(0, 120) }),
-      setPhoneInput: (e) => this.setState({ phoneInput: this.sanitizePhone(e.target.value) }),
+      setPhonePrefix: (e) => this.setState({ phonePrefix: this.sanitizePhonePrefix(e.target.value) }),
+      setPhoneNumber: (e) => this.setState({ phoneNumber: this.sanitizePhoneNumber(e.target.value) }),
       acceptTerms: this.state.acceptTerms,
       acceptPrivacy: this.state.acceptPrivacy,
+      marketingEmail: this.state.marketingEmail,
       earlyStartRequested: this.state.earlyStartRequested,
       earlyStartRequired: this.earlyStartRequired(),
       setAcceptTerms: (e) => this.setState({ acceptTerms: !!e.target.checked }),
       setAcceptPrivacy: (e) => this.setState({ acceptPrivacy: !!e.target.checked }),
+      setMarketingEmail: (e) => this.setState({ marketingEmail: !!e.target.checked }),
       setEarlyStartRequested: (e) => this.setState({ earlyStartRequested: !!e.target.checked }),
       reserveClick: (e) => this.reserveClick(e),
       reservationStatus: this.state.reservationStatus,
@@ -1037,7 +1037,7 @@ class Component extends DCLogic {
       reservationButtonLabel: this.state.reservationSubmitting ? 'Przetwarzam...' : 'Rezerwuję i płacę',
       reservationSpinnerStyle: 'display:' + (this.state.reservationSubmitting ? 'inline-block' : 'none') + '; width:12px; height:12px; border:2px solid rgba(255,255,255,.45); border-top-color:#fff; border-radius:50%; animation:skucha-reservation-spin .8s linear infinite; vertical-align:-1px; flex:none;',
       reservationStatusStyle: "margin-top:8px; min-height:18px; font-family:var(--font-mono); font-size:11px; color:" + this.state.reservationStatusColor + ";",
-      showPoints: !this.state.dowoz,
+      showPoints: true,
       dowoz: this.state.dowoz,
       daysLabel, breakdown: bd,
       totalLabel: c.total,

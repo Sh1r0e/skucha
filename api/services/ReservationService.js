@@ -143,6 +143,9 @@ function validateReservation(reservation, config, now) {
   }
 
   var normalizedPhone = reservation.phone.replace(/[^\d+]/g, "");
+  if (normalizedPhone.charAt(0) !== "+") {
+    normalizedPhone = "+48" + normalizedPhone;
+  }
   if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
     throw badRequest("phone format is invalid");
   }

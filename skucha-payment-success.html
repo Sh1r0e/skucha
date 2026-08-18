@@ -37,13 +37,13 @@
 
     .page {
       min-height: 100vh;
-      padding: 28px 16px;
+      padding: 28px 16px 44px;
       display: grid;
       place-items: start center;
     }
 
     .card {
-      width: min(860px, 100%);
+      width: min(760px, 100%);
       background: #fff;
       border: 1px solid var(--line);
       border-radius: var(--r-xl);
@@ -52,9 +52,8 @@
     }
 
     .top {
-      padding: 24px;
+      padding: 28px 30px 24px;
       border-bottom: 1px solid var(--line);
-      background: linear-gradient(160deg, #fff 0%, #fdf4ef 100%);
     }
 
     .kicker {
@@ -82,6 +81,23 @@
       max-width: 56ch;
     }
 
+    .reservation-meta {
+      margin-top: 14px;
+      color: #9a968e;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .reservation-meta strong {
+      margin-left: 5px;
+      color: var(--ink);
+      font-size: 11px;
+      letter-spacing: 0;
+      word-break: break-all;
+    }
+
     .status-row {
       margin-top: 16px;
       display: inline-flex;
@@ -105,48 +121,103 @@
     }
 
     .content {
-      padding: 20px 24px 24px;
+      padding: 24px 30px 30px;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .item {
+    .summary-table {
+      margin-top: 12px;
+      overflow: hidden;
       border: 1px solid var(--line);
       border-radius: var(--r-md);
-      padding: 10px 12px;
-      background: #fff;
     }
 
-    .label {
-      margin: 0;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .summary-row {
+      min-height: 41px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-row:last-child { border-bottom: 0; }
+
+    .summary-row span {
       color: #9a968e;
-      font-weight: 700;
+      font-size: 14px;
     }
 
-    .value {
-      margin: 6px 0 0;
+    .summary-row strong {
+      min-width: 0;
+      color: var(--ink);
       font-size: 15px;
-      font-weight: 700;
+      line-height: 1.35;
+      text-align: right;
       word-break: break-word;
     }
 
-    .note {
-      margin-top: 14px;
-      padding: 12px;
+    .summary-row.total { background: #fafbfc; }
+
+    .summary-row.deposit { background: #fff8e8; }
+
+    .summary-row.deposit span,
+    .summary-row.deposit strong { color: #7b5922; }
+
+    .section-title {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .knowledge-section { margin-top: 28px; }
+
+    .knowledge-list {
+      margin-top: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .knowledge-item {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
       border-radius: var(--r-md);
-      border: 1px solid color-mix(in srgb, var(--accent) 22%, #fff);
-      background: color-mix(in srgb, var(--accent) 8%, #fff);
-      color: #5b3a28;
-      line-height: 1.45;
+      background: #fff;
+    }
+
+    .knowledge-item.warning {
+      border-color: #eadbb8;
+      background: #fff8e8;
+    }
+
+    .knowledge-icon {
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .knowledge-item.warning .knowledge-icon { color: #b77920; }
+
+    .knowledge-item h2 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.3;
+      font-weight: 800;
+    }
+
+    .knowledge-item p {
+      margin: 3px 0 0;
+      color: var(--muted);
       font-size: 14px;
+      line-height: 1.45;
     }
 
     .actions {
@@ -173,9 +244,10 @@
       color: #fff;
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 640px) {
       .top, .content { padding: 18px; }
-      .grid { grid-template-columns: 1fr; }
+      .summary-row { align-items: flex-start; gap: 12px; }
+      .summary-row strong { max-width: 62%; }
       .actions .btn { width: 100%; text-align: center; }
     }
   </style>
@@ -186,29 +258,36 @@
       <header class="top">
         <div class="kicker">Stripe Redirect · SKUCHA</div>
         <h1>Platnosc przyjeta</h1>
-        <p class="lead">Dziekujemy. Wrocilismy z checkoutu Stripe. Nizej znajdziesz podsumowanie rezerwacji i identyfikatory potrzebne do wsparcia.</p>
+        <p class="lead">Dziekujemy. Wrocilismy z checkoutu Stripe. Nizej znajdziesz podsumowanie rezerwacji oraz informacje potrzebne przed odbiorem padów.</p>
+        <div class="reservation-meta">ID rezerwacji<strong id="topReservationId">-</strong></div>
         <div class="status-row"><span class="dot"></span><span id="statusText">Oczekuje na finalne potwierdzenie</span></div>
       </header>
 
       <div class="content">
-        <div class="grid">
-          <article class="item"><p class="label">Rezerwacja ID</p><p class="value" id="reservationId">-</p></article>
-          <article class="item"><p class="label">Stripe Session ID</p><p class="value" id="sessionId">-</p></article>
-          <article class="item"><p class="label">Kwota</p><p class="value" id="amount">-</p></article>
-          <article class="item"><p class="label">Waluta</p><p class="value" id="currency">-</p></article>
-          <article class="item"><p class="label">Termin</p><p class="value" id="dates">-</p></article>
-          <article class="item"><p class="label">Liczba padow</p><p class="value" id="padsCount">-</p></article>
-          <article class="item"><p class="label">Sposob odbioru</p><p class="value" id="delivery">-</p></article>
-          <article class="item"><p class="label">Email klienta</p><p class="value" id="email">-</p></article>
+        <p class="section-title">Twoja rezerwacja</p>
+        <div class="summary-table">
+          <div class="summary-row"><span>Sprzęt</span><strong id="equipment">-</strong></div>
+          <div class="summary-row"><span>Okres najmu</span><strong id="dates">-</strong></div>
+          <div class="summary-row"><span>Odbiór i zwrot</span><strong id="pickup">-</strong></div>
+          <div class="summary-row"><span>Czynsz</span><strong id="rent">-</strong></div>
+          <div class="summary-row total"><span>Do zapłaty teraz</span><strong id="amountDue">-</strong></div>
+          <div class="summary-row deposit"><span>Kaucja zwrotna</span><strong id="deposit">-</strong></div>
         </div>
 
-        <div class="note" id="noteBox">
-          Jesli nie widzisz wszystkich danych, ustaw URL sukcesu Stripe z parametrem session_id i uruchom webhook, aby potwierdzac status platnosci po stronie backendu.
-        </div>
+        <section class="knowledge-section" aria-labelledby="knowledgeTitle">
+          <p class="section-title" id="knowledgeTitle">Co musisz wiedzieć</p>
+          <div class="knowledge-list">
+            <article class="knowledge-item warning"><span class="knowledge-icon" aria-hidden="true">△</span><div><h2>Bouldering jest niebezpieczny</h2><p>Crash pad zmniejsza, ale nie eliminuje ryzyka urazu. Układaj matę płasko pod strefą lądowania, bez szczelin między matami, na terenie oczyszczonym z kamieni. Wspinaj się z asekuracją drugiej osoby.</p></div></article>
+            <article class="knowledge-item"><span class="knowledge-icon" aria-hidden="true">▣</span><div><h2>Weź dokument tożsamości</h2><p>Przy odbiorze spisujemy dane z dowodu lub paszportu. Nie robimy kopii ani zdjęcia i nie zatrzymujemy dokumentu w zastaw. Musisz mieć ukończone 18 lat.</p></div></article>
+            <article class="knowledge-item"><span class="knowledge-icon" aria-hidden="true">$</span><div><h2 id="knowledgeDepositTitle">Kaucja zwrotna gotówką</h2><p>Zwracamy ją w całości od razu po oddaniu padów. Potrącamy tylko udokumentowany koszt naprawy albo brakujące elementy - zawsze z pisemnym uzasadnieniem.</p></div></article>
+            <article class="knowledge-item"><span class="knowledge-icon" aria-hidden="true">✓</span><div><h2>Normalne zużycie nic nie kosztuje</h2><p>Przetarta pokrowiec, ubita pianka, magnezja i ziemia - to jest w cenie. Płacisz tylko za realne uszkodzenie, a za zgubienie lub zniszczenie odpowiadasz zgodnie z regulaminem.</p></div></article>
+            <article class="knowledge-item"><span class="knowledge-icon" aria-hidden="true">◷</span><div><h2>Oddajesz w umówionym terminie</h2><p>Czysty i suchy, w miejscu odbioru. Za każdą rozpoczętą dobę zwłoki naliczamy czynsz. Nie odstępuj padów innym osobom i nie zostawiaj ich bez nadzoru.</p></div></article>
+          </div>
+        </section>
 
         <div class="actions">
-          <a class="btn primary" href="skucha.html#rezerwacja">Wroc do rezerwacji</a>
-          <a class="btn" href="index.html">Strona glowna</a>
+          <a class="btn primary" href="skucha.html#rezerwacja">Wróć do rezerwacji</a>
+          <a class="btn" href="index.html">Strona główna</a>
         </div>
       </div>
     </section>
@@ -229,6 +308,29 @@
         }
       }
 
+      function formatMoney(value, currency) {
+        var number = Number(value);
+        if (!Number.isFinite(number)) { return '-'; }
+        var formatted = number.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return formatted + ' ' + (String(currency || 'PLN').toUpperCase() === 'PLN' ? 'zł' : String(currency).toUpperCase());
+      }
+
+      function formatDate(value) {
+        var match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? match[3] + '.' + match[2] : String(value || '-');
+      }
+
+      function formatPeriod(from, to) {
+        if (!from) { return '-'; }
+        var start = new Date(from + 'T00:00:00Z');
+        var end = new Date((to || from) + 'T00:00:00Z');
+        var days = Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
+          ? 1
+          : Math.floor(Math.abs(end.getTime() - start.getTime()) / 86400000) + 1;
+        var dayWord = days === 1 ? 'doba' : (days >= 2 && days <= 4 ? 'doby' : 'dób');
+        return formatDate(from) + ' → ' + formatDate(to || from) + ' · ' + days + ' ' + dayWord;
+      }
+
       var params = new URLSearchParams(window.location.search);
       var last = readLastOrder() || {};
       var payload = last.payload || {};
@@ -242,9 +344,7 @@
       var dateFrom = params.get('dateFrom') || reservation.dateFrom || payload.dateFrom || '';
       var dateTo = params.get('dateTo') || reservation.dateTo || payload.dateTo || '';
       var padsCount = params.get('padsCount') || reservation.padsCount || payload.padsCount || '-';
-      var deliveryMethod = params.get('deliveryMethod') || reservation.deliveryMethod || payload.deliveryMethod || '-';
       var pickupPoint = params.get('pickupPoint') || reservation.pickupPoint || payload.pickupPoint || '';
-      var email = params.get('email') || reservation.email || payload.email || '-';
 
       var statusText = payment.status || params.get('payment_status') || 'pending_confirmation';
       var hasReservationId = reservationId !== '-';
@@ -252,27 +352,41 @@
       var statusChecksRemaining = 12;
       var statusCheckDelayMs = 2500;
 
-      byId('reservationId').textContent = reservationId;
-      byId('sessionId').textContent = sessionId;
-      byId('amount').textContent = amount === '-' ? '-' : String(amount);
-      byId('currency').textContent = String(currency || 'PLN').toUpperCase();
-      byId('dates').textContent = dateFrom ? (dateFrom + (dateTo && dateTo !== dateFrom ? ' - ' + dateTo : '')) : '-';
-      byId('padsCount').textContent = String(padsCount);
-      byId('delivery').textContent = deliveryMethod === 'pickup' && pickupPoint
-        ? 'Odbior osobisty - ' + pickupPoint
-        : (deliveryMethod === 'delivery' ? 'Dowoz' : String(deliveryMethod));
-      byId('email').textContent = email;
+      function renderSummary() {
+        var pads = Number(padsCount) || 0;
+        var deposit = pads > 0 ? pads * 200 : null;
+        byId('equipment').textContent = pads > 0 ? 'Black Diamond Circuit 2.0 × ' + pads : '-';
+        byId('dates').textContent = formatPeriod(dateFrom, dateTo);
+        byId('pickup').textContent = pickupPoint ? pickupPoint + ', Wrocław' : '-';
+        byId('rent').textContent = formatMoney(amount, currency);
+        byId('amountDue').textContent = formatMoney(amount, currency);
+        byId('deposit').textContent = deposit === null ? '-' : formatMoney(deposit, 'PLN') + ' - gotówką przy odbiorze';
+        byId('topReservationId').textContent = reservationId;
+        byId('knowledgeDepositTitle').textContent = deposit === null
+          ? 'Kaucja zwrotna gotówką'
+          : 'Kaucja ' + formatMoney(deposit, 'PLN') + ' gotówką';
+      }
+
+      renderSummary();
 
       byId('statusText').textContent = hasReservationId
         ? 'Status: sprawdzanie platnosci...'
         : ('Status: ' + String(statusText).replace(/_/g, ' '));
 
-      if (sessionId === '-') {
-        byId('noteBox').textContent = 'Brak session_id w URL. Ustaw STRIPE_CHECKOUT_SUCCESS_URL z ?session_id={CHECKOUT_SESSION_ID}.';
-      }
-
       function updateStatusFromApi(data) {
         if (!data) { return false; }
+
+        reservationId = data.id || reservationId;
+        dateFrom = data.dateFrom || dateFrom;
+        dateTo = data.dateTo || dateTo;
+        padsCount = data.pads || padsCount;
+        pickupPoint = data.pickupPoint || pickupPoint;
+        if (data.payment) {
+          sessionId = data.payment.sessionId || sessionId;
+          amount = data.payment.amount === null || data.payment.amount === undefined ? amount : data.payment.amount;
+          currency = data.payment.currency || currency;
+        }
+        renderSummary();
 
         var ps = data.payment && data.payment.status ? data.payment.status : '';
         var rs = data.status || '';
@@ -289,13 +403,8 @@
             statusRow.style.borderColor = 'color-mix(in srgb, #1f8a5b 35%, #fff)';
             statusRow.style.color = '#1f8a5b';
           }
-          byId('noteBox').style.display = 'none';
         }
 
-        if (data.dateFrom) {
-          byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
-        }
-        if (data.pads) { byId('padsCount').textContent = String(data.pads); }
         return paid;
       }
 

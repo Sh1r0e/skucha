@@ -358,6 +358,17 @@ describe("ReservationService", function () {
     });
   });
 
+  it("should_add_polish_country_code_when_phone_has_no_prefix()", async function () {
+    const input = buildReservation({ phone: "500 600 700" });
+    const dependencies = applyHappyPathDependencies();
+
+    await ReservationService.createReservation(input);
+
+    expect(dependencies.ReservationRepository.saveReservation).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: "+48500600700" })
+    );
+  });
+
   it("should_reject_invalid_delivery_method()", async function () {
     const input = buildReservation({ deliveryMethod: "courier" });
     applyHappyPathDependencies();

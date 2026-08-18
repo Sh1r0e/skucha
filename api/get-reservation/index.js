@@ -99,8 +99,16 @@ function createGetReservationHandler(customDependencies) {
         dateTo: reservation.toDate,
         pads: reservation.pads,
         createdAt: reservation.createdAt,
+        pickupPoint: reservation.pickupPoint || "",
         payment: {
-          status: reservation.paymentStatus || ""
+          status: reservation.paymentStatus || "",
+          sessionId: reservation.paymentSessionId || "",
+          amount: reservation.paymentAmountMinor
+            ? Number(reservation.paymentAmountMinor) / 100
+            : null,
+          amountMinor: Number(reservation.paymentAmountMinor || 0),
+          currency: String(reservation.paymentCurrency || "PLN").toUpperCase(),
+          paymentIntentId: reservation.paymentIntentId || ""
         }
       }
     };

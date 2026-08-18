@@ -37,13 +37,13 @@
 
     .page {
       min-height: 100vh;
-      padding: 28px 16px;
+      padding: 28px 16px 44px;
       display: grid;
       place-items: start center;
     }
 
     .card {
-      width: min(860px, 100%);
+      width: min(760px, 100%);
       background: #fff;
       border: 1px solid var(--line);
       border-radius: var(--r-xl);
@@ -52,9 +52,8 @@
     }
 
     .top {
-      padding: 24px;
+      padding: 28px 30px 24px;
       border-bottom: 1px solid var(--line);
-      background: linear-gradient(160deg, #fff 0%, #fff4ef 100%);
     }
 
     .kicker {
@@ -82,6 +81,23 @@
       max-width: 56ch;
     }
 
+    .reservation-meta {
+      margin-top: 14px;
+      color: #9a968e;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .reservation-meta strong {
+      margin-left: 5px;
+      color: var(--ink);
+      font-size: 11px;
+      letter-spacing: 0;
+      word-break: break-all;
+    }
+
     .status-row {
       margin-top: 16px;
       display: inline-flex;
@@ -105,48 +121,68 @@
     }
 
     .content {
-      padding: 20px 24px 24px;
+      padding: 24px 30px 30px;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .item {
+    .summary-table {
+      margin-top: 12px;
+      overflow: hidden;
       border: 1px solid var(--line);
       border-radius: var(--r-md);
-      padding: 10px 12px;
-      background: #fff;
     }
 
-    .label {
-      margin: 0;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .summary-row {
+      min-height: 41px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .summary-row:last-child { border-bottom: 0; }
+
+    .summary-row span {
       color: #9a968e;
-      font-weight: 700;
+      font-size: 14px;
     }
 
-    .value {
-      margin: 6px 0 0;
+    .summary-row strong {
+      min-width: 0;
+      color: var(--ink);
       font-size: 15px;
-      font-weight: 700;
+      line-height: 1.35;
+      text-align: right;
       word-break: break-word;
     }
 
-    .note {
-      margin-top: 14px;
-      padding: 12px;
-      border-radius: var(--r-md);
+    .summary-row.total { background: #fafbfc; }
+
+    .summary-row.deposit { background: #fff8e8; }
+
+    .summary-row.deposit span,
+    .summary-row.deposit strong { color: #7b5922; }
+
+    .section-title {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .cancel-callout {
+      margin-top: 24px;
+      padding: 14px;
       border: 1px solid color-mix(in srgb, var(--error) 22%, #fff);
+      border-radius: var(--r-md);
       background: color-mix(in srgb, var(--error) 8%, #fff);
       color: #5f3028;
-      line-height: 1.45;
       font-size: 14px;
+      line-height: 1.45;
     }
 
     .actions {
@@ -173,9 +209,10 @@
       color: #fff;
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 640px) {
       .top, .content { padding: 18px; }
-      .grid { grid-template-columns: 1fr; }
+      .summary-row { align-items: flex-start; gap: 12px; }
+      .summary-row strong { max-width: 62%; }
       .actions .btn { width: 100%; text-align: center; }
     }
   </style>
@@ -187,28 +224,26 @@
         <div class="kicker">Stripe Redirect · SKUCHA</div>
         <h1>Platnosc anulowana</h1>
         <p class="lead">Nie martw sie, rezerwacja moze zostac oplacona ponownie. Ponizej masz dane zamowienia, zeby latwo wrocic do procesu.</p>
+        <div class="reservation-meta">ID rezerwacji<strong id="topReservationId">-</strong></div>
         <div class="status-row"><span class="dot"></span><span id="statusText">Platnosc nie zostala zakonczona</span></div>
       </header>
 
       <div class="content">
-        <div class="grid">
-          <article class="item"><p class="label">Rezerwacja ID</p><p class="value" id="reservationId">-</p></article>
-          <article class="item"><p class="label">Stripe Session ID</p><p class="value" id="sessionId">-</p></article>
-          <article class="item"><p class="label">Kwota</p><p class="value" id="amount">-</p></article>
-          <article class="item"><p class="label">Waluta</p><p class="value" id="currency">-</p></article>
-          <article class="item"><p class="label">Termin</p><p class="value" id="dates">-</p></article>
-          <article class="item"><p class="label">Liczba padow</p><p class="value" id="padsCount">-</p></article>
-          <article class="item"><p class="label">Sposob odbioru</p><p class="value" id="delivery">-</p></article>
-          <article class="item"><p class="label">Email klienta</p><p class="value" id="email">-</p></article>
+        <p class="section-title">Twoja rezerwacja</p>
+        <div class="summary-table">
+          <div class="summary-row"><span>Sprzęt</span><strong id="equipment">-</strong></div>
+          <div class="summary-row"><span>Okres najmu</span><strong id="dates">-</strong></div>
+          <div class="summary-row"><span>Odbiór i zwrot</span><strong id="pickup">-</strong></div>
+          <div class="summary-row"><span>Czynsz</span><strong id="rent">-</strong></div>
+          <div class="summary-row total"><span>Do zapłaty teraz</span><strong id="amountDue">-</strong></div>
+          <div class="summary-row deposit"><span>Kaucja zwrotna</span><strong id="deposit">-</strong></div>
         </div>
 
-        <div class="note" id="noteBox">
-          Mozesz od razu wrocic do formularza i wyslac nowa rezerwacje lub wdrozyc mechanizm wznowienia platnosci po reservationId.
-        </div>
+        <div class="cancel-callout"><strong>Płatność nie została zakończona.</strong> Rezerwacja nie jest potwierdzona. Wróć do formularza, aby rozpocząć nową rezerwację i przejść do płatności Stripe.</div>
 
         <div class="actions">
-          <a class="btn primary" href="skucha.html#rezerwacja">Wroc do rezerwacji</a>
-          <a class="btn" href="index.html">Strona glowna</a>
+          <a class="btn primary" href="skucha.html#rezerwacja">Wróć do rezerwacji</a>
+          <a class="btn" href="index.html">Strona główna</a>
         </div>
       </div>
     </section>
@@ -229,6 +264,29 @@
         }
       }
 
+      function formatMoney(value, currency) {
+        var number = Number(value);
+        if (!Number.isFinite(number)) { return '-'; }
+        var formatted = number.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return formatted + ' ' + (String(currency || 'PLN').toUpperCase() === 'PLN' ? 'zł' : String(currency).toUpperCase());
+      }
+
+      function formatDate(value) {
+        var match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? match[3] + '.' + match[2] : String(value || '-');
+      }
+
+      function formatPeriod(from, to) {
+        if (!from) { return '-'; }
+        var start = new Date(from + 'T00:00:00Z');
+        var end = new Date((to || from) + 'T00:00:00Z');
+        var days = Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
+          ? 1
+          : Math.floor(Math.abs(end.getTime() - start.getTime()) / 86400000) + 1;
+        var dayWord = days === 1 ? 'doba' : (days >= 2 && days <= 4 ? 'doby' : 'dób');
+        return formatDate(from) + ' → ' + formatDate(to || from) + ' · ' + days + ' ' + dayWord;
+      }
+
       var params = new URLSearchParams(window.location.search);
       var last = readLastOrder() || {};
       var payload = last.payload || {};
@@ -242,44 +300,48 @@
       var dateFrom = params.get('dateFrom') || reservation.dateFrom || payload.dateFrom || '';
       var dateTo = params.get('dateTo') || reservation.dateTo || payload.dateTo || '';
       var padsCount = params.get('padsCount') || reservation.padsCount || payload.padsCount || '-';
-      var deliveryMethod = params.get('deliveryMethod') || reservation.deliveryMethod || payload.deliveryMethod || '-';
       var pickupPoint = params.get('pickupPoint') || reservation.pickupPoint || payload.pickupPoint || '';
-      var email = params.get('email') || reservation.email || payload.email || '-';
 
       var statusText = params.get('payment_status') || payment.status || 'cancelled';
 
-      byId('reservationId').textContent = reservationId;
-      byId('sessionId').textContent = sessionId;
-      byId('amount').textContent = amount === '-' ? '-' : String(amount);
-      byId('currency').textContent = String(currency || 'PLN').toUpperCase();
-      byId('dates').textContent = dateFrom ? (dateFrom + (dateTo && dateTo !== dateFrom ? ' - ' + dateTo : '')) : '-';
-      byId('padsCount').textContent = String(padsCount);
-      byId('delivery').textContent = deliveryMethod === 'pickup' && pickupPoint
-        ? 'Odbior osobisty - ' + pickupPoint
-        : (deliveryMethod === 'delivery' ? 'Dowoz' : String(deliveryMethod));
-      byId('email').textContent = email;
+      function renderSummary() {
+        var pads = Number(padsCount) || 0;
+        var deposit = pads > 0 ? pads * 200 : null;
+        byId('equipment').textContent = pads > 0 ? 'Black Diamond Circuit 2.0 × ' + pads : '-';
+        byId('dates').textContent = formatPeriod(dateFrom, dateTo);
+        byId('pickup').textContent = pickupPoint ? pickupPoint + ', Wrocław' : '-';
+        byId('rent').textContent = formatMoney(amount, currency);
+        byId('amountDue').textContent = formatMoney(amount, currency);
+        byId('deposit').textContent = deposit === null ? '-' : formatMoney(deposit, 'PLN') + ' - gotówką przy odbiorze';
+        byId('topReservationId').textContent = reservationId;
+      }
+
+      renderSummary();
 
       byId('statusText').textContent = 'Status: ' + String(statusText).replace(/_/g, ' ');
 
-      if (sessionId === '-') {
-        byId('noteBox').textContent = 'Brak session_id w URL. Ustaw STRIPE_CHECKOUT_CANCEL_URL z ?session_id={CHECKOUT_SESSION_ID}.';
-      }
-
       // Fetch authoritative status — reservation may have been confirmed by webhook already.
-      if (reservationId !== '-') {
+      if (reservationId !== '-' && sessionId !== '-') {
         fetch('/api/reservation?id=' + encodeURIComponent(reservationId) + '&session_id=' + encodeURIComponent(sessionId))
           .then(function (res) { return res.ok ? res.json() : null; })
           .then(function (data) {
             if (!data) { return; }
+            reservationId = data.id || reservationId;
+            dateFrom = data.dateFrom || dateFrom;
+            dateTo = data.dateTo || dateTo;
+            padsCount = data.pads || padsCount;
+            pickupPoint = data.pickupPoint || pickupPoint;
+            if (data.payment) {
+              sessionId = data.payment.sessionId || sessionId;
+              amount = data.payment.amount === null || data.payment.amount === undefined ? amount : data.payment.amount;
+              currency = data.payment.currency || currency;
+            }
+            renderSummary();
             var ps = data.payment && data.payment.status ? data.payment.status : '';
             var rs = data.status || '';
 
             byId('statusText').textContent = 'Status: ' + (ps || rs || statusText).replace(/_/g, ' ');
 
-            if (data.dateFrom) {
-              byId('dates').textContent = data.dateFrom + (data.dateTo && data.dateTo !== data.dateFrom ? ' - ' + data.dateTo : '');
-            }
-            if (data.pads) { byId('padsCount').textContent = String(data.pads); }
           })
           .catch(function () { /* keep localStorage fallback on network error */ });
       }

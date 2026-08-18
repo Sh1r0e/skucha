@@ -14,7 +14,11 @@ const MOCK_RESERVATION = {
   createdAt: "2026-07-31T10:00:00.000Z",
   paymentSessionId: "cs_test_123",
   paymentStatus: "Paid",
-  paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+  paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
+  paymentAmountMinor: 12000,
+  paymentCurrency: "PLN",
+  paymentIntentId: "pi_test_123",
+  pickupPoint: "Stablowice"
 };
 
 describe("get-reservation function", function () {
@@ -36,7 +40,12 @@ describe("get-reservation function", function () {
     expect(context.res.status).toBe(200);
     expect(context.res.body.id).toBe("res-1");
     expect(context.res.body.status).toBe("Confirmed");
+    expect(context.res.body.pickupPoint).toBe("Stablowice");
     expect(context.res.body.payment.status).toBe("Paid");
+    expect(context.res.body.payment.sessionId).toBe("cs_test_123");
+    expect(context.res.body.payment.amount).toBe(120);
+    expect(context.res.body.payment.currency).toBe("PLN");
+    expect(context.res.body.payment.paymentIntentId).toBe("pi_test_123");
     expect(context.res.body.customerName).toBeUndefined();
     expect(context.res.body.customerEmail).toBeUndefined();
   });

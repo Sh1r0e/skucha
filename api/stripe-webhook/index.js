@@ -489,6 +489,7 @@ function buildNotificationReservation(reservation, session, paymentStatus, reser
     notes: reservation.notes,
     amount: amountInMinorUnit > 0 ? amountInMinorUnit / 100 : "-",
     currency: currency,
+    paymentIntentId: reservation.paymentIntentId || (session.payment_intent ? String(session.payment_intent.id || session.payment_intent) : ""),
     paymentStatus: paymentStatus,
     paymentSessionId: reservation.paymentSessionId || session.id,
     checkoutUrl: checkoutUrl,
@@ -499,7 +500,8 @@ function buildNotificationReservation(reservation, session, paymentStatus, reser
       status: paymentStatus,
       checkoutUrl: checkoutUrl,
       amount: amountInMinorUnit > 0 ? amountInMinorUnit / 100 : "-",
-      currency: currency
+      currency: currency,
+      paymentIntentId: reservation.paymentIntentId || (session.payment_intent ? String(session.payment_intent.id || session.payment_intent) : "")
     }
   };
 }

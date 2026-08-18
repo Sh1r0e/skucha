@@ -152,7 +152,15 @@ describe("MailService", function () {
     expect(message.content.plainText).toContain("Punkt odbioru: Stablowice");
     expect(message.content.plainText).toContain("Uwagi: Bring extra straps");
     expect(message.content.plainText).toContain("120 PLN");
-    expect(message.content.plainText).toContain("cs_test_123");
+    expect(message.content.plainText).not.toContain("cs_test_123");
+    expect(message.content.html).toContain("Twoja rezerwacja");
+    expect(message.content.html).toContain("Black Diamond Circuit 2.0");
+    expect(message.content.html).toContain("ID rezerwacji");
+    expect(message.content.html).toContain("Kaucja zwrotna");
+    expect(message.content.html).not.toContain("Stripe Session ID");
+    expect(message.content.html).not.toContain("Stripe Payment Intent");
+    expect(message.content.html).toContain("Co musisz wiedzieć");
+    expect(message.content.html).toContain("Bouldering jest niebezpieczny");
     expect(message.content.plainText).toContain("/api/reservation/cancel?reservation_id=res-1");
     expect(message.content.attachments).toHaveLength(2);
     expect(message.content.attachments.map(function (attachment) { return attachment.name; })).toEqual([
