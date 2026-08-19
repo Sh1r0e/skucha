@@ -308,11 +308,11 @@
         }
       }
 
-      function formatMoney(value, currency) {
+      function formatMoney(value) {
         var number = Number(value);
         if (!Number.isFinite(number)) { return '-'; }
         var formatted = number.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        return formatted + ' ' + (String(currency || 'PLN').toUpperCase() === 'PLN' ? 'zł' : String(currency).toUpperCase());
+        return formatted + ' zł';
       }
 
       function formatDate(value) {
@@ -340,7 +340,6 @@
       var reservationId = params.get('reservation_id') || last.reservationId || reservation.id || '-';
       var sessionId = params.get('session_id') || payment.sessionId || '-';
       var amount = params.get('amount') || payment.amount || '-';
-      var currency = (params.get('currency') || payment.currency || 'PLN');
       var dateFrom = params.get('dateFrom') || reservation.dateFrom || payload.dateFrom || '';
       var dateTo = params.get('dateTo') || reservation.dateTo || payload.dateTo || '';
       var padsCount = params.get('padsCount') || reservation.padsCount || payload.padsCount || '-';
@@ -358,13 +357,13 @@
         byId('equipment').textContent = pads > 0 ? 'Black Diamond Circuit 2.0 × ' + pads : '-';
         byId('dates').textContent = formatPeriod(dateFrom, dateTo);
         byId('pickup').textContent = pickupPoint ? pickupPoint + ', Wrocław' : '-';
-        byId('rent').textContent = formatMoney(amount, currency);
-        byId('amountDue').textContent = formatMoney(amount, currency);
-        byId('deposit').textContent = deposit === null ? '-' : formatMoney(deposit, 'PLN') + ' - gotówką przy odbiorze';
+        byId('rent').textContent = formatMoney(amount);
+        byId('amountDue').textContent = formatMoney(amount);
+        byId('deposit').textContent = deposit === null ? '-' : formatMoney(deposit) + ' - gotówką przy odbiorze';
         byId('topReservationId').textContent = reservationId;
         byId('knowledgeDepositTitle').textContent = deposit === null
           ? 'Kaucja zwrotna gotówką'
-          : 'Kaucja ' + formatMoney(deposit, 'PLN') + ' gotówką';
+          : 'Kaucja ' + formatMoney(deposit) + ' gotówką';
       }
 
       renderSummary();
@@ -384,7 +383,6 @@
         if (data.payment) {
           sessionId = data.payment.sessionId || sessionId;
           amount = data.payment.amount === null || data.payment.amount === undefined ? amount : data.payment.amount;
-          currency = data.payment.currency || currency;
         }
         renderSummary();
 

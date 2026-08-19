@@ -269,7 +269,7 @@ describe("MailService", function () {
   it("should_create_acs_client_and_allow_missing_operation_id()", async function () {
     process.env.MAIL_MODE = "acs-email";
     const beginSend = vi.fn().mockResolvedValue({
-      pollUntilDone: vi.fn().mockResolvedValue({})
+      pollUntilDone: vi.fn().mockResolvedValue(null)
     });
     const EmailClient = vi.fn().mockImplementation(function () {
       return { beginSend: beginSend };
@@ -322,5 +322,77 @@ describe("MailService", function () {
     await MailService.sendPaymentExpiredNotification({ email: "jan@example.com" });
 
     expect(beginSend).toHaveBeenCalledTimes(2);
+  });
+
+  it("should_render_html_for_single_day_and_long_period_in_pln()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-variants" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: { beginSend: beginSend },
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
+      }
+    });
+
+    await MailService.sendPaymentPendingNotification({
+      email: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-10",
+      padsCount: 0,
+      amount: 99.5
+    });
+    await MailService.sendPaymentPendingNotification({
+      email: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-15",
+      padsCount: 1,
+      amount: 199,
+      pickupPoint: "Stablowice"
+    });
+
+    expect(beginSend).toHaveBeenCalledTimes(2);
+    expect(beginSend.mock.calls[0][0].content.html).toContain("99,50 zł");
+    expect(beginSend.mock.calls[0][0].content.html).toContain("1 doba");
+    expect(beginSend.mock.calls[1][0].content.html).toContain("15.08");
+    expect(beginSend.mock.calls[1][0].content.html).toContain("199,00 zł");
+  });
+
+  it("should_default_to_log_only_when_mail_mode_is_unset()", async function () {
+    const previousMailMode = process.env.MAIL_MODE;
+    delete process.env.MAIL_MODE;
+
+    try {
+      const result = await MailService.sendPaymentExpiredNotification();
+
+      expect(result).toMatchObject({
+        queued: true,
+        mode: "log-only",
+        recipient: ""
+      });
+    } finally {
+      if (previousMailMode === undefined) {
+        delete process.env.MAIL_MODE;
+      } else {
+        process.env.MAIL_MODE = previousMailMode;
+      }
+    }
+  });
+
+  it("should_use_reservation_email_when_cancellation_customer_email_is_missing()", async function () {
+    process.env.MAIL_MODE = "log-only";
+
+    const result = await MailService.sendCancellationNotification({
+      email: "jan@example.com"
+    }, {});
+
+    expect(result).toMatchObject({
+      mode: "log-only",
+      recipient: "jan@example.com"
+    });
   });
 });

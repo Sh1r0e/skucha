@@ -38,7 +38,6 @@ function normalizeReservation(reservation) {
     pickupPoint: source.pickupPoint || "-",
     notes: source.notes || "-",
     amount: source.amount || payment.amount || "-",
-    currency: String(source.currency || payment.currency || "PLN").toUpperCase(),
     paymentStatus: source.paymentStatus || payment.status || "-",
     paymentSessionId: source.paymentSessionId || payment.sessionId || "-",
     paymentIntentId: source.paymentIntentId || payment.paymentIntentId || "",
@@ -62,8 +61,8 @@ function buildReservationDetails(reservation) {
     "- Liczba padow: " + String(details.padsCount),
     "- Punkt odbioru: " + details.pickupPoint,
     "- Uwagi: " + details.notes,
-    "- Kwota: " + String(details.amount) + " " + details.currency,
-    "- Kaucja zwrotna: " + formatMoney(details.padsCount === "-" ? 0 : Number(details.padsCount) * 200, "PLN") + " gotowka przy odbiorze"
+    "- Kwota: " + String(details.amount) + " PLN",
+    "- Kaucja zwrotna: " + formatMoney(details.padsCount === "-" ? 0 : Number(details.padsCount) * 200) + " gotowka przy odbiorze"
   ];
 }
 
@@ -72,7 +71,7 @@ function buildPaymentDetails(reservation, options) {
   const lines = [
     "Szczegoly platnosci:",
     "- Status platnosci: " + details.paymentStatus,
-    "- Kwota: " + String(details.amount) + " " + details.currency
+    "- Kwota: " + String(details.amount) + " PLN"
   ];
 
   if (details.checkoutUrl && (!options || options.includeCheckoutUrl !== false)) {
@@ -154,14 +153,14 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function formatMoney(value, currency) {
+function formatMoney(value) {
   const number = Number(value);
 
   if (!Number.isFinite(number)) {
     return "-";
   }
 
-  return number.toFixed(2).replace(".", ",") + " " + (String(currency || "PLN").toUpperCase() === "PLN" ? "zł" : String(currency).toUpperCase());
+  return number.toFixed(2).replace(".", ",") + " zł";
 }
 
 function formatEmailDate(value) {
@@ -186,8 +185,8 @@ function buildEmailSummaryHtml(details) {
   const pickup = details.pickupPoint && details.pickupPoint !== "-"
     ? details.pickupPoint + ", Wrocław"
     : "-";
-  const amount = formatMoney(details.amount, details.currency);
-  const depositLabel = pads > 0 ? formatMoney(deposit, "PLN") + " - gotówką przy odbiorze" : "-";
+  const amount = formatMoney(details.amount);
+  const depositLabel = pads > 0 ? formatMoney(deposit) + " - gotówką przy odbiorze" : "-";
   const rows = [
     ["Sprzęt", equipment, ""],
     ["Okres najmu", formatEmailPeriod(details), ""],
@@ -208,7 +207,7 @@ function buildEmailSummaryHtml(details) {
 
 function buildEmailKnowledgeHtml(details) {
   const pads = Number(details.padsCount) || 0;
-  const deposit = pads > 0 ? formatMoney(pads * 200, "PLN") : "kaucja zwrotna";
+  const deposit = pads > 0 ? formatMoney(pads * 200) : "kaucja zwrotna";
   const items = [
     ["△", "Bouldering jest niebezpieczny", "Crash pad zmniejsza, ale nie eliminuje ryzyka urazu. Układaj matę płasko pod strefą lądowania, bez szczelin między matami, na terenie oczyszczonym z kamieni. Wspinaj się z asekuracją drugiej osoby.", "background:#fff8e8;border-color:#eadbb8;color:#b77920;"],
     ["▣", "Weź dokument tożsamości", "Przy odbiorze spisujemy dane z dowodu lub paszportu. Nie robimy kopii ani zdjęcia i nie zatrzymujemy dokumentu w zastaw. Musisz mieć ukończone 18 lat.", ""],
