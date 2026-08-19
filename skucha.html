@@ -32,6 +32,9 @@
   .reservation-consent .consent-optional{ color:#6b6862; background:#eceae6; }
   .reservation-consent small{ display:block; margin-top:3px; color:#8a867e; font-size:11px; }
   .reservation-consent.conditional{ border-style:dashed; background:#fff8f2; }
+  .calendar-illustration{ display:block; width:min(580px, 40vw); height:auto; margin:18px 0 0 auto; pointer-events:none; }
+  .hero-copy{ z-index:1; }
+  .booking-card{ position:relative; z-index:1; }
 
   @media (max-width:960px){
     #skucha-root.site-shell{ overflow:hidden; }
@@ -44,6 +47,7 @@
     .hero-copy{ padding-top:0 !important; }
     .hero-copy > h2{ font-size:clamp(42px,11vw,64px) !important; }
     .hero-copy > h3{ font-size:17px !important; max-width:38ch !important; }
+    .calendar-illustration{ display:none; }
     .booking-card{ width:100%; padding:18px !important; border-radius:18px !important; box-shadow:0 12px 30px -18px rgba(0,0,0,0.25) !important; }
     .section-inner{ padding:56px 20px !important; }
     .how-grid{ grid-template-columns:repeat(2,1fr) !important; gap:16px !important; }
@@ -157,6 +161,7 @@
           <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">GRUBOŚĆ PADÓW</div>
         </div>
       </div>
+      <img class="calendar-illustration" src="images/illustration-calendar.png" alt="" aria-hidden="true" width="941" height="1672">
     </div>
 
     <!-- BOOKING CARD -->
@@ -332,7 +337,7 @@
           </div>
         </div>
       </div>
-    </div>
+      </div>
   </div>
 
   <!-- JAK TO DZIALA -->
