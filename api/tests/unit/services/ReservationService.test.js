@@ -1068,7 +1068,8 @@ describe("ReservationService", function () {
 
       await expect(ReservationService.createReservation(buildReservation())).rejects.toMatchObject({
         statusCode: 503,
-        code: "RuntimeConfigurationInvalid"
+        code: "RuntimeConfigurationInvalid",
+        details: { issues: ["STORAGE_CONNECTION_STRING"] }
       });
     } finally {
       if (previous === undefined) delete process.env.NODE_ENV;

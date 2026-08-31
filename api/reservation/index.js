@@ -84,11 +84,15 @@ function createReservationHandler(customDependencies) {
         details: error.details
       });
 
-      context.res = jsonResponse(statusCode, {
+      const responseBody = {
         message: statusCode >= 500 ? "Reservation failed" : (error.message || "Reservation failed"),
         code: code,
         requestId: requestId
-      });
+      };
+      if (code === "RuntimeConfigurationInvalid" && error.details) {
+        responseBody.configurationIssues = error.details.issues;
+      }
+      context.res = jsonResponse(statusCode, responseBody);
     }
   };
 }

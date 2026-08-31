@@ -71,10 +71,13 @@ function gone(message, code) {
   return error;
 }
 
-function serverError(message, code) {
+function serverError(message, code, details) {
   const error = new Error(message);
   error.statusCode = 503;
   error.code = code || "ServiceUnavailable";
+  if (details) {
+    error.details = details;
+  }
   return error;
 }
 
@@ -440,7 +443,7 @@ function createReservationService(customDependencies) {
     if (production && typeof dependencies.ConfigurationService.getRuntimeConfigurationIssues === "function") {
       const issues = dependencies.ConfigurationService.getRuntimeConfigurationIssues({ production: true });
       if (issues.length) {
-        throw serverError("Runtime configuration is incomplete", "RuntimeConfigurationInvalid");
+        throw serverError("Runtime configuration is incomplete", "RuntimeConfigurationInvalid", { issues });
       }
     }
 

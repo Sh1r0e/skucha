@@ -153,6 +153,28 @@ describe("reservation function", function () {
     expect(context.res.body.code).toBe("StorageError");
   });
 
+  it("should_return_only_setting_names_for_invalid_runtime_configuration", async function () {
+    handler.__setReservationService({
+      createReservation: vi.fn().mockRejectedValue(
+        Object.assign(new Error("Runtime configuration is incomplete"), {
+          statusCode: 503,
+          code: "RuntimeConfigurationInvalid",
+          details: { issues: ["HOUSEKEEPING_SECRET", "STRIPE_SECRET_KEY_NOT_LIVE"] }
+        })
+      )
+    });
+    const context = createMockContext();
+
+    await handler(context, { body: createReservation() });
+
+    expect(context.res.status).toBe(503);
+    expect(context.res.body).toMatchObject({
+      code: "RuntimeConfigurationInvalid",
+      configurationIssues: ["HOUSEKEEPING_SECRET", "STRIPE_SECRET_KEY_NOT_LIVE"]
+    });
+    expect(JSON.stringify(context.res.body)).not.toContain("secret-value");
+  });
+
   it("should_use_context_req_when_second_argument_is_missing()", async function () {
     const createReservationMock = vi.fn().mockResolvedValue({
       reservationId: "res-context",
