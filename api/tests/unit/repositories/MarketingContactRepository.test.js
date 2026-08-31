@@ -55,4 +55,67 @@ describe("MarketingContactRepository", function () {
       consentRecordedAt: "2026-08-31T12:00:00.000Z"
     });
   });
+
+  it("should_tolerate_an_existing_table_and_default_optional_contact_data()", async function () {
+    mockClient.createTable.mockRejectedValue({ statusCode: 409 });
+
+    const result = await MarketingContactRepository.upsertContact({ email: "jan@example.com" });
+
+    expect(mockClient.upsertEntity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Email: "jan@example.com",
+        ConsentRecordedAt: expect.any(String),
+        ConsentIp: "",
+        ConsentUserAgent: "",
+        FirstName: "",
+        LastName: "",
+        LastReservationId: ""
+      }),
+      "Merge"
+    );
+    expect(result.status).toBe("Subscribed");
+  });
+
+  it("should_fail_when_storage_is_not_configured()", async function () {
+    MarketingContactRepository.__setDependencies({
+      ConfigurationService: {
+        getStorageConnectionString: vi.fn().mockReturnValue("")
+      }
+    });
+
+    await expect(
+      MarketingContactRepository.upsertContact({ email: "jan@example.com" })
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "StorageNotConfigured"
+    });
+  });
+
+  it("should_wrap_table_initialization_failures()", async function () {
+    mockClient.createTable.mockRejectedValue({
+      statusCode: 500,
+      code: "ServerBusy",
+      message: "storage unavailable"
+    });
+
+    await expect(
+      MarketingContactRepository.upsertContact({ email: "jan@example.com" })
+    ).rejects.toMatchObject({
+      statusCode: 500,
+      code: "ServerBusy",
+      details: "storage unavailable"
+    });
+    expect(mockClient.upsertEntity).not.toHaveBeenCalled();
+  });
+
+  it("should_wrap_contact_write_failures_with_safe_defaults()", async function () {
+    mockClient.upsertEntity.mockRejectedValue(new Error());
+
+    await expect(
+      MarketingContactRepository.upsertContact({ email: "jan@example.com" })
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "StorageWriteFailed"
+    });
+  });
 });
