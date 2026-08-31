@@ -40,6 +40,7 @@ function deploymentDirectory(relativePath) {
 }
 
 async function buildApi() {
+  const deploymentEnvironment = String(process.env.SKUCHA_DEPLOYMENT_ENV || "");
   fs.rmSync(outputRoot, { recursive: true, force: true });
   fs.mkdirSync(outputRoot, { recursive: true });
 
@@ -76,7 +77,10 @@ async function buildApi() {
       keepNames: true,
       legalComments: "none",
       platform: "node",
-      target: "node22"
+      target: "node22",
+      define: {
+        "process.env.SKUCHA_DEPLOYMENT_ENV": JSON.stringify(deploymentEnvironment)
+      }
     });
   }
 

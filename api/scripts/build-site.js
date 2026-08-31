@@ -47,12 +47,29 @@ function copyDirectory(relativePath) {
   fs.cpSync(source, target, { recursive: true });
 }
 
-function buildSite() {
+function disablePreviewTurnstile(deploymentEnvironment) {
+  if (deploymentEnvironment !== "preview") {
+    return;
+  }
+
+  const configPath = path.join(outputRoot, "config", "config.json");
+  const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  config.botProtection = config.botProtection || {};
+  config.botProtection.turnstileSiteKey = "";
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+}
+
+function buildSite(options) {
+  const deploymentEnvironment = options && options.deploymentEnvironment !== undefined
+    ? options.deploymentEnvironment
+    : process.env.SKUCHA_DEPLOYMENT_ENV;
+
   fs.rmSync(outputRoot, { recursive: true, force: true });
   fs.mkdirSync(outputRoot, { recursive: true });
 
   publicFiles.forEach(copyFile);
   publicDirectories.forEach(copyDirectory);
+  disablePreviewTurnstile(deploymentEnvironment);
 
   console.log(JSON.stringify({
     outputRoot: outputRoot,

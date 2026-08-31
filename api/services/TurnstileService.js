@@ -22,6 +22,10 @@ function isProduction() {
   return process.env.NODE_ENV === "production" || process.env.SKUCHA_ENV === "production";
 }
 
+function isPreviewDeployment() {
+  return process.env.SKUCHA_DEPLOYMENT_ENV === "preview";
+}
+
 function createTurnstileService(customDependencies) {
   const dependencies = {
     ...defaultDependencies,
@@ -29,6 +33,10 @@ function createTurnstileService(customDependencies) {
   };
 
   async function verifyReservation(token, request) {
+    if (isPreviewDeployment()) {
+      return { success: true, skipped: true };
+    }
+
     const secret = typeof dependencies.ConfigurationService.getTurnstileSecretKey === "function"
       ? dependencies.ConfigurationService.getTurnstileSecretKey()
       : "";

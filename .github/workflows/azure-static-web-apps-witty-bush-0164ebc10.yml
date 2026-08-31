@@ -97,6 +97,8 @@ jobs:
           cache-dependency-path: api/package-lock.json
       - name: Build deployable API bundle
         working-directory: api
+        env:
+          SKUCHA_DEPLOYMENT_ENV: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
         run: |
           npm ci
           npm run build:api

@@ -103,4 +103,34 @@ describe("TurnstileService", function () {
 
     await expect(service.verifyReservation("", {})).resolves.toEqual({ success: true, skipped: true });
   });
+
+  it("should_skip_verification_for_preview_deployments_even_when_configured", async function () {
+    const previousDeploymentEnvironment = process.env.SKUCHA_DEPLOYMENT_ENV;
+    const previousEnvironment = process.env.SKUCHA_ENV;
+    const fetch = vi.fn();
+    process.env.SKUCHA_DEPLOYMENT_ENV = "preview";
+    process.env.SKUCHA_ENV = "production";
+
+    try {
+      const service = TurnstileService.createTurnstileService({
+        ConfigurationService: configuration("turnstile-secret"),
+        fetch
+      });
+
+      await expect(service.verifyReservation("", {}))
+        .resolves.toEqual({ success: true, skipped: true });
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      if (previousDeploymentEnvironment === undefined) {
+        delete process.env.SKUCHA_DEPLOYMENT_ENV;
+      } else {
+        process.env.SKUCHA_DEPLOYMENT_ENV = previousDeploymentEnvironment;
+      }
+      if (previousEnvironment === undefined) {
+        delete process.env.SKUCHA_ENV;
+      } else {
+        process.env.SKUCHA_ENV = previousEnvironment;
+      }
+    }
+  });
 });

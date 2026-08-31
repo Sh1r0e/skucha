@@ -17,6 +17,7 @@ const {
   publicFiles
 } = require("../../scripts/build-site");
 const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
+const sourceSiteConfigPath = path.resolve(__dirname, "../../..", "config", "config.json");
 const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
 const adminHousekeepingConfigPath = path.resolve(__dirname, "../../admin/housekeeping/function.json");
 
@@ -41,6 +42,9 @@ describe("deployment workflow", function () {
     expect(uploadJob).toMatch(/^\x20{4}permissions:\n\x20{6}contents: read\n\x20{6}pull-requests: write\s*$/m);
     expect(uploadJob).toMatch(/npm run build:site/);
     expect(uploadJob).toMatch(/app_location: "site-dist"/);
+    expect(uploadJob).toMatch(
+      /SKUCHA_DEPLOYMENT_ENV: \$\{\{ github\.ref_name == 'main' && 'production' \|\| 'preview' \}\}/
+    );
   });
 
   it("should_build_only_the_allowlisted_public_site_artifact()", function () {
@@ -98,6 +102,24 @@ describe("deployment workflow", function () {
         return file === forbiddenPath || file.startsWith(forbiddenPath + "/");
       })).toBe(false);
     });
+  });
+
+  it("should_disable_turnstile_only_in_the_preview_site_artifact", function () {
+    const sourceConfigBefore = fs.readFileSync(sourceSiteConfigPath, "utf8");
+
+    buildSite({ deploymentEnvironment: "preview" });
+
+    const previewConfig = JSON.parse(
+      fs.readFileSync(path.join(outputRoot, "config", "config.json"), "utf8")
+    );
+    expect(previewConfig.botProtection.turnstileSiteKey).toBe("");
+    expect(fs.readFileSync(sourceSiteConfigPath, "utf8")).toBe(sourceConfigBefore);
+
+    buildSite({ deploymentEnvironment: "production" });
+    const productionConfig = JSON.parse(
+      fs.readFileSync(path.join(outputRoot, "config", "config.json"), "utf8")
+    );
+    expect(productionConfig.botProtection.turnstileSiteKey).not.toBe("");
   });
 
   it("should leave admin API authorization to the Function handlers", function () {

@@ -149,13 +149,13 @@ Backend also reads `config/config.json` through `api/services/ConfigService.js`.
 
 Public booking APIs use distributed fixed-window limits stored in the existing Azure Table Storage account. Client addresses are HMAC-hashed before storage; raw addresses and customer data are not written to the `AbuseProtection` table. The limits are 120 availability requests per minute, 60 reservation lookups per five minutes, and 10 booking or cancellation requests per five minutes for each hashed address. One entity is reused per policy and address, so repeated windows do not continually add rows.
 
-Reservation creation also requires a Cloudflare Turnstile token that is verified server-side for the `reservation` action and the hostname from `RESERVATION_PUBLIC_BASE_URL`.
+Production reservation creation also requires a Cloudflare Turnstile token that is verified server-side for the `reservation` action and the hostname from `RESERVATION_PUBLIC_BASE_URL`. The deployment workflow disables the widget and server verification in preview artifacts; distributed rate limiting remains enabled.
 
-1. In Cloudflare Turnstile, create a free widget and allow the canonical production hostname. Create a separate preview widget or add the exact preview hostname when testing a branch environment.
+1. In Cloudflare Turnstile, create a free widget and allow the canonical production hostname.
 2. Put the public site key in `botProtection.turnstileSiteKey` in `config/config.json`. This value is intentionally public.
 3. Add `TURNSTILE_SECRET_KEY` to the Static Web App application settings. Never put this secret in `config/config.json` or source control.
 4. Generate a separate random value of at least 32 characters for `RATE_LIMIT_HASH_SECRET` and add it to the application settings. It must differ from the Turnstile, cancellation, and housekeeping secrets.
-5. Save the settings, restart the app, and configure the same settings independently for each preview environment that will exercise booking.
+5. Save the settings and restart the app. Preview deployments do not require Turnstile configuration.
 6. Verify a normal booking and an automated burst in the deployed environment. Confirm excess requests receive a generic `429` and verify which platform-provided forwarding header contains the real client address.
 
 These controls make automated form spam and repeated API abuse more expensive at near-zero additional infrastructure cost. They run inside Azure Functions, so they do not absorb volumetric attacks before requests consume Static Web Apps or Functions quota and are not a replacement for an edge WAF or DDoS service. Addresses that are never seen again leave one small row per policy; plan a periodic retention purge if distinct-client growth becomes material.
@@ -227,7 +227,7 @@ Configure ACS email in the Azure portal:
 	- `INVENTORY_LEASE_TTL_MS` = `30000`
 	- `TURNSTILE_SECRET_KEY` = the secret for the production Cloudflare Turnstile widget
 	- `RATE_LIMIT_HASH_SECRET` = a separate random secret of at least 32 characters
-6. Save the settings and restart the Static Web App. For `development-preview`, add the same settings under the preview environment's configuration; Static Web Apps does not automatically copy production application settings to branch environments. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
+6. Save the settings and restart the Static Web App. For `development-preview`, add the non-Turnstile settings under the preview environment's configuration; Static Web Apps does not automatically copy production application settings to branch environments. The workflow builds preview artifacts with Turnstile disabled. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
 
 Create GitHub repository secrets `SKUCHA_PUBLIC_BASE_URL` and `HOUSEKEEPING_SECRET` for the scheduled workflow in `.github/workflows/housekeeping.yml`. Configure Stripe to send `checkout.session.completed` and `checkout.session.expired` to `/api/stripe-webhook`.
 
