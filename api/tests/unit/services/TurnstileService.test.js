@@ -69,6 +69,19 @@ describe("TurnstileService", function () {
       .rejects.toMatchObject({ statusCode: 503, code: "BotVerificationUnavailable" });
   });
 
+  it("should_identify_an_invalid_siteverify_secret_as_configuration_failure", async function () {
+    const service = TurnstileService.createTurnstileService({
+      ConfigurationService: configuration("wrong-secret"),
+      fetch: vi.fn().mockResolvedValue({
+        ok: false,
+        json: vi.fn().mockResolvedValue({ success: false, "error-codes": ["invalid-input-secret"] })
+      })
+    });
+
+    await expect(service.verifyReservation("token", {}))
+      .rejects.toMatchObject({ statusCode: 503, code: "BotVerificationNotConfigured" });
+  });
+
   it("should_fail_closed_for_missing_production_or_invalid_host_configuration", async function () {
     const previousEnvironment = process.env.SKUCHA_ENV;
     process.env.SKUCHA_ENV = "production";
