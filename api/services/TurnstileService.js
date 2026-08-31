@@ -1,5 +1,4 @@
 const ConfigurationService = require("./ConfigurationService");
-const BotProtectionService = require("./BotProtectionService");
 
 const SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const MAX_TOKEN_LENGTH = 2048;
@@ -7,8 +6,7 @@ const VERIFY_TIMEOUT_MS = 8000;
 
 const defaultDependencies = {
   ConfigurationService,
-  fetch: global.fetch,
-  getClientAddress: BotProtectionService.getClientAddress
+  fetch: global.fetch
 };
 
 function verificationError(message, statusCode, code) {
@@ -32,7 +30,7 @@ function createTurnstileService(customDependencies) {
     ...(customDependencies || {})
   };
 
-  async function verifyReservation(token, request) {
+  async function verifyReservation(token, _request) {
     if (isPreviewDeployment()) {
       return { success: true, skipped: true };
     }
@@ -64,10 +62,6 @@ function createTurnstileService(customDependencies) {
       secret,
       response: normalizedToken
     });
-    const clientAddress = dependencies.getClientAddress(request);
-    if (clientAddress && clientAddress !== "unknown") {
-      body.set("remoteip", clientAddress);
-    }
     const controller = new global.AbortController();
     const timeout = global.setTimeout(function () {
       controller.abort();
