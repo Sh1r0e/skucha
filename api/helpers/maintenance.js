@@ -1,4 +1,5 @@
 const ConfigurationService = require("../services/ConfigurationService");
+const { jsonResponse } = require("./http");
 
 const MAINTENANCE_MESSAGE = "Service temporarily unavailable while the site is being built.";
 
@@ -7,18 +8,10 @@ function rejectDuringMaintenance(context) {
     return false;
   }
 
-  context.res = {
-    status: 503,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      "Retry-After": "3600"
-    },
-    body: {
+  context.res = jsonResponse(503, {
       message: MAINTENANCE_MESSAGE,
       code: "MaintenanceMode"
-    }
-  };
+    }, { "Retry-After": "3600" });
 
   return true;
 }

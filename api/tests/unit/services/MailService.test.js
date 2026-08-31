@@ -38,7 +38,7 @@ describe("MailService", function () {
       },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -63,8 +63,11 @@ describe("MailService", function () {
 
     expect(beginSend).toHaveBeenCalledTimes(1);
     expect(beginSend.mock.calls[0][0]).toMatchObject({
-      senderAddress: "noreply@skucha.co"
+      senderAddress: "rental@skucha.co"
     });
+    expect(beginSend.mock.calls[0][0].content.html).toContain("Twoja rezerwacja");
+    expect(beginSend.mock.calls[0][0].content.html).toContain("Przejdź do płatności");
+    expect(beginSend.mock.calls[0][0].content.html).not.toContain("Co musisz wiedzieć");
     expect(result).toMatchObject({
       queued: true,
       mode: "acs-email",
@@ -86,7 +89,7 @@ describe("MailService", function () {
       },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -116,9 +119,12 @@ describe("MailService", function () {
 
     MailService.__setDependencies({
       emailClient: { beginSend: beginSend },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T10:00:00.000Z")),
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co"),
+        getReservationCancellationCutoffHours: vi.fn().mockReturnValue(24),
+        getReservationTimezone: vi.fn().mockReturnValue("Europe/Warsaw")
       }
     });
 
@@ -145,15 +151,31 @@ describe("MailService", function () {
 
     const message = beginSend.mock.calls[0][0];
 
-    expect(message.content.subject).toBe("Skucha - platnosc potwierdzona");
-    expect(message.content.plainText).toContain("Jan Kowalski");
-    expect(message.content.plainText).toContain("2026-08-10 - 2026-08-12");
-    expect(message.content.plainText).toContain("Liczba padow: 2");
-    expect(message.content.plainText).toContain("Punkt odbioru: Stablowice");
-    expect(message.content.plainText).toContain("Uwagi: Bring extra straps");
-    expect(message.content.plainText).toContain("120 PLN");
-    expect(message.content.plainText).toContain("cs_test_123");
-    expect(message.content.plainText).toContain("/api/reservation/cancel?reservation_id=res-1");
+    expect(message.content.subject).toBe("Skucha - płatność potwierdzona");
+    expect(message.content.plainText).toBeUndefined();
+    expect(message.content.html).toContain("Twoja rezerwacja");
+    expect(message.content.html).toContain("Black Diamond Circuit 2.0");
+    expect(message.content.html).toContain("ID rezerwacji");
+    expect(message.content.html).toContain("Kaucja zwrotna");
+    expect(message.content.html).not.toContain("Stripe Session ID");
+    expect(message.content.html).not.toContain("Stripe Payment Intent");
+    expect(message.content.html).not.toContain("Co musisz wiedzieć");
+    expect(message.content.html).not.toContain("Bouldering jest niebezpieczny");
+    expect(message.content.html).not.toContain(">Czynsz<");
+    expect(message.content.html).toContain(">Zapłacono<");
+    expect(message.content.html).not.toContain(">Do zapłaty teraz<");
+    expect(message.content.html).toContain("Anuluj rezerwację i poproś o zwrot");
+    expect(message.content.html).toContain("mailto:rental@skucha.co");
+    expect(message.content.html).not.toContain("△");
+    expect(message.content.html).not.toContain("▣");
+    expect(message.content.attachments).toBeUndefined();
+    expect(message.attachments).toHaveLength(2);
+    expect(message.attachments.map(function (attachment) { return attachment.name; })).toEqual([
+      "rental-terms-v1.0.pdf",
+      "privacy-policy-v1.0.pdf"
+    ]);
+    expect(message.attachments[0].contentType).toBe("application/pdf");
+    expect(message.attachments[0].contentInBase64.length).toBeGreaterThan(100);
   });
 
   it("should_send_expired_checkout_notification_with_acs_when_enabled()", async function () {
@@ -167,7 +189,7 @@ describe("MailService", function () {
       emailClient: { beginSend: beginSend },
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -177,7 +199,7 @@ describe("MailService", function () {
       paymentStatus: "Expired"
     });
 
-    expect(beginSend.mock.calls[0][0].content.subject).toBe("Skucha - sesja platnosci wygasla");
+    expect(beginSend.mock.calls[0][0].content.subject).toBe("Skucha - sesja płatności wygasła");
     expect(result.operationId).toBe("mail-op-4");
   });
 
@@ -208,6 +230,37 @@ describe("MailService", function () {
     });
   });
 
+  it("should_hide_the_refund_action_inside_the_24_hour_cutoff", async function () {
+    process.env.MAIL_MODE = "acs-email";
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-cutoff" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: { beginSend: beginSend },
+      now: vi.fn().mockReturnValue(new Date("2026-08-09T10:00:00.000Z")),
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co"),
+        getReservationCancellationCutoffHours: vi.fn().mockReturnValue(24),
+        getReservationTimezone: vi.fn().mockReturnValue("Europe/Warsaw")
+      }
+    });
+
+    await MailService.sendPaymentConfirmationNotification({
+      id: "res-cutoff",
+      email: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-10",
+      cancelUrl: "https://www.skucha.co/reservation-cancel.html?reservation_id=res-cutoff&token=abc"
+    });
+
+    const content = beginSend.mock.calls[0][0].content;
+    expect(content.html).not.toContain("reservation-cancel.html");
+    expect(content.html).toContain("Termin bezpłatnego anulowania ze zwrotem minął");
+    expect(content.plainText).toBeUndefined();
+  });
+
   it("should_use_default_values_for_sparse_checkout_notification()", async function () {
     process.env.MAIL_MODE = "log-only";
 
@@ -225,7 +278,7 @@ describe("MailService", function () {
     MailService.__setDependencies({
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue(""),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -254,7 +307,7 @@ describe("MailService", function () {
   it("should_create_acs_client_and_allow_missing_operation_id()", async function () {
     process.env.MAIL_MODE = "acs-email";
     const beginSend = vi.fn().mockResolvedValue({
-      pollUntilDone: vi.fn().mockResolvedValue({})
+      pollUntilDone: vi.fn().mockResolvedValue(null)
     });
     const EmailClient = vi.fn().mockImplementation(function () {
       return { beginSend: beginSend };
@@ -264,7 +317,7 @@ describe("MailService", function () {
       EmailClient: EmailClient,
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -299,7 +352,7 @@ describe("MailService", function () {
       emailClient: emailClient,
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("noreply@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
       }
     });
 
@@ -307,5 +360,77 @@ describe("MailService", function () {
     await MailService.sendPaymentExpiredNotification({ email: "jan@example.com" });
 
     expect(beginSend).toHaveBeenCalledTimes(2);
+  });
+
+  it("should_render_html_for_single_day_and_long_period_in_pln()", async function () {
+    process.env.MAIL_MODE = "acs-email";
+
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-variants" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: { beginSend: beginSend },
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
+      }
+    });
+
+    await MailService.sendPaymentPendingNotification({
+      email: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-10",
+      padsCount: 0,
+      amount: 99.5
+    });
+    await MailService.sendPaymentPendingNotification({
+      email: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-15",
+      padsCount: 1,
+      amount: 199,
+      pickupPoint: "Stablowice"
+    });
+
+    expect(beginSend).toHaveBeenCalledTimes(2);
+    expect(beginSend.mock.calls[0][0].content.html).toContain("99,50 zł");
+    expect(beginSend.mock.calls[0][0].content.html).toContain("1 doba");
+    expect(beginSend.mock.calls[1][0].content.html).toContain("15.08");
+    expect(beginSend.mock.calls[1][0].content.html).toContain("199,00 zł");
+  });
+
+  it("should_default_to_log_only_when_mail_mode_is_unset()", async function () {
+    const previousMailMode = process.env.MAIL_MODE;
+    delete process.env.MAIL_MODE;
+
+    try {
+      const result = await MailService.sendPaymentExpiredNotification();
+
+      expect(result).toMatchObject({
+        queued: true,
+        mode: "log-only",
+        recipient: ""
+      });
+    } finally {
+      if (previousMailMode === undefined) {
+        delete process.env.MAIL_MODE;
+      } else {
+        process.env.MAIL_MODE = previousMailMode;
+      }
+    }
+  });
+
+  it("should_use_reservation_email_when_cancellation_customer_email_is_missing()", async function () {
+    process.env.MAIL_MODE = "log-only";
+
+    const result = await MailService.sendCancellationNotification({
+      email: "jan@example.com"
+    }, {});
+
+    expect(result).toMatchObject({
+      mode: "log-only",
+      recipient: "jan@example.com"
+    });
   });
 });

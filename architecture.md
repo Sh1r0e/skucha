@@ -15,6 +15,8 @@ The system follows a thin-handler backend pattern:
 - Azure Function handlers parse input/output and map errors
 - business logic lives in `api/services/*`
 - data shape rules live in `api/models/*`
+- reservation state is persisted in Azure Table Storage
+- concurrency-sensitive inventory creation uses a short-lived Table Storage lease
 
 ## Testing Architecture Requirements
 
@@ -134,11 +136,19 @@ HTTP functions:
 - `GET /api/availability` in `api/availability/index.js`
 - `POST /api/reservation` in `api/reservation/index.js`
 - `GET /api/site-status` in `api/site-status/index.js`
+- `POST /api/reservation/cancel` in `api/reservation-cancel/index.js`
+- `POST /api/internal/housekeeping` in `api/internal/housekeeping/index.js`
+- `GET|POST /api/backoffice/reservations` in `api/admin/reservations/index.js`
+- `POST /api/backoffice/housekeeping` in `api/admin/housekeeping/index.js`
 
 Service layer:
 
 - `api/services/AvailabilityService.js`
 - `api/services/ReservationService.js`
+- `api/services/ReservationLifecycleService.js`
+- `api/services/ReservationTimeService.js`
+- `api/services/HousekeepingService.js`
+- `api/services/AdminReservationService.js`
 - `api/services/ConfigService.js`
 - `api/services/MailService.js`
 
@@ -149,15 +159,24 @@ Model layer:
 Maintenance behavior:
 
 - `MAINTENANCE_MODE` is read only by the API runtime and defaults to disabled.
-- `api/helpers/maintenance.js` rejects public reservation operations with `503` while the flag is enabled.
-- Stripe webhook processing and the health endpoint remain available for operational continuity.
+- `api/helpers/maintenance.js` rejects every operational API endpoint with `503` while the flag is enabled; only `GET /api/site-status` remains available for the frontend gate.
+- The API deployment bundle flattens nested source Function directories (`admin/reservations` -> `admin-reservations`) because Static Web Apps discovers Function folders directly under `api_location`; each copied `function.json` retains its nested HTTP route.
+- Do not use the Static Web Apps `/api/admin*` namespace: this environment returns empty 404s for managed API routes there despite a valid `admin` principal. Admin Functions use `/api/backoffice/*` and enforce the role through `x-ms-client-principal`; keep only the `/admin*` page rule at the edge.
+
+Reservation lifecycle:
+
+- `Pending -> Confirmed` is driven by a paid Stripe webhook.
+- `Pending -> Expired` is driven by checkout expiry or the two-hour housekeeping service.
+- `Pending|Confirmed -> CancellationPending -> Cancelled` is the customer refund saga.
+- `Confirmed -> InProgress -> Completed` is the authenticated staff collection/return flow.
+- `Cancelled`, `Expired`, and `Completed` are terminal and release inventory.
 
 ## Runtime Flows
 
 ### 1. Calendar Availability Flow
 1. Frontend requests `GET /api/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` for visible month range.
 2. `AvailabilityService` validates dates and reads `availability.totalPads` from config.
-3. Service computes remaining pads per day based on in-memory reservations.
+3. Service computes remaining pads per day from Table Storage reservations. `Pending`, `Confirmed`, `CancellationPending`, and `InProgress` block; stale unpaid Pending rows are ignored defensively.
 4. API returns:
    - `available` (range-level boolean)
    - `remainingPads` (minimum remaining pads for selected range)
@@ -170,11 +189,13 @@ Maintenance behavior:
    - last name
    - email
    - phone
-2. Frontend sends `POST /api/reservation` payload.
-3. `ReservationService` validates payload and checks availability for selected range.
-4. If enough pads are available, reservation is added to in-memory store.
-5. `MailService` returns log-only notification result (placeholder for real transport).
-6. API returns accepted reservation summary.
+2. Frontend requires acknowledgement of the versioned rental terms and privacy notice. If the rental starts within 14 days, it also requires the early-start request.
+3. Frontend sends `POST /api/reservation` with an `Idempotency-Key`.
+4. In production, `ReservationIdempotencyRepository` claims the key and rejects mismatched or concurrent reuse.
+5. `ReservationService` validates the payload and acquires the global inventory lease.
+6. It re-checks availability and persists the Pending reservation plus consent evidence before releasing the lease.
+7. `MailService` sends through ACS when `MAIL_MODE=acs-email`; log-only mode is local-development behavior.
+8. API returns accepted reservation summary; matching idempotent retries return the stored original response.
 
 Validation strategy:
 
@@ -184,6 +205,9 @@ Validation strategy:
 - names must be 2-60 chars and match `^[A-Za-zÀ-ž\\-\\s']+$`
 - dates must be `YYYY-MM-DD`
 - pads count must be integer in safe range (currently 1-8)
+- `acceptTerms` and `acceptPrivacy` are required; the latter acknowledges the privacy notice and is not a blanket GDPR consent
+- `earlyStartRequested` is required when the selected start date is within 14 days
+- production requests require an `Idempotency-Key` between 8 and 200 characters
 
 ## Configuration Model
 `config/config.json` currently controls:
@@ -198,10 +222,13 @@ Validation strategy:
 ## Data and Persistence
 Current persistence state:
 
-- reservations are stored in process memory only (`reservationsInMemory`)
-- data is reset on cold start/redeploy/scale event
-
-This is acceptable for early stage but not production-grade.
+- reservations are stored in the `Reservations` Azure Table
+- explicit email marketing opt-ins are deduplicated by normalized email and stored with consent audit data in the `MarketingContacts` Azure Table
+- Stripe webhook claims are stored in the `StripeEvents` Azure Table
+- the inventory creation lease is stored in the `InventoryLeases` Azure Table
+- reservation idempotency claims and completed responses are stored in the `ReservationIdempotency` Azure Table with a 24-hour retention timestamp
+- legal documents are published as `rental-terms.html`, `privacy-policy.html`, `rental-terms-v1.0.pdf`, and `privacy-policy-v1.0.pdf`; paid confirmation emails attach the two PDFs
+- existing reservation partition keys remain `YYYY-MM`; RowKey lookups currently scan partitions and should gain an index before volume grows materially
 
 ## Deployment Topology
 Azure Static Web Apps configuration (from repository conventions):
@@ -212,29 +239,27 @@ Azure Static Web Apps configuration (from repository conventions):
 
 ## Current Constraints and Risks
 
-- In-memory reservation store does not survive restarts.
-- Concurrent instances can produce inconsistent availability without shared storage.
-- No authentication/authorization for admin operations yet.
-- Mail notification is placeholder only.
+- Table Storage ETags protect row transitions, but Stripe side effects remain a saga and require reconciliation.
+- The global inventory lease is appropriate for the current low-volume aggregate pad count; a daily allocation ledger or transactional store is the next scale step.
+- ACS email delivery requires production configuration and operational retry/monitoring.
+- External rate limiting/WAF and Application Insights alerts still need to be configured in Azure.
 
 ## Recommended Next Steps
 
 ### Short Term
-- Add automated tests for:
-  - date parsing/validation
-  - availability day map correctness
-  - reservation validation rules
-- Add request/response contract examples in README.
+- Configure SWA `admin` role invitations and GitHub housekeeping secrets.
+- Configure ACS live email, Stripe webhook events, Application Insights, and alerts.
+- Run a dry-run housekeeping pass and review stale legacy Pending rows.
 
 ### Mid Term
-- Move reservation and availability state to durable storage (Azure Table Storage or Cosmos DB).
-- Add idempotency protection for reservation creation.
-- Add server-side input normalization and stricter phone/email validation.
+- Add a direct reservation lookup index or a partition strategy optimized for RowKey retrieval.
+- Add external rate limiting/WAF and email retry/delivery tracking.
+- Define backup/restore, retention, and GDPR deletion procedures.
 
 ### Long Term
-- Introduce admin endpoints/UI for manual availability blocking.
-- Add payment and reservation lifecycle states (pending/confirmed/cancelled).
-- Add observability (structured logs, metrics, tracing).
+- Replace the global lease with daily allocation transactions or a transactional database if concurrency grows.
+- Add individual pad identity, partial returns, damage/loss billing, and rescheduling only when the business requires them.
+- Add richer observability and operational dashboards.
 
 ## Repository Map (Current)
 
@@ -247,6 +272,14 @@ Azure Static Web Apps configuration (from repository conventions):
 - `/api/reservation/index.js`
 - `/api/services/AvailabilityService.js`
 - `/api/services/ReservationService.js`
+- `/api/services/ReservationLifecycleService.js`
+- `/api/services/ReservationTimeService.js`
+- `/api/services/HousekeepingService.js`
+- `/api/services/AdminReservationService.js`
+- `/api/repositories/ReservationRepository.js`
+- `/api/repositories/InventoryLeaseRepository.js`
+- `/api/repositories/ReservationIdempotencyRepository.js`
+- `/api/repositories/StripeEventRepository.js`
 - `/api/services/ConfigService.js`
 - `/api/services/MailService.js`
 - `/api/models/Reservation.js`

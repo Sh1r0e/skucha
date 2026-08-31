@@ -1,9 +1,13 @@
 const AvailabilityService = require("../services/AvailabilityService");
+const BotProtectionService = require("../services/BotProtectionService");
 const { rejectDuringMaintenance } = require("../helpers/maintenance");
+const { jsonResponse } = require("../helpers/http");
+const { rejectRateLimitedRequest } = require("../helpers/bot-protection");
 
 function createAvailabilityHandler(customDependencies) {
   const dependencies = {
     AvailabilityService,
+    BotProtectionService,
     ...(customDependencies || {})
   };
 
@@ -14,6 +18,9 @@ function createAvailabilityHandler(customDependencies) {
 
     try {
       const request = req || context.req || {};
+      if (await rejectRateLimitedRequest(context, request, "availability", dependencies.BotProtectionService)) {
+        return;
+      }
       let query = request.query || {};
 
       if ((!query.from || !query.to) && typeof request.url === "string") {
@@ -30,13 +37,7 @@ function createAvailabilityHandler(customDependencies) {
 
       const result = await dependencies.AvailabilityService.getAvailability({ from, to });
 
-      context.res = {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: result
-      };
+      context.res = jsonResponse(200, result);
     } catch (error) {
       const statusCode = error.statusCode || 400;
       const code = error.code || (statusCode >= 500 ? "InternalError" : "BadRequest");
@@ -49,17 +50,11 @@ function createAvailabilityHandler(customDependencies) {
         code: code
       });
 
-      context.res = {
-        status: statusCode,
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: {
-          message: error.message || "Invalid request",
-          code: code,
-          requestId: requestId
-        }
-      };
+      context.res = jsonResponse(statusCode, {
+        message: error.message || "Invalid request",
+        code: code,
+        requestId: requestId
+      });
     }
   };
 }
@@ -73,6 +68,9 @@ function defaultHandler(context, req) {
 defaultHandler.createAvailabilityHandler = createAvailabilityHandler;
 defaultHandler.__setAvailabilityService = function __setAvailabilityService(service) {
   activeHandler = createAvailabilityHandler({ AvailabilityService: service || AvailabilityService });
+};
+defaultHandler.__setDependencies = function __setDependencies(overrides) {
+  activeHandler = createAvailabilityHandler(overrides);
 };
 defaultHandler.__resetAvailabilityService = function __resetAvailabilityService() {
   activeHandler = createAvailabilityHandler();

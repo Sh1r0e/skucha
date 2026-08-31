@@ -17,6 +17,8 @@ node_modules/
 dist/
 build/
 coverage/
+api-dist/
+site-dist/
 
 # Temporary files
 *.tmp
@@ -32,3 +34,4 @@ changes-to-htmls.html
 .env
 .env.*
 !.env.example
+production-readiness.md

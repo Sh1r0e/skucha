@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./maintenance-gate.js"></script>
-<title>Skucha - Wypożyczalnia crash padów</title>
+<title>Wypożyczalnia crash padów wspinaczkowych Wrocław - SKUCHA</title>
+<meta name="description" content="Description: Wypożyczalnia crash padów wspinaczkowych do boulderingu we Wrocławiu. 30 zł za wypożyczenie. Szybka rezerwacja online i odbiór. Wygodny odbiór Stabłowice.">
 <script src="./support.js"></script>
 <script src="./config/config-loader.js"></script>
 </head>
@@ -21,6 +22,19 @@
   body{ font-family:var(--font-main); color:var(--ink); -webkit-font-smoothing:antialiased; }
   a{ color:inherit; }
   .mobile-sticky-cta{ display:none; }
+  @keyframes skucha-reservation-spin{ to{ transform:rotate(360deg); } }
+  .reservation-legal{ margin-top:16px; display:grid; gap:8px; }
+  .reservation-consent{ display:flex; align-items:flex-start; gap:10px; padding:11px 12px; border:1px solid #e2e0db; border-radius:var(--r-md); background:#faf9f7; color:#4a4842; font-size:12.5px; line-height:1.45; cursor:pointer; }
+  .reservation-consent input{ width:19px; height:19px; margin:1px 0 0; flex:none; accent-color:var(--accent); cursor:pointer; }
+  .reservation-consent a{ color:#4b83b8; font-weight:700; }
+  .reservation-consent .consent-badge{ display:inline-block; margin-left:4px; padding:2px 5px; border-radius:4px; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:0.04em; line-height:1.2; vertical-align:1px; }
+  .reservation-consent .consent-required{ color:#9c4d3d; background:#fff1eb; }
+  .reservation-consent .consent-optional{ color:#6b6862; background:#eceae6; }
+  .reservation-consent small{ display:block; margin-top:3px; color:#8a867e; font-size:11px; }
+  .reservation-consent.conditional{ border-style:dashed; background:#fff8f2; }
+  .calendar-illustration{ position:absolute; right:0; bottom:0; display:block; width:min(620px, 42vw); height:auto; margin:0; opacity:0.9; pointer-events:none; }
+  .hero-copy{ align-self:stretch; position:relative; z-index:1; }
+  .booking-card{ position:relative; z-index:1; }
 
   @media (max-width:960px){
     #skucha-root.site-shell{ overflow:hidden; }
@@ -33,6 +47,7 @@
     .hero-copy{ padding-top:0 !important; }
     .hero-copy > h2{ font-size:clamp(42px,11vw,64px) !important; }
     .hero-copy > h3{ font-size:17px !important; max-width:38ch !important; }
+    .calendar-illustration{ display:none; }
     .booking-card{ width:100%; padding:18px !important; border-radius:18px !important; box-shadow:0 12px 30px -18px rgba(0,0,0,0.25) !important; }
     .section-inner{ padding:56px 20px !important; }
     .how-grid{ grid-template-columns:repeat(2,1fr) !important; gap:16px !important; }
@@ -41,7 +56,7 @@
     .pricing-cards{ grid-template-columns:repeat(3,1fr) !important; gap:12px !important; }
     .pricing-card{ padding:20px !important; min-height:150px !important; }
     .product-card{ grid-template-columns:1fr !important; }
-    .product-media{ min-height:260px !important; }
+    .product-media{ min-height:280px !important; padding:18px !important; }
     .product-details{ padding:28px !important; }
     .product-specs{ grid-template-columns:repeat(3,1fr) !important; }
     .upcoming-card{ flex-direction:column !important; align-items:flex-start !important; padding:24px !important; }
@@ -53,6 +68,20 @@
     .faq-intro{ position:static !important; }
     .site-footer-inner{ grid-template-columns:1fr !important; padding:52px 20px !important; gap:32px !important; }
     .footer-actions{ max-width:none !important; margin-left:0 !important; }
+  }
+
+  .product-media{
+    position:relative;
+    padding:20px;
+    background:#f7f6f3 !important;
+  }
+
+  .product-image{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    object-position:center;
   }
 
   @media (max-width:600px){
@@ -120,8 +149,8 @@
 
       <div class="hero-stats" style="display:flex; gap:0; margin-top:40px; border-top:1px solid #ededea; border-bottom:1px solid #ededea;">
         <div style="flex:1; padding:22px 24px 22px 0;">
-          <div style="font-size:34px; font-weight:800; letter-spacing:-0.02em;">1</div>
-          <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">punkt odbioru</div>
+          <div style="font-size:34px; font-weight:800; letter-spacing:-0.02em;">4</div>
+          <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">dostępne pady</div>
         </div>
         <div style="flex:1; padding:22px 24px; border-left:1px solid #ededea;">
           <div style="font-size:34px; font-weight:800; letter-spacing:-0.02em;">40 zł</div>
@@ -132,6 +161,7 @@
           <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e; text-transform:uppercase; letter-spacing:0.04em; margin-top:4px;">GRUBOŚĆ PADÓW</div>
         </div>
       </div>
+      <img class="calendar-illustration" src="images/illustration-calendar.png" alt="" aria-hidden="true" width="941" height="1672">
     </div>
 
     <!-- BOOKING CARD -->
@@ -186,7 +216,7 @@
           <span style="width:20px; height:20px; border-radius:50%; background:var(--accent); flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:700; line-height:1;">✓</span>
           <div style="flex:1;">
             <div style="font-size:15px; font-weight:700;">121 × 91 × 10 cm</div>
-            <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">Black Diamond Circuit 2.0 · dostępny</div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:#9a968e;">Black Diamond Circuit 2.0</div>
           </div>
         </div>
         <div style="font-family:var(--font-mono); font-size:11.5px; font-weight:400; color:#6b6862; margin-top:8px;">Kolejne modele i większe pady — wkrótce.</div>
@@ -205,22 +235,9 @@
         </div>
       </div>
 
-      <!-- delivery method -->
-      <div style="margin-top:14px;">
-        <div style="font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:8px;">Jak chcesz odebrać?</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-          <button onClick="{{ pickOdbior }}" style="{{ odbiorStyle }}">Odbiór osobisty</button>
-          <button onClick="{{ pickDowoz }}" style="{{ dowozStyle }}" disabled>Dowóz <span style="font-family:var(--font-mono); font-size:10px; font-weight:700;">wkrótce</span></button>
-        </div>
-      </div>
-
       <sc-if value="{{ showPoints }}" hint-placeholder-val="{{ true }}">
         <div style="margin-top:10px;">
           <div style="font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.05em; color:#9a968e; text-transform:uppercase; font-weight:700; margin-bottom:8px;">Punkt odbioru</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-            <button onClick="{{ pickStab }}" style="{{ stabStyle }}">Stabłowice</button>
-            <button onClick="{{ pickBroch }}" style="{{ brochStyle }}" disabled>Brochów <span style="font-family:var(--font-mono); font-size:10px; font-weight:700;">wkrótce</span></button>
-          </div>
           <a href="{{ locMapsLink }}" target="_blank" rel="noopener" style="margin-top:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; text-decoration:none; border:1px solid #e2e0db; background:#faf9f7; border-radius:var(--r-md); padding:11px 14px;">
             <div style="min-width:0;">
               <div style="font-size:14px; font-weight:700; color:var(--ink);">{{ locName }}</div>
@@ -228,13 +245,6 @@
             </div>
             <span style="display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--accent); white-space:nowrap; flex:none;">Dojazd<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z"></path><circle cx="12" cy="11" r="2"></circle></svg></span>
           </a>
-        </div>
-      </sc-if>
-
-      <sc-if value="{{ dowoz }}" hint-placeholder-val="{{ true }}">
-        <div style="margin-top:10px; border:1px solid color-mix(in srgb, var(--accent) 32%, #fff); background:color-mix(in srgb, var(--accent) 8%, #fff); border-radius:var(--r-md); padding:13px;">
-          <div style="font-size:14px; font-weight:700; color:var(--ink);">Dowóz pod sektor · cena ustalana indywidualnie</div>
-          <div style="font-family:var(--font-mono); font-size:11px; color:#6b6862; margin-top:3px; line-height:1.5;">Wrocław i okolice. Miejsce, godzinę i koszt dowozu ustalamy na czacie.</div>
         </div>
       </sc-if>
 
@@ -262,15 +272,43 @@
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Email</span>
           <input type="email" value="{{ email }}" onInput="{{ setEmail }}" placeholder="jan@email.com" maxlength="120" autocomplete="email" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
-        <label style="display:block;">
-          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
-          <input type="tel" value="{{ phoneInput }}" onInput="{{ setPhoneInput }}" placeholder="+48 500 600 700" maxlength="16" inputmode="tel" autocomplete="tel" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+        <div style="display:grid; grid-template-columns:72px 1fr; gap:8px;">
+          <label style="display:block;">
+            <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Kierunkowy</span>
+            <input type="tel" value="{{ phonePrefix }}" onInput="{{ setPhonePrefix }}" placeholder="+48" maxlength="4" inputmode="tel" autocomplete="tel-country-code" aria-label="Kierunkowy telefonu" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 8px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          </label>
+          <label style="display:block;">
+            <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
+            <input type="tel" value="{{ phoneNumber }}" onInput="{{ setPhoneNumber }}" placeholder="500 600 700" maxlength="15" inputmode="tel" autocomplete="tel-national" aria-label="Numer telefonu" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
+          </label>
+        </div>
+      </div>
+
+      <div class="reservation-legal" aria-label="Zgody i oświadczenia">
+        <label class="reservation-consent">
+          <input type="checkbox" checked="{{ acceptTerms }}" onChange="{{ setAcceptTerms }}">
+          <span>Przeczytałem i akceptuję <a href="/rental-terms.html" target="_blank" rel="noopener">Regulamin wypożyczalni</a>. <strong class="consent-badge consent-required">WYMAGANE</strong></span>
+        </label>
+        <label class="reservation-consent">
+          <input type="checkbox" checked="{{ acceptPrivacy }}" onChange="{{ setAcceptPrivacy }}">
+          <span>Przeczytałem i przyjmuję do wiadomości <a href="/privacy-policy.html" target="_blank" rel="noopener">Politykę prywatności</a>. <strong class="consent-badge consent-required">WYMAGANE</strong></span>
+        </label>
+        <sc-if value="{{ earlyStartRequired }}" hint-placeholder-val="{{ true }}">
+          <label class="reservation-consent conditional">
+            <input type="checkbox" checked="{{ earlyStartRequested }}" onChange="{{ setEarlyStartRequested }}">
+            <span>Żądam rozpoczęcia wykonywania umowy przed upływem 14 dni od jej zawarcia i przyjmuję do wiadomości, że w przypadku odstąpienia od umowy po rozpoczęciu jej wykonywania mogę być zobowiązany(-a) do zapłaty za świadczenie spełnione do chwili odstąpienia, proporcjonalnie do jego zakresu. <strong class="consent-badge consent-required">WYMAGANE</strong><small>To oświadczenie pojawia się, gdy najem zaczyna się w ciągu 14 dni. Bez niego nie można wydać sprzętu przed upływem terminu na odstąpienie.</small></span>
+          </label>
+        </sc-if>
+        <label class="reservation-consent optional">
+          <input type="checkbox" checked="{{ marketingEmail }}" onChange="{{ setMarketingEmail }}">
+          <span>Chcę dostawać maile o dostępności padów i nowościach SKUCHA. Mogę zrezygnować w każdej chwili. <strong class="consent-badge consent-optional">OPCJONALNE</strong></span>
         </label>
       </div>
 
-      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" style="margin-top:16px; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em;">
-        Rezerwuj<span style="font-size: 18px;">→</span>
-      </a>
+      <div id="skucha-turnstile" style="margin-top:14px; min-height:65px;"></div>
+      <button type="button" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="margin-top:16px; width:100%; display:flex; align-items:center; justify-content:center; gap:9px; border:0; background:var(--accent); color:#fff; font:800 17px/1 var(--font-main); padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em; cursor:pointer;">
+        <span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span><span>{{ reservationButtonLabel }}</span><span style="font-size: 18px;">→</span>
+      </button>
       <div style="text-align:center; font-family:var(--font-mono); font-size:11.5px; font-weight:400; color:#6b6862; margin-top:10px;">Kaucja płatna gotówką przy odbiorze</div>
       <div style="{{ reservationStatusStyle }}">{{ reservationStatus }}</div>
 
@@ -300,7 +338,7 @@
           </div>
         </div>
       </div>
-    </div>
+      </div>
   </div>
 
   <!-- JAK TO DZIALA -->
@@ -370,8 +408,8 @@
     <h2 class="equipment-title" style="margin:12px 0 36px; font-size:42px; font-weight:800; letter-spacing:-0.03em;">Nasze crash pady</h2>
 
     <div class="product-card" style="border:1px solid #e7e5e1; border-radius:var(--r-xl); overflow:hidden; display:grid; grid-template-columns:440px 1fr;">
-      <div class="product-media" style="background:repeating-linear-gradient(135deg,#f1efeb 0 14px,#e9e7e2 14px 28px); display:flex; align-items:center; justify-content:center; min-height:380px;">
-        <span style="font-family:var(--font-mono); font-size:12px; color:#a8a49b; letter-spacing:0.05em;">[ ZDJĘCIE — BLACK DIAMOND CIRCUIT ]</span>
+      <div class="product-media" style="display:flex; align-items:center; justify-content:center; min-height:380px;">
+        <img class="product-image" src="images/crash-pad-circuit.webp" alt="Black Diamond Circuit 2.0 crash pady rozłożone obok siebie" width="2400" height="1792" loading="lazy">
       </div>
       <div class="product-details" style="padding:36px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
@@ -420,7 +458,7 @@
           </div>
           <div style="padding:24px;">
             <div style="font-size:24px; font-weight:800;">Stabłowice</div>
-            <div style="font-size:15px; color:#6b6862; margin-top:6px;">ul. Przykładowa 12, 54-100 Wrocław</div>
+            <div style="font-size:15px; color:#6b6862; margin-top:6px;">ul. Lubomierska 24, Wrocław</div>
             <div style="font-family:var(--font-mono); font-size:12px; color:#9a968e; margin-top:12px;">ODBIÓR: PO USTALENIU · ZWYKLE 8–21</div>
           </div>
         </div>
@@ -445,7 +483,7 @@
     <div class="delivery-card" style="background:var(--accent); border-radius:var(--r-xl); padding:56px; color:#fff; display:grid; grid-template-columns:1.3fr 1fr; gap:48px; align-items:center;">
       <div>
         <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:color-mix(in srgb, var(--accent) 18%, #fff); font-weight:700; text-transform:uppercase;">05 · Dowóz</div>
-        <h2 class="delivery-title" style="margin:14px 0 16px; font-size:44px; font-weight:800; letter-spacing:-0.03em; line-height:1.0;">Nie chce ci się jeździć?</h2>
+        <h2 class="delivery-title" style="margin:14px 0 16px; font-size:44px; font-weight:800; letter-spacing:-0.03em; line-height:1.0;">Dostępne wkrótce</h2>
         <p style="margin:0; font-size:19px; line-height:1.5; color:color-mix(in srgb, var(--accent) 8%, #fff); max-width:48ch;">Dowozimy pady na terenie Wrocławia i okolic. Koszt dowozu <strong>ustalamy indywidualnie</strong> — zależnie od miejsca i liczby padów. Umawiamy się w wyznaczonym miejscu i przedziale godzin — pod blok, pod ścianę, pod sektor.</p>
       </div>
       <div class="delivery-tags" style="display:flex; flex-direction:column; gap:12px;">
@@ -485,7 +523,12 @@
       <div>
         <div style="font-size:44px; font-weight:900; letter-spacing:-0.04em;">SKUCHA<span style="color:var(--accent);">.</span></div>
         <p style="margin:12px 0 0; font-size:17px; color:#b3afa8; max-width:40ch;">Wypożyczalnia crash padów we Wrocławiu. Jasne warunki, szybka i wygodna rezerwacja.</p>
-        <div style="font-family:var(--font-mono); font-size:11px; color:#7c7972; margin-top:28px;">© 2026 SKUCHA · WROCŁAW</div>
+        <div style="font-family:var(--font-mono); font-size:11px; color:#7c7972; margin-top:28px;">© 2026 SKUCHA · WROCŁAW · Jakub Grech</div>
+        <nav aria-label="Informacje prawne" style="display:flex; flex-wrap:wrap; gap:8px 16px; margin-top:14px; font-size:12px;">
+          <a href="mailto:rental@skucha.co" style="color:#fff;">rental@skucha.co</a>
+          <a href="/rental-terms.html" style="color:#fff;">Regulamin</a>
+          <a href="/privacy-policy.html" style="color:#fff;">Polityka prywatności</a>
+        </nav>
       </div>
       <div class="footer-actions" style="display:flex; flex-direction:column; gap:12px; max-width:380px; margin-left:auto; width:100%;">
         <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:flex; align-items:center; justify-content:center; gap:8px; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:17px; padding:17px; border-radius:var(--r-md);">Napisz na WhatsApp</a>
@@ -500,13 +543,13 @@
         <div style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">{{ daysLabel }}</div>
         <div style="font-size:22px; font-weight:800; letter-spacing:-0.02em; line-height:1;">{{ totalLabel }} <span style="font-size:13px; color:#9a968e;">zł</span></div>
       </div>
-      <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ reserveClick }}" style="background:var(--accent); color:#fff; text-decoration:none; font-weight:800; font-size:15px; padding:14px 22px; border-radius:var(--r-md);">Rezerwuj →</a>
+      <button type="button" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="border:0; background:var(--accent); color:#fff; font:800 15px/1 var(--font-main); padding:14px 22px; border-radius:var(--r-md); cursor:pointer;"><span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span>{{ reservationButtonLabel }} →</button>
     </div>
   </sc-if>
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1024},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FB5A12&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1a1916&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Bricolage Grotesque&quot;,&quot;options&quot;:[&quot;Archivo&quot;,&quot;Space Grotesk&quot;,&quot;Sora&quot;,&quot;Bricolage Grotesque&quot;,&quot;Hanken Grotesk&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;labelFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Space Mono&quot;,&quot;options&quot;:[&quot;Space Mono&quot;,&quot;JetBrains Mono&quot;,&quot;IBM Plex Mono&quot;,&quot;DM Mono&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;corners&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Zaokrąglone&quot;,&quot;options&quot;:[&quot;Ostre&quot;,&quot;Zaokrąglone&quot;,&quot;Mocno zaokrąglone&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;logo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Wariant 2&quot;,&quot;options&quot;:[&quot;Wariant 1&quot;,&quot;Wariant 2&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;priceWeekday&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;priceWeekend&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;deliveryFee&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;whatsappNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;48600123456&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1024},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FB5A12&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1a1916&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Bricolage Grotesque&quot;,&quot;options&quot;:[&quot;Archivo&quot;,&quot;Space Grotesk&quot;,&quot;Sora&quot;,&quot;Bricolage Grotesque&quot;,&quot;Hanken Grotesk&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;labelFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Space Mono&quot;,&quot;options&quot;:[&quot;Space Mono&quot;,&quot;JetBrains Mono&quot;,&quot;IBM Plex Mono&quot;,&quot;DM Mono&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;corners&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Zaokrąglone&quot;,&quot;options&quot;:[&quot;Ostre&quot;,&quot;Zaokrąglone&quot;,&quot;Mocno zaokrąglone&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;logo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Wariant 2&quot;,&quot;options&quot;:[&quot;Wariant 1&quot;,&quot;Wariant 2&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;priceWeekday&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;priceWeekend&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;deliveryFee&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;whatsappNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;48600123456&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;turnstileSiteKey&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 class Component extends DCLogic {
   state = (() => {
     const now = new Date();
@@ -520,6 +563,10 @@ class Component extends DCLogic {
       pads: 1,
       loc: 'Stabłowice',
       dowoz: false,
+      acceptTerms: false,
+      acceptPrivacy: false,
+      earlyStartRequested: false,
+      idempotencyKey: '',
       openFaq: 0,
       calYear: now.getFullYear(),
       calMonth: now.getMonth(),
@@ -531,9 +578,13 @@ class Component extends DCLogic {
       firstName: '',
       lastName: '',
       email: '',
-      phoneInput: '',
+      phonePrefix: '+48',
+      phoneNumber: '',
+      marketingEmail: false,
       reservationStatus: '',
-      reservationStatusColor: '#6b6862'
+      reservationStatusColor: '#6b6862',
+      reservationSubmitting: false,
+      turnstileToken: ''
     };
   })();
 
@@ -542,6 +593,19 @@ class Component extends DCLogic {
   key(d){ const m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return d.getFullYear()+'-'+m+'-'+day; }
   todayIso(){ const t=new Date(); t.setHours(0,0,0,0); return this.key(t); }
   horizonMonths(){ return 6; }
+
+  earlyStartRequired(){
+    const start = this.mk(this.state.od);
+    const today = this.mk(this.todayIso());
+    if(!start || !today) return false;
+    const daysAhead = Math.round((start.getTime() - today.getTime()) / 86400000);
+    return daysAhead >= 0 && daysAhead < 14;
+  }
+
+  createIdempotencyKey(){
+    if(window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+    return 'skucha-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+  }
 
   freeFor(str){
     const today = this.mk(this.todayIso());
@@ -628,6 +692,7 @@ class Component extends DCLogic {
   componentDidMount(){
     this.applyTheme();
     this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
+    this.renderTurnstile();
   }
 
   componentDidUpdate(prevProps, prevState){
@@ -635,6 +700,60 @@ class Component extends DCLogic {
     if (prevState && (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth)) {
       this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
     }
+    if (prevProps && prevProps.turnstileSiteKey !== this.props.turnstileSiteKey) {
+      this.renderTurnstile();
+    }
+  }
+
+  componentWillUnmount(){
+    if (this._turnstileWidgetId !== undefined && window.turnstile) {
+      window.turnstile.remove(this._turnstileWidgetId);
+    }
+  }
+
+  loadTurnstile(){
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    return new Promise((resolve, reject) => {
+      let script = document.querySelector('script[data-skucha-turnstile]');
+      if (!script) {
+        script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.defer = true;
+        script.setAttribute('data-skucha-turnstile', 'true');
+        document.head.appendChild(script);
+      }
+      script.addEventListener('load', () => resolve(window.turnstile), { once: true });
+      script.addEventListener('error', () => reject(new Error('Turnstile failed to load')), { once: true });
+    });
+  }
+
+  renderTurnstile(){
+    const siteKey = String(this.props.turnstileSiteKey || '').trim();
+    if (!siteKey || this._turnstileWidgetId !== undefined) return;
+    const container = document.getElementById('skucha-turnstile');
+    if (!container) return;
+
+    this.loadTurnstile().then((turnstile) => {
+      if (!turnstile || this._turnstileWidgetId !== undefined) return;
+      this._turnstileWidgetId = turnstile.render(container, {
+        sitekey: siteKey,
+        action: 'reservation',
+        theme: 'light',
+        size: 'flexible',
+        callback: (token) => this.setState({ turnstileToken: token }),
+        'expired-callback': () => this.setState({ turnstileToken: '' }),
+        'error-callback': () => this.setState({ turnstileToken: '' })
+      });
+    }).catch(() => {
+      this.setState({ reservationStatus: 'Nie udało się załadować zabezpieczenia formularza.', reservationStatusColor: '#b42318' });
+    });
+  }
+
+  resetTurnstile(){
+    if (this._turnstileWidgetId !== undefined && window.turnstile) {
+      window.turnstile.reset(this._turnstileWidgetId);
+    }
+    this.setState({ turnstileToken: '' });
   }
 
   applyTheme(){
@@ -684,21 +803,37 @@ class Component extends DCLogic {
     return String(value || '').replace(/[^A-Za-zÀ-ž\-\s']/g, '').slice(0, 60);
   }
 
-  sanitizePhone(value){
-    const cleaned = String(value || '').replace(/[^0-9+\s]/g, '');
+  sanitizePhonePrefix(value){
+    const cleaned = String(value || '').replace(/[^0-9+]/g, '');
     const firstPlus = cleaned.indexOf('+');
     const normalized = firstPlus > 0
       ? cleaned.replace(/\+/g, '')
       : (firstPlus === 0 ? '+' + cleaned.slice(1).replace(/\+/g, '') : cleaned);
-    return normalized.slice(0, 16);
+    return normalized.slice(0, 4);
+  }
+
+  sanitizePhoneNumber(value){
+    return String(value || '').replace(/\D/g, '').slice(0, 15);
+  }
+
+  phoneValue(){
+    const enteredPrefix = this.state.phonePrefix.trim();
+    const prefix = /^\+\d{1,3}$/.test(enteredPrefix) ? enteredPrefix : '+48';
+    return prefix + this.state.phoneNumber;
   }
 
   async reserveClick(e){
     e.preventDefault();
+    if (this.state.reservationSubmitting) return;
     const firstName = this.state.firstName.trim();
     const lastName = this.state.lastName.trim();
     const email = this.state.email.trim();
-    const phone = this.state.phoneInput.trim();
+    const phone = this.phoneValue();
+
+    if (this.props.turnstileSiteKey && !this.state.turnstileToken) {
+      this.setState({ reservationStatus: 'Potwierdź, że nie jesteś botem.', reservationStatusColor: '#b54708' });
+      return;
+    }
 
     if (!firstName || !lastName || !email || !phone) {
       this.setState({ reservationStatus: 'Uzupełnij imię, nazwisko, email i telefon.', reservationStatusColor: '#b54708' });
@@ -715,6 +850,16 @@ class Component extends DCLogic {
       return;
     }
 
+    if (!this.state.acceptTerms || !this.state.acceptPrivacy) {
+      this.setState({ reservationStatus: 'Zaakceptuj Regulamin i potwierdź zapoznanie się z Polityką prywatności.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
+    if (this.earlyStartRequired() && !this.state.earlyStartRequested) {
+      this.setState({ reservationStatus: 'Potwierdź żądanie rozpoczęcia najmu przed upływem 14 dni.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
     const normalizedPhone = phone.replace(/\s+/g, '');
     if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
       this.setState({ reservationStatus: 'Podaj poprawny numer telefonu (9-15 cyfr).', reservationStatusColor: '#b54708' });
@@ -726,7 +871,8 @@ class Component extends DCLogic {
       return;
     }
 
-    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862' });
+    const idempotencyKey = this.state.idempotencyKey || this.createIdempotencyKey();
+    this.setState({ reservationStatus: 'Wysyłam rezerwację...', reservationStatusColor: '#6b6862', reservationSubmitting: true, idempotencyKey: idempotencyKey });
 
     const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
     const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
@@ -741,15 +887,20 @@ class Component extends DCLogic {
       dateFrom: this.state.od,
       dateTo: this.state.dod || this.state.od,
       padsCount: this.state.pads,
-      deliveryMethod: this.state.dowoz ? 'delivery' : 'pickup',
-      pickupPoint: this.state.dowoz ? '' : locName,
-      notes: ''
+      deliveryMethod: 'pickup',
+      pickupPoint: locName,
+      notes: '',
+      acceptTerms: this.state.acceptTerms,
+      acceptPrivacy: this.state.acceptPrivacy,
+      marketingEmail: this.state.marketingEmail,
+      earlyStartRequested: this.earlyStartRequired() && this.state.earlyStartRequested,
+      turnstileToken: this.state.turnstileToken
     };
 
     try {
       const response = await fetch('/api/reservation', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
         body: JSON.stringify(payload)
       });
       const result = await this.readApiPayload(response);
@@ -760,20 +911,9 @@ class Component extends DCLogic {
           + ((result && result.code) ? ', ' + result.code : '')
           + ((result && result.requestId) ? ', id: ' + result.requestId : '')
           + ']';
-        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318' });
+        this.resetTurnstile();
+        this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318', reservationSubmitting: false, idempotencyKey: response.status >= 400 && response.status < 500 ? '' : idempotencyKey });
         return;
-      }
-
-      try {
-        localStorage.setItem('skucha_last_order', JSON.stringify({
-          savedAt: new Date().toISOString(),
-          payload: payload,
-          reservation: result && result.reservation ? result.reservation : null,
-          reservationId: result && result.reservationId ? result.reservationId : '',
-          payment: result && result.payment ? result.payment : null
-        }));
-      } catch (_storageError) {
-        // Storage can be blocked in private mode; payment flow should continue anyway.
       }
 
       const checkoutUrl = result && result.payment && result.payment.checkoutUrl;
@@ -784,10 +924,11 @@ class Component extends DCLogic {
         return;
       }
 
-      this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b' });
+      this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b', reservationSubmitting: false });
       window.open(this.buildWaLink(), '_blank', 'noopener');
     } catch (error) {
-      this.setState({ reservationStatus: 'Błąd połączenia z API.', reservationStatusColor: '#b42318' });
+      this.resetTurnstile();
+      this.setState({ reservationStatus: 'Błąd połączenia z API.', reservationStatusColor: '#b42318', reservationSubmitting: false });
     }
   }
 
@@ -801,7 +942,7 @@ class Component extends DCLogic {
     const msg = 'Cześć! Chcę zarezerwować crash pady:\n'
       + '• Imię i nazwisko: ' + this.state.firstName + ' ' + this.state.lastName + '\n'
       + '• Email: ' + this.state.email + '\n'
-      + '• Telefon: ' + this.state.phoneInput + '\n'
+      + '• Telefon: ' + this.phoneValue() + '\n'
       + '• Daty: ' + this.fmt(this.state.od) + (this.state.dod ? ' – ' + this.fmt(this.state.dod) : '') + ' (' + c.days + ' ' + dayWord + ')\n'
       + '• Liczba padów: ' + this.state.pads + '\n'
       + '• Odbiór: ' + (this.state.dowoz ? 'Dowóz pod sektor (Wrocław i okolice) — koszt dowozu do ustalenia' : ('Odbiór osobisty — ' + currentPickupName)) + '\n'
@@ -896,8 +1037,8 @@ class Component extends DCLogic {
     const pickupName1 = this.props.pickupPoint1Name ?? 'Stabłowice';
     const pickupName2 = this.props.pickupPoint2Name ?? 'Brochów';
     const locData = {
-      [pickupName1]: this.props.pickupPoint1Address ?? 'ul. Przykładowa 12, 54-100 Wrocław',
-      [pickupName2]: this.props.pickupPoint2Address ?? 'ul. Przykładowa 8, 52-200 Wrocław'
+      [pickupName1]: this.props.pickupPoint1Address ?? 'ul. Lubomierska 24, Wrocław',
+      [pickupName2]: this.props.pickupPoint2Address ?? 'Adres zostanie podany po uruchomieniu punktu'
     };
     const locName = this.state.loc==='Stabłowice'
       ? pickupName1
@@ -929,10 +1070,6 @@ class Component extends DCLogic {
       nextMonth: () => this.shiftMonth(1),
       incPad: () => this.setState(s => ({ pads: Math.min(this.maxAvail(), s.pads + 1) })),
       decPad: () => this.setState(s => ({ pads: Math.max(1, s.pads - 1) })),
-      pickStab: () => this.setState({ loc:'Stabłowice' }),
-      pickBroch: null,
-      stabStyle: this.seg(this.state.loc === 'Stabłowice'),
-      brochStyle: this.segDisabled(),
       locName, locAddress, locMapsLink,
       todayIso, notifyOd: nOd, notifyDod: nDod, notifyDodMin: nOd || todayIso,
       notifyHeading, notifyLink, notifyBtnStyle,
@@ -944,23 +1081,33 @@ class Component extends DCLogic {
       notifyWrapStyle: "margin-top:14px; border-top:1px solid #ededea; padding-top:14px;",
       notifyIconStyle: "font-size:22px; font-weight:400; color:var(--accent); flex:none; line-height:1; transition:transform .2s; transform:rotate(" + (this.state.notifyOpen ? '45deg' : '0deg') + ");",
       notifyBodyStyle: "overflow:hidden; transition:max-height .3s ease, opacity .2s; max-height:" + (this.state.notifyOpen ? '320px' : '0px') + "; opacity:" + (this.state.notifyOpen ? '1' : '0') + ";",
-      pickOdbior: () => this.setState({ dowoz:false }),
-      pickDowoz: null,
-      odbiorStyle: this.seg(!this.state.dowoz),
-      dowozStyle: this.segDisabled(),
       firstName: this.state.firstName,
       lastName: this.state.lastName,
       email: this.state.email,
-      phoneInput: this.state.phoneInput,
+      phonePrefix: this.state.phonePrefix,
+      phoneNumber: this.state.phoneNumber,
       setFirstName: (e) => this.setState({ firstName: this.sanitizeName(e.target.value) }),
       setLastName: (e) => this.setState({ lastName: this.sanitizeName(e.target.value) }),
       setEmail: (e) => this.setState({ email: String(e.target.value || '').trim().toLowerCase().slice(0, 120) }),
-      setPhoneInput: (e) => this.setState({ phoneInput: this.sanitizePhone(e.target.value) }),
+      setPhonePrefix: (e) => this.setState({ phonePrefix: this.sanitizePhonePrefix(e.target.value) }),
+      setPhoneNumber: (e) => this.setState({ phoneNumber: this.sanitizePhoneNumber(e.target.value) }),
+      acceptTerms: this.state.acceptTerms,
+      acceptPrivacy: this.state.acceptPrivacy,
+      marketingEmail: this.state.marketingEmail,
+      earlyStartRequested: this.state.earlyStartRequested,
+      earlyStartRequired: this.earlyStartRequired(),
+      setAcceptTerms: (e) => this.setState({ acceptTerms: !!e.target.checked }),
+      setAcceptPrivacy: (e) => this.setState({ acceptPrivacy: !!e.target.checked }),
+      setMarketingEmail: (e) => this.setState({ marketingEmail: !!e.target.checked }),
+      setEarlyStartRequested: (e) => this.setState({ earlyStartRequested: !!e.target.checked }),
       reserveClick: (e) => this.reserveClick(e),
       reservationStatus: this.state.reservationStatus,
       reservationStatusColor: this.state.reservationStatusColor,
+      reservationSubmitting: this.state.reservationSubmitting ? 'true' : 'false',
+      reservationButtonLabel: this.state.reservationSubmitting ? 'Przetwarzam...' : 'Rezerwuję i płacę',
+      reservationSpinnerStyle: 'display:' + (this.state.reservationSubmitting ? 'inline-block' : 'none') + '; width:12px; height:12px; border:2px solid rgba(255,255,255,.45); border-top-color:#fff; border-radius:50%; animation:skucha-reservation-spin .8s linear infinite; vertical-align:-1px; flex:none;',
       reservationStatusStyle: "margin-top:8px; min-height:18px; font-family:var(--font-mono); font-size:11px; color:" + this.state.reservationStatusColor + ";",
-      showPoints: !this.state.dowoz,
+      showPoints: true,
       dowoz: this.state.dowoz,
       daysLabel, breakdown: bd,
       totalLabel: c.total,

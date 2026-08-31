@@ -10,6 +10,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   quality_checks:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -23,11 +26,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
           cache: npm
           cache-dependency-path: api/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Lint
         run: npm run lint
       - name: Run tests
@@ -35,19 +40,69 @@ jobs:
       - name: Generate coverage
         run: npm run test:coverage
 
+  runtime_compatibility:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Runtime Compatibility
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.x, 24.x]
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Verify pinned production package versions are published
+        run: |
+          test "$(npm view @azure/communication-email@1.0.0 version)" = "1.0.0"
+          test "$(npm view @azure/data-tables@13.2.2 version)" = "13.2.2"
+          test "$(npm view stripe@22.3.2 version)" = "22.3.2"
+          test "$(npm view uuid@11.0.5 version)" = "11.0.5"
+      - name: Install development dependencies
+        run: npm ci
+      - name: Verify source build and Function entrypoints
+        run: npm run verify:build
+      - name: Build deployable API bundle
+        run: npm run build:api
+      - name: Install production dependencies
+        run: npm ci --omit=dev
+      - name: Verify production build and Function entrypoints
+        run: npm run verify:build
+
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    needs: quality_checks
+    needs: [quality_checks, runtime_compatibility]
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
-      - name: Prepare API dependencies
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - name: Build deployable API bundle
         working-directory: api
-        run: npm ci --omit=dev
+        env:
+          SKUCHA_DEPLOYMENT_ENV: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+        run: |
+          npm ci
+          npm run build:api
+          npm run build:site
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -57,8 +112,8 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "api" # Api source code path - optional
+          app_location: "site-dist" # Allowlisted static site artifact
+          api_location: "api-dist" # Bundled API output path - optional
           output_location: "" # Built app content directory - optional
           skip_app_build: true
           skip_api_build: true

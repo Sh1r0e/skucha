@@ -12,6 +12,8 @@ function createReservation(overrides) {
     pickupPoint: "Stablowice",
     notes: "Bring extra straps",
     acceptTerms: true,
+    acceptPrivacy: true,
+    earlyStartRequested: true,
     ...overrides
   };
 }

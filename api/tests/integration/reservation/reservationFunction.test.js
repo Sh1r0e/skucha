@@ -23,6 +23,48 @@ describe("reservation function", function () {
     expect(context.res.body.reservationId).toBe("res-1");
   });
 
+  it("should_return_429_before_turnstile_or_reservation_side_effects", async function () {
+    const createReservationMock = vi.fn();
+    const verifyReservation = vi.fn();
+    handler.__setDependencies({
+      ReservationService: { createReservation: createReservationMock },
+      TurnstileService: { verifyReservation },
+      BotProtectionService: {
+        checkRequest: vi.fn().mockResolvedValue({ allowed: false, resetAt: "2099-01-01T00:00:00.000Z" })
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, { body: createReservation() });
+
+    expect(context.res.status).toBe(429);
+    expect(verifyReservation).not.toHaveBeenCalled();
+    expect(createReservationMock).not.toHaveBeenCalled();
+  });
+
+  it("should_reject_failed_turnstile_before_reservation_side_effects", async function () {
+    const createReservationMock = vi.fn();
+    handler.__setDependencies({
+      ReservationService: { createReservation: createReservationMock },
+      BotProtectionService: { checkRequest: vi.fn().mockResolvedValue({ allowed: true }) },
+      TurnstileService: {
+        verifyReservation: vi.fn().mockRejectedValue(
+          Object.assign(new Error("Complete the bot verification and try again"), {
+            statusCode: 400,
+            code: "BotVerificationFailed"
+          })
+        )
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, { body: createReservation({ turnstileToken: "invalid" }) });
+
+    expect(context.res.status).toBe(400);
+    expect(context.res.body.code).toBe("BotVerificationFailed");
+    expect(createReservationMock).not.toHaveBeenCalled();
+  });
+
   it("should_return_400_for_invalid_payload_type()", async function () {
     const context = createMockContext();
 
@@ -30,6 +72,21 @@ describe("reservation function", function () {
 
     expect(context.res.status).toBe(400);
     expect(context.res.body.code).toBe("InvalidRequestBody");
+  });
+
+  it("should_reject_non_json_request_bodies_before_calling_the_service()", async function () {
+    const createReservation = vi.fn();
+    handler.__setReservationService({ createReservation: createReservation });
+    const context = createMockContext();
+
+    await handler(context, {
+      headers: { "Content-Type": "text/plain" },
+      body: "{}"
+    });
+
+    expect(context.res.status).toBe(415);
+    expect(context.res.body.code).toBe("UnsupportedMediaType");
+    expect(createReservation).not.toHaveBeenCalled();
   });
 
   it("should_return_400_for_invalid_json_string_payload()", async function () {

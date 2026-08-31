@@ -1,0 +1,7 @@
+# Keep tests and development tooling out of the deployed Functions artifact.
+tests/**
+coverage/**
+scripts/**
+*.test.js
+eslint.config.js
+vitest.config.js

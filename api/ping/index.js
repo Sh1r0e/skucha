@@ -1,13 +1,14 @@
+const { rejectDuringMaintenance } = require("../helpers/maintenance");
+const { jsonResponse } = require("../helpers/http");
+
 module.exports = async function (context) {
-  context.res = {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: {
+  if (rejectDuringMaintenance(context)) {
+    return;
+  }
+
+  context.res = jsonResponse(200, {
       ok: true,
       service: "skucha-api",
       timestamp: new Date().toISOString()
-    }
-  };
+    });
 };

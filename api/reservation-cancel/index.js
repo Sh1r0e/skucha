@@ -1,9 +1,13 @@
 const ReservationService = require("../services/ReservationService");
+const BotProtectionService = require("../services/BotProtectionService");
 const { rejectDuringMaintenance } = require("../helpers/maintenance");
+const { jsonResponse, rejectNonJsonRequest, rejectOversizedRequest } = require("../helpers/http");
+const { rejectRateLimitedRequest } = require("../helpers/bot-protection");
 
 function createReservationCancelHandler(customDependencies) {
   const dependencies = {
     ReservationService,
+    BotProtectionService,
     ...(customDependencies || {})
   };
 
@@ -14,6 +18,23 @@ function createReservationCancelHandler(customDependencies) {
 
     const request = req || context.req || {};
     const query = request.query || {};
+
+    if (request.method && String(request.method).toLowerCase() !== "post") {
+      context.res = jsonResponse(405,
+        { message: "Cancellation must use POST", code: "MethodNotAllowed" },
+        { Allow: "POST" });
+      return;
+    }
+
+    if (rejectNonJsonRequest(context, request)) {
+      return;
+    }
+    if (rejectOversizedRequest(context, request)) {
+      return;
+    }
+    if (await rejectRateLimitedRequest(context, request, "reservation-cancel", dependencies.BotProtectionService)) {
+      return;
+    }
 
     try {
       let body = request.body || {};
@@ -37,14 +58,10 @@ function createReservationCancelHandler(customDependencies) {
         token: token
       });
 
-      context.res = {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-        body: {
+      context.res = jsonResponse(200, {
           message: "Reservation cancelled",
           ...result
-        }
-      };
+        });
     } catch (error) {
       const body = typeof request.body === "object" && request.body ? request.body : {};
       const reservationId = query.reservation_id || query.reservationId || body.reservationId || "";
@@ -56,14 +73,11 @@ function createReservationCancelHandler(customDependencies) {
         message: error.message
       });
 
-      context.res = {
-        status: error.statusCode || 500,
-        headers: { "Content-Type": "application/json" },
-        body: {
-          message: error.message || "Cancellation failed",
-          code: error.code || (error.statusCode >= 500 ? "InternalError" : "BadRequest")
-        }
-      };
+      const statusCode = error.statusCode || 500;
+      context.res = jsonResponse(statusCode, {
+        message: statusCode >= 500 ? "Cancellation failed" : (error.message || "Cancellation failed"),
+        code: error.code || (statusCode >= 500 ? "InternalError" : "BadRequest")
+      });
     }
   };
 }

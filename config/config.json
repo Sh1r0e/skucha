@@ -6,7 +6,7 @@
   "contact": {
     "phone": "+48 532 657 655",
     "whatsapp": "+48 532 657 655",
-    "email": "kontakt@skucha.pl"
+    "email": "rental@skucha.co"
   },
   "pricing": {
     "weekday": 40,
@@ -18,15 +18,18 @@
     "totalPads": 4,
     "horizonMonths": 6
   },
+  "botProtection": {
+    "turnstileSiteKey": "0x4AAAAAAEi3SYrrCxLn9qJR"
+  },
   "pickupPoints": [
     {
       "name": "Stabłowice",
-      "address": "ul. Przykładowa 12, 54-100 Wrocław",
+      "address": "ul. Lubomierska 24, Wrocław",
       "enabled": true
     },
     {
       "name": "Brochów",
-      "address": "ul. Przykładowa 8, 52-200 Wrocław",
+      "address": "Adres zostanie podany po uruchomieniu punktu",
       "enabled": false
     }
   ],

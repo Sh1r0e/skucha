@@ -14,7 +14,11 @@ const MOCK_RESERVATION = {
   createdAt: "2026-07-31T10:00:00.000Z",
   paymentSessionId: "cs_test_123",
   paymentStatus: "Paid",
-  paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123"
+  paymentUrl: "https://checkout.stripe.com/c/pay/cs_test_123",
+  paymentAmountMinor: 12000,
+  paymentCurrency: "PLN",
+  paymentIntentId: "pi_test_123",
+  pickupPoint: "Stablowice"
 };
 
 describe("get-reservation function", function () {
@@ -31,15 +35,35 @@ describe("get-reservation function", function () {
     });
     const context = createMockContext();
 
-    await handler(context, { query: { id: "res-1" } });
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
 
     expect(context.res.status).toBe(200);
     expect(context.res.body.id).toBe("res-1");
     expect(context.res.body.status).toBe("Confirmed");
-    expect(context.res.body.payment.sessionId).toBe("cs_test_123");
+    expect(context.res.body.pickupPoint).toBe("Stablowice");
     expect(context.res.body.payment.status).toBe("Paid");
-    expect(context.res.body.customerName).toBe("Jan Kowalski");
-    expect(context.res.body.customerEmail).toBe("jan@example.com");
+    expect(context.res.body.payment.amount).toBe(120);
+    expect(context.res.body.payment.currency).toBe("PLN");
+    expect(context.res.body.payment.sessionId).toBeUndefined();
+    expect(context.res.body.payment.paymentIntentId).toBeUndefined();
+    expect(context.res.body.customerName).toBeUndefined();
+    expect(context.res.body.customerEmail).toBeUndefined();
+  });
+
+  it("should_return_429_before_reservation_storage_lookup", async function () {
+    const getReservation = vi.fn();
+    handler.__setDependencies({
+      ReservationRepository: { getReservation },
+      BotProtectionService: {
+        checkRequest: vi.fn().mockResolvedValue({ allowed: false, resetAt: "2099-01-01T00:00:00.000Z" })
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
+
+    expect(context.res.status).toBe(429);
+    expect(getReservation).not.toHaveBeenCalled();
   });
 
   it("should_return_404_when_reservation_does_not_exist()", async function () {
@@ -48,7 +72,7 @@ describe("get-reservation function", function () {
     });
     const context = createMockContext();
 
-    await handler(context, { query: { id: "missing" } });
+    await handler(context, { query: { id: "missing", session_id: "cs_test_123" } });
 
     expect(context.res.status).toBe(404);
     expect(context.res.body.code).toBe("NotFound");
@@ -64,6 +88,18 @@ describe("get-reservation function", function () {
 
     expect(context.res.status).toBe(400);
     expect(context.res.body.code).toBe("MissingId");
+  });
+
+  it("should_reject_identifiers_with_unsafe_characters_before_storage_lookup()", async function () {
+    const getReservation = vi.fn();
+    handler.__setDependencies({ ReservationRepository: { getReservation: getReservation } });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res%27injected", session_id: "cs_test_123" } });
+
+    expect(context.res.status).toBe(400);
+    expect(context.res.body.code).toBe("MissingId");
+    expect(getReservation).not.toHaveBeenCalled();
   });
 
   it("should_return_400_when_id_is_whitespace()", async function () {
@@ -88,21 +124,55 @@ describe("get-reservation function", function () {
     });
     const context = createMockContext();
 
-    await handler(context, { query: { id: "res-1" } });
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
 
     expect(context.res.status).toBe(503);
     expect(context.res.body.code).toBe("StorageError");
+  });
+
+  it("should_return_404_when_session_id_does_not_match()", async function () {
+    handler.__setDependencies({
+      ReservationRepository: { getReservation: vi.fn().mockResolvedValue(MOCK_RESERVATION) }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "wrong-session" } });
+
+    expect(context.res.status).toBe(404);
+    expect(context.res.body.code).toBe("NotFound");
+  });
+
+  it("should_require_a_matching_stripe_session_id()", async function () {
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1" } });
+
+    expect(context.res.status).toBe(400);
+    expect(context.res.body.code).toBe("MissingSessionId");
   });
 
   it("should_use_context_req_when_second_argument_is_missing()", async function () {
     handler.__setDependencies({
       ReservationRepository: { getReservation: vi.fn().mockResolvedValue(MOCK_RESERVATION) }
     });
-    const context = createMockContext({ req: { query: { id: "res-1" } } });
+    const context = createMockContext({ req: { query: { id: "res-1", session_id: "cs_test_123" } } });
 
     await handler(context);
 
     expect(context.res.status).toBe(200);
     expect(context.res.body.id).toBe("res-1");
+  });
+
+  it("should_parse_ids_from_the_request_url()", async function () {
+    handler.__setDependencies({
+      ReservationRepository: { getReservation: vi.fn().mockResolvedValue(MOCK_RESERVATION) }
+    });
+    const context = createMockContext();
+
+    await handler(context, {
+      url: "https://www.skucha.co/api/reservation?id=res-1&session_id=cs_test_123"
+    });
+
+    expect(context.res.status).toBe(200);
   });
 });

@@ -8,21 +8,25 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "build:api": "node scripts/build-api.js",
+    "build:site": "node scripts/build-site.js",
+    "verify:build": "node scripts/verify-runtime.js",
     "lint": "eslint . --max-warnings=0",
     "ci": "npm run lint && npm run test:coverage"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=22 <25"
   },
   "dependencies": {
     "@azure/communication-email": "1.0.0",
     "@azure/data-tables": "13.2.2",
-    "stripe": "^22.3.2",
+    "stripe": "22.3.2",
     "uuid": "11.0.5"
   },
   "devDependencies": {
     "@eslint/js": "9.17.0",
     "@vitest/coverage-v8": "2.1.8",
+    "esbuild": "0.28.2",
     "eslint": "9.17.0",
     "vitest": "2.1.8"
   },

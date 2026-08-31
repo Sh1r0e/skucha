@@ -1,21 +1,36 @@
 const ConfigService = require("./ConfigService");
 const ReservationRepository = require("../repositories/ReservationRepository");
+const ConfigurationService = require("./ConfigurationService");
+const TimeService = require("./ReservationTimeService");
+const Lifecycle = require("./ReservationLifecycleService");
+
+const MAX_AVAILABILITY_RANGE_DAYS = 366;
 
 const defaultDependencies = {
   ConfigService,
-  ReservationRepository
+  ReservationRepository,
+  ConfigurationService,
+  TimeService,
+  now: function now() {
+    return new Date();
+  }
 };
-
-const BLOCKING_STATUSES = ["Pending", "Confirmed"];
 
 function asDate(value, fieldName) {
   var date = null;
 
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    var parts = value.split("-").map(Number);
-    date = new Date(parts[0], parts[1] - 1, parts[2]);
-  } else {
-    date = new Date(value);
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const invalidError = new Error("Invalid date: " + fieldName);
+    invalidError.statusCode = 400;
+    throw invalidError;
+  }
+
+  try {
+    date = TimeService.parseDateOnlyAsUtc(value);
+  } catch (_error) {
+    const invalidError = new Error("Invalid date: " + fieldName);
+    invalidError.statusCode = 400;
+    throw invalidError;
   }
 
   if (!date || Number.isNaN(date.getTime())) {
@@ -24,7 +39,7 @@ function asDate(value, fieldName) {
     throw error;
   }
 
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
   return date;
 }
 
@@ -33,20 +48,45 @@ function overlaps(rangeAStart, rangeAEnd, rangeBStart, rangeBEnd) {
 }
 
 function toIsoDate(date) {
-  var month = String(date.getMonth() + 1).padStart(2, "0");
-  var day = String(date.getDate()).padStart(2, "0");
-  return date.getFullYear() + "-" + month + "-" + day;
+  var month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  var day = String(date.getUTCDate()).padStart(2, "0");
+  return date.getUTCFullYear() + "-" + month + "-" + day;
 }
 
 function isIsoDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-function reservedPadsOnDate(date, reservations) {
+function isStalePending(reservation, dependencies) {
+  if (reservation.status !== Lifecycle.RESERVATION_STATUS.PENDING) {
+    return false;
+  }
+
+  const paymentStatus = String(reservation.paymentStatus || "").toLowerCase();
+  if (paymentStatus === "paid") {
+    return false;
+  }
+
+  const expiresAt = reservation.pendingExpiresAt
+    || (reservation.createdAt
+      ? TimeService.getPendingExpiration(
+        reservation.createdAt,
+        dependencies.ConfigurationService.getReservationPendingExpiryHours()
+      ).toISOString()
+      : "");
+
+  if (!expiresAt) {
+    return false;
+  }
+
+  return new Date(expiresAt).getTime() <= dependencies.now().getTime();
+}
+
+function reservedPadsOnDate(date, reservations, dependencies) {
   var reserved = 0;
 
   reservations.forEach(function (reservation) {
-    if (BLOCKING_STATUSES.indexOf(reservation.status) === -1) {
+    if (!Lifecycle.isBlockingStatus(reservation.status) || isStalePending(reservation, dependencies)) {
       return;
     }
 
@@ -81,14 +121,25 @@ function createAvailabilityService(customDependencies) {
       throw error;
     }
 
+    const rangeDays = Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+    if (rangeDays > MAX_AVAILABILITY_RANGE_DAYS) {
+      const error = new Error("Availability date range is too long");
+      error.statusCode = 400;
+      error.code = "AvailabilityRangeTooLong";
+      throw error;
+    }
+
     const config = await dependencies.ConfigService.loadConfig();
     let reservations = [];
 
     try {
       reservations = await dependencies.ReservationRepository.getReservations();
-    } catch (_error) {
-      // Keep calendar responsive even if storage is temporarily unavailable.
-      reservations = [];
+    } catch (error) {
+      const availabilityError = new Error("Availability storage is temporarily unavailable");
+      availabilityError.statusCode = 503;
+      availabilityError.code = "AvailabilityUnavailable";
+      availabilityError.details = error && error.message;
+      throw availabilityError;
     }
 
     const maxPads = Number((config.availability && config.availability.totalPads) || 0);
@@ -107,7 +158,7 @@ function createAvailabilityService(customDependencies) {
     const cursor = new Date(from);
 
     while (cursor.getTime() <= to.getTime()) {
-      const reservedOnDay = reservedPadsOnDate(cursor, reservations);
+      const reservedOnDay = reservedPadsOnDate(cursor, reservations, dependencies);
       const remainingOnDay = Math.max(0, maxPads - reservedOnDay);
 
       days[toIsoDate(cursor)] = remainingOnDay;
@@ -116,7 +167,7 @@ function createAvailabilityService(customDependencies) {
         maxReservedOnAnyDay = reservedOnDay;
       }
 
-      cursor.setDate(cursor.getDate() + 1);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
 
     const remainingPads = Math.max(0, maxPads - maxReservedOnAnyDay);

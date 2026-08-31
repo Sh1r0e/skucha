@@ -40,7 +40,7 @@ describe("ConfigService", function () {
     const config = await ConfigService.loadConfig();
 
     expect(readFile).toHaveBeenCalledTimes(2);
-    expect(config.contact.email).toBe("kontakt@skucha.pl");
+    expect(config.contact.email).toBe("rental@skucha.co");
     expect(config.availability.totalPads).toBe(4);
   });
 
@@ -105,7 +105,7 @@ describe("ConfigService", function () {
     const config = await ConfigService.loadConfig();
 
     // No contact/pricing/availability in file — mergeConfig fallbacks to defaults.
-    expect(config.contact.email).toBe("kontakt@skucha.pl");
+    expect(config.contact.email).toBe("rental@skucha.co");
     expect(config.pricing.weekday).toBe(40);
     expect(config.availability.totalPads).toBe(4);
     expect(config.pickupPoints[0].name).toBe("X");
@@ -122,7 +122,7 @@ describe("ConfigService", function () {
     const config = await ConfigService.loadConfig();
 
     // JSON.parse("null") === null — mergeConfig gets extra=null, falls back to default.
-    expect(config.contact.email).toBe("kontakt@skucha.pl");
+    expect(config.contact.email).toBe("rental@skucha.co");
     expect(config.pricing.weekday).toBe(40);
   });
 
