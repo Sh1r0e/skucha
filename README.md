@@ -53,9 +53,10 @@ Signing in with Microsoft Entra ID grants the built-in `authenticated` role; sta
 
 1. `POST /api/reservation` validates the required legal acknowledgements, claims the production `Idempotency-Key`, acquires the inventory lease, re-checks availability, saves a `Pending` reservation with consent evidence, creates a Stripe Checkout session, stores payment/cancellation data, and sends the checkout-start email.
 2. `checkout.session.completed` is durably deduplicated. A paid `Pending` reservation becomes `Confirmed`; late events never resurrect `Cancelled`, `Expired`, `InProgress`, or `Completed` reservations.
-3. `checkout.session.expired` conditionally changes unpaid `Pending` reservations to `Expired` and releases inventory.
-4. The emailed cancellation link opens a confirmation page. Only its explicit `POST /api/reservation/cancel` request can mutate state. Cancellation is allowed through 24 hours before rental start in `Europe/Warsaw`; paid refunds use Stripe idempotency and `CancellationPending` recovery.
-5. Staff use `/admin/reservations.html` to move `Confirmed` reservations to `InProgress` at collection and to `Completed` after all pads are returned.
+3. The payment-success page polls the reservation endpoint. If webhook delivery is delayed, the API retrieves the matching Checkout session and conditionally reconciles a paid `Pending` reservation after validating its reservation ID, session ID, amount, currency, and mode.
+4. `checkout.session.expired` conditionally changes unpaid `Pending` reservations to `Expired` and releases inventory.
+5. The emailed cancellation link opens a confirmation page. Only its explicit `POST /api/reservation/cancel` request can mutate state. Cancellation is allowed through 24 hours before rental start in `Europe/Warsaw`; paid refunds use Stripe idempotency and `CancellationPending` recovery.
+6. Staff use `/admin/reservations.html` to move `Confirmed` reservations to `InProgress` at collection and to `Completed` after all pads are returned.
 
 Published legal documents:
 

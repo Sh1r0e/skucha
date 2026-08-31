@@ -152,6 +152,38 @@ describe("stripe-webhook function", function () {
     );
   });
 
+  it("should_not_repeat_confirmation_after_checkout_return_reconciliation()", async function () {
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt_after_return",
+          data: { object: buildCompletedSession() }
+        })
+      }
+    });
+    deps.ReservationRepository.getReservation.mockResolvedValue({
+      id: "res-1",
+      status: "Confirmed",
+      paymentSessionId: "cs_test_123",
+      paymentStatus: "Paid",
+      paymentAmountMinor: 12000,
+      paymentCurrency: "PLN"
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(200);
+    expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
+    expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentConfirmationNotification).not.toHaveBeenCalled();
+  });
+
   it("should_reject_conflicting_reservation_identifiers_without_mutation()", async function () {
     const context = createMockContext();
     const deps = buildMockDependencies({

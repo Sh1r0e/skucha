@@ -21,6 +21,28 @@ const MOCK_RESERVATION = {
   pickupPoint: "Stablowice"
 };
 
+const PENDING_RESERVATION = {
+  ...MOCK_RESERVATION,
+  status: "Pending",
+  paymentStatus: "Unpaid",
+  paymentIntentId: "",
+  etag: "etag-1"
+};
+
+function paidCheckoutSession(overrides) {
+  return {
+    id: "cs_test_123",
+    mode: "payment",
+    payment_status: "paid",
+    payment_intent: "pi_test_123",
+    amount_total: 12000,
+    currency: "pln",
+    client_reference_id: "res-1",
+    metadata: { reservationId: "res-1" },
+    ...(overrides || {})
+  };
+}
+
 describe("get-reservation function", function () {
   beforeEach(function () {
     vi.clearAllMocks();
@@ -174,5 +196,136 @@ describe("get-reservation function", function () {
     });
 
     expect(context.res.status).toBe(200);
+  });
+
+  it("should_reconcile_a_paid_checkout_return_and_send_confirmation_once()", async function () {
+    const repository = {
+      getReservation: vi.fn().mockResolvedValue(PENDING_RESERVATION),
+      attachPayment: vi.fn().mockResolvedValue({
+        ...PENDING_RESERVATION,
+        paymentStatus: "Paid",
+        paymentIntentId: "pi_test_123",
+        etag: "etag-2"
+      }),
+      updateStatus: vi.fn().mockResolvedValue({
+        ...PENDING_RESERVATION,
+        status: "Confirmed",
+        paymentStatus: "Paid",
+        etag: "etag-3"
+      })
+    };
+    const sendPaymentConfirmationNotification = vi.fn().mockResolvedValue({ queued: true });
+    handler.__setDependencies({
+      ReservationRepository: repository,
+      StripeService: {
+        getCheckoutSession: vi.fn().mockResolvedValue(paidCheckoutSession())
+      },
+      MailService: { sendPaymentConfirmationNotification }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
+
+    expect(repository.attachPayment).toHaveBeenCalledWith(
+      "res-1",
+      expect.objectContaining({
+        sessionId: "cs_test_123",
+        paymentStatus: "Paid",
+        paymentIntentId: "pi_test_123",
+        amountInMinorUnit: 12000,
+        currency: "pln"
+      }),
+      { expectedStatus: "Pending", expectedEtag: "etag-1" }
+    );
+    expect(repository.updateStatus).toHaveBeenCalledWith(
+      "res-1",
+      "Confirmed",
+      { expectedStatus: "Pending", expectedEtag: "etag-2" }
+    );
+    expect(sendPaymentConfirmationNotification).toHaveBeenCalledTimes(1);
+    expect(context.res.body.status).toBe("Confirmed");
+    expect(context.res.body.payment.status).toBe("Paid");
+  });
+
+  it("should_leave_an_unpaid_checkout_pending_without_side_effects()", async function () {
+    const repository = {
+      getReservation: vi.fn().mockResolvedValue(PENDING_RESERVATION),
+      attachPayment: vi.fn(),
+      updateStatus: vi.fn()
+    };
+    const sendPaymentConfirmationNotification = vi.fn();
+    handler.__setDependencies({
+      ReservationRepository: repository,
+      StripeService: {
+        getCheckoutSession: vi.fn().mockResolvedValue(
+          paidCheckoutSession({ payment_status: "unpaid" })
+        )
+      },
+      MailService: { sendPaymentConfirmationNotification }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
+
+    expect(repository.attachPayment).not.toHaveBeenCalled();
+    expect(repository.updateStatus).not.toHaveBeenCalled();
+    expect(sendPaymentConfirmationNotification).not.toHaveBeenCalled();
+    expect(context.res.body.status).toBe("Pending");
+    expect(context.res.body.payment.status).toBe("Unpaid");
+  });
+
+  it("should_not_reconcile_a_paid_checkout_with_a_mismatched_contract()", async function () {
+    const repository = {
+      getReservation: vi.fn().mockResolvedValue(PENDING_RESERVATION),
+      attachPayment: vi.fn(),
+      updateStatus: vi.fn()
+    };
+    handler.__setDependencies({
+      ReservationRepository: repository,
+      StripeService: {
+        getCheckoutSession: vi.fn().mockResolvedValue(
+          paidCheckoutSession({ amount_total: 9999 })
+        )
+      },
+      MailService: { sendPaymentConfirmationNotification: vi.fn() }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
+
+    expect(repository.attachPayment).not.toHaveBeenCalled();
+    expect(repository.updateStatus).not.toHaveBeenCalled();
+    expect(context.res.body.status).toBe("Pending");
+  });
+
+  it("should_reload_the_reservation_when_the_webhook_wins_the_update_race()", async function () {
+    const conflict = Object.assign(new Error("Reservation changed"), {
+      statusCode: 409,
+      code: "StorageConflict"
+    });
+    const repository = {
+      getReservation: vi.fn()
+        .mockResolvedValueOnce(PENDING_RESERVATION)
+        .mockResolvedValueOnce(MOCK_RESERVATION),
+      attachPayment: vi.fn().mockRejectedValue(conflict),
+      updateStatus: vi.fn()
+    };
+    const sendPaymentConfirmationNotification = vi.fn();
+    handler.__setDependencies({
+      ReservationRepository: repository,
+      StripeService: {
+        getCheckoutSession: vi.fn().mockResolvedValue(paidCheckoutSession())
+      },
+      MailService: { sendPaymentConfirmationNotification }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
+
+    expect(repository.getReservation).toHaveBeenCalledTimes(2);
+    expect(repository.updateStatus).not.toHaveBeenCalled();
+    expect(sendPaymentConfirmationNotification).not.toHaveBeenCalled();
+    expect(context.res.body.status).toBe("Confirmed");
+    expect(context.res.body.payment.status).toBe("Paid");
   });
 });

@@ -144,6 +144,23 @@ function createStripeService(customDependencies) {
     }
   }
 
+  async function getCheckoutSession(sessionId) {
+    const normalizedSessionId = String(sessionId || "").trim();
+
+    if (!normalizedSessionId) {
+      const validationError = new Error("sessionId is required");
+      validationError.statusCode = 400;
+      validationError.code = "MissingSessionId";
+      throw validationError;
+    }
+
+    try {
+      return await getClient().checkout.sessions.retrieve(normalizedSessionId);
+    } catch (error) {
+      throw createPaymentError("Unable to load Stripe checkout session", error, "PaymentProviderError");
+    }
+  }
+
   async function refundCheckoutSessionPayment(params) {
     const sessionId = String((params && params.sessionId) || "").trim();
 
@@ -269,6 +286,7 @@ function createStripeService(customDependencies) {
 
   return {
     createCheckoutSession,
+    getCheckoutSession,
     verifyWebhookSignature,
     refundCheckoutSessionPayment,
     expireCheckoutSession
@@ -288,6 +306,9 @@ function __resetDependencies() {
 module.exports = {
   createCheckoutSession: function createCheckoutSessionProxy(params) {
     return activeService.createCheckoutSession(params);
+  },
+  getCheckoutSession: function getCheckoutSessionProxy(sessionId) {
+    return activeService.getCheckoutSession(sessionId);
   },
   verifyWebhookSignature: function verifyWebhookSignatureProxy(rawBody, signature) {
     return activeService.verifyWebhookSignature(rawBody, signature);

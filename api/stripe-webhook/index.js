@@ -205,6 +205,13 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
 
   validatePaymentContract(session, reservation, true);
 
+  if (reservation.status === Lifecycle.RESERVATION_STATUS.CONFIRMED
+    && String(reservation.paymentStatus || "").toLowerCase() === "paid"
+    && reservationStatus === Lifecycle.RESERVATION_STATUS.CONFIRMED) {
+    context.log("Stripe webhook: paid reservation already confirmed", { reservationId });
+    return;
+  }
+
   if ([
     Lifecycle.RESERVATION_STATUS.CANCELLED,
     Lifecycle.RESERVATION_STATUS.EXPIRED,

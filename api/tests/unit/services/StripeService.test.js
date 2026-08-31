@@ -138,6 +138,48 @@ describe("StripeService", function () {
     expect(result).toEqual(fakeEvent);
   });
 
+  it("should_retrieve_a_checkout_session_for_return_reconciliation()", async function () {
+    const retrieve = vi.fn().mockResolvedValue({
+      id: "cs_test_123",
+      payment_status: "paid"
+    });
+
+    StripeService.__setDependencies({
+      stripeClient: { checkout: { sessions: { retrieve } } }
+    });
+
+    await expect(StripeService.getCheckoutSession(" cs_test_123 ")).resolves.toMatchObject({
+      id: "cs_test_123",
+      payment_status: "paid"
+    });
+    expect(retrieve).toHaveBeenCalledWith("cs_test_123");
+  });
+
+  it("should_wrap_checkout_session_retrieval_failures()", async function () {
+    StripeService.__setDependencies({
+      stripeClient: {
+        checkout: {
+          sessions: {
+            retrieve: vi.fn().mockRejectedValue(new Error("Stripe unavailable"))
+          }
+        }
+      }
+    });
+
+    await expect(StripeService.getCheckoutSession("cs_test_123")).rejects.toMatchObject({
+      statusCode: 502,
+      code: "PaymentProviderError",
+      details: "Stripe unavailable"
+    });
+  });
+
+  it("should_reject_checkout_retrieval_without_a_session_id()", async function () {
+    await expect(StripeService.getCheckoutSession(" ")).rejects.toMatchObject({
+      statusCode: 400,
+      code: "MissingSessionId"
+    });
+  });
+
   it("should_throw_400_when_webhook_signature_is_invalid()", function () {
     StripeService.__setDependencies({
       stripeClient: {
