@@ -9,10 +9,13 @@ const defaultDependencies = {
   fetch: global.fetch
 };
 
-function verificationError(message, statusCode, code) {
+function verificationError(message, statusCode, code, details) {
   const error = new Error(message);
   error.statusCode = statusCode;
   error.code = code;
+  if (details) {
+    error.details = details;
+  }
   return error;
 }
 
@@ -94,10 +97,24 @@ function createTurnstileService(customDependencies) {
       global.clearTimeout(timeout);
     }
 
-    if (!result || result.success !== true
-      || result.action !== "reservation"
-      || String(result.hostname || "").toLowerCase() !== expectedHostname.toLowerCase()) {
-      throw verificationError("Complete the bot verification and try again", 400, "BotVerificationFailed");
+    if (!result || result.success !== true) {
+      throw verificationError("Complete the bot verification and try again", 400, "BotVerificationFailed", {
+        reason: "siteverify-rejected",
+        errorCodes: Array.isArray(result && result["error-codes"]) ? result["error-codes"] : []
+      });
+    }
+    if (result.action !== "reservation") {
+      throw verificationError("Complete the bot verification and try again", 400, "BotVerificationFailed", {
+        reason: "action-mismatch",
+        receivedAction: String(result.action || "")
+      });
+    }
+    if (String(result.hostname || "").toLowerCase() !== expectedHostname.toLowerCase()) {
+      throw verificationError("Complete the bot verification and try again", 400, "BotVerificationFailed", {
+        reason: "hostname-mismatch",
+        expectedHostname,
+        receivedHostname: String(result.hostname || "")
+      });
     }
 
     return { success: true };

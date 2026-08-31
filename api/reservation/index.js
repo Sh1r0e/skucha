@@ -80,7 +80,8 @@ function createReservationHandler(customDependencies) {
         requestId: requestId,
         statusCode: statusCode,
         message: error.message,
-        code: code
+        code: code,
+        details: error.details
       });
 
       context.res = jsonResponse(statusCode, {

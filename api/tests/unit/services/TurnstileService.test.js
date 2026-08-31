@@ -46,8 +46,16 @@ describe("TurnstileService", function () {
 
     await expect(failed.verifyReservation("", {})).rejects.toMatchObject({ statusCode: 400, code: "BotVerificationFailed" });
     await expect(failed.verifyReservation("a".repeat(2049), {})).rejects.toMatchObject({ statusCode: 400, code: "BotVerificationFailed" });
-    await expect(failed.verifyReservation("invalid", {})).rejects.toMatchObject({ statusCode: 400, code: "BotVerificationFailed" });
-    await expect(wrongAction.verifyReservation("valid", {})).rejects.toMatchObject({ statusCode: 400, code: "BotVerificationFailed" });
+    await expect(failed.verifyReservation("invalid", {})).rejects.toMatchObject({
+      statusCode: 400,
+      code: "BotVerificationFailed",
+      details: { reason: "siteverify-rejected", errorCodes: ["invalid-input-response"] }
+    });
+    await expect(wrongAction.verifyReservation("valid", {})).rejects.toMatchObject({
+      statusCode: 400,
+      code: "BotVerificationFailed",
+      details: { reason: "action-mismatch", receivedAction: "login" }
+    });
     expect(failedFetch.mock.calls[0][1].body).not.toContain("remoteip");
   });
 
