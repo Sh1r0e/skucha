@@ -18,6 +18,8 @@ const {
 } = require("../../scripts/build-site");
 const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
 const sourceSiteConfigPath = path.resolve(__dirname, "../../..", "config", "config.json");
+const paymentSuccessPagePath = path.resolve(__dirname, "../../..", "skucha-payment-success.html");
+const reservationCancelPagePath = path.resolve(__dirname, "../../..", "reservation-cancel.html");
 const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
 const adminHousekeepingConfigPath = path.resolve(__dirname, "../../admin/housekeeping/function.json");
 
@@ -120,6 +122,20 @@ describe("deployment workflow", function () {
       fs.readFileSync(path.join(outputRoot, "config", "config.json"), "utf8")
     );
     expect(productionConfig.botProtection.turnstileSiteKey).not.toBe("");
+  });
+
+  it("should_show_payment_loading_and_human_readable_refund_outcomes", function () {
+    const paymentSuccessPage = fs.readFileSync(paymentSuccessPagePath, "utf8");
+    const reservationCancelPage = fs.readFileSync(reservationCancelPagePath, "utf8");
+
+    expect(paymentSuccessPage).toContain('id="summaryLoading"');
+    expect(paymentSuccessPage).toContain('aria-busy="true"');
+    expect(paymentSuccessPage).toContain("finishSummaryLoading()");
+    expect(paymentSuccessPage).toContain("showVerificationUnavailable()");
+    expect(reservationCancelPage).toContain('refundStatus === "succeeded"');
+    expect(reservationCancelPage).toContain('refundStatus === "pending"');
+    expect(reservationCancelPage).toContain('refundStatus === "failed"');
+    expect(reservationCancelPage).toContain("Stripe potwierdził pełny zwrot pieniędzy");
   });
 
   it("should leave admin API authorization to the Function handlers", function () {

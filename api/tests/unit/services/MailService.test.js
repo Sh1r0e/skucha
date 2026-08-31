@@ -65,12 +65,14 @@ describe("MailService", function () {
     expect(beginSend.mock.calls[0][0]).toMatchObject({
       senderAddress: "rental@skucha.co"
     });
-    expect(beginSend.mock.calls[0][0].content.html).toContain("Twoja rezerwacja");
-    expect(beginSend.mock.calls[0][0].content.html).toContain("Przejdź do płatności");
-    expect(beginSend.mock.calls[0][0].content.html).toContain("Co musisz wiedzieć");
-    expect(beginSend.mock.calls[0][0].content.html).toContain("Bouldering jest niebezpieczny");
-    expect(beginSend.mock.calls[0][0].content.html).not.toContain("<details");
-    expect(beginSend.mock.calls[0][0].content.html).not.toContain("<summary");
+    const html = beginSend.mock.calls[0][0].content.html;
+    expect(html).toContain("Twoja rezerwacja");
+    expect(html).toContain("Przejdź do płatności");
+    expect(html).toContain("Co musisz wiedzieć");
+    expect(html).toContain("Bouldering jest niebezpieczny");
+    expect(html.indexOf("Przejdź do płatności")).toBeGreaterThan(html.indexOf("Oddajesz w umówionym terminie"));
+    expect(html).not.toContain("<details");
+    expect(html).not.toContain("<summary");
     expect(result).toMatchObject({
       queued: true,
       mode: "acs-email",
@@ -175,6 +177,8 @@ describe("MailService", function () {
     expect(message.content.html).not.toContain(">Do zapłaty teraz<");
     expect(message.content.html).toContain("Anuluj rezerwację i poproś o zwrot");
     expect(message.content.html).toContain("mailto:rental@skucha.co");
+    expect(message.content.html.indexOf("Anuluj rezerwację i poproś o zwrot"))
+      .toBeGreaterThan(message.content.html.indexOf("W załącznikach znajdziesz"));
     expect(message.content.html).not.toContain("△");
     expect(message.content.html).not.toContain("▣");
     expect(message.content.attachments).toBeUndefined();

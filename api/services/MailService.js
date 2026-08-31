@@ -272,10 +272,10 @@ function buildPaymentEmailHtml(reservation, title, introduction, options) {
     + '<div style="margin-top:14px;color:#9a968e;font:10px/1.2 monospace;letter-spacing:.06em;text-transform:uppercase;">ID rezerwacji <strong style="margin-left:5px;color:#1a1916;font-size:11px;letter-spacing:0;">' + escapeHtml(details.id) + '</strong></div></div>'
     + '<div style="padding:24px 26px;"><div style="font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Twoja rezerwacja</div>'
     + '<div style="margin-top:12px;">' + buildEmailSummaryHtml(details, settings) + '</div>'
-    + buildEmailActionsHtml(details, settings)
     + (settings.cancellationClosedMessage ? '<p style="margin:8px 0 0;color:#6b6862;font-size:13px;line-height:1.5;">' + escapeHtml(settings.cancellationClosedMessage) + '</p>' : '')
     + (settings.includeKnowledge === false ? '' : '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Co musisz wiedzieć</div>' + buildEmailKnowledgeHtml(details))
     + (settings.attachmentNote ? '<p style="margin:18px 0 0;color:#6b6862;font-size:12px;line-height:1.5;">' + escapeHtml(settings.attachmentNote) + '</p>' : '')
+    + buildEmailActionsHtml(details, settings)
     + '<p style="margin:18px 0 0;color:#6b6862;font:11px/1.5 monospace;">Wiadomość automatyczna z adresu rental@skucha.co. ' + escapeHtml(title) + '.'
     + (sentAt ? ' Wysłano: ' + escapeHtml(sentAt) + '.' : '')
     + '</p></div></div></body></html>';
