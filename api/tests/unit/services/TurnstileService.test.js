@@ -8,21 +8,20 @@ function configuration(secret) {
 }
 
 describe("TurnstileService", function () {
-  it("should_validate_the_token_action_hostname_and_remote_address", async function () {
+  it("should_validate_the_token_action_and_hostname_without_proxy_address", async function () {
     const fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ success: true, action: "reservation", hostname: "www.skucha.co" })
     });
     const service = TurnstileService.createTurnstileService({
       ConfigurationService: configuration("turnstile-secret"),
-      fetch,
-      getClientAddress: vi.fn().mockReturnValue("203.0.113.9")
+      fetch
     });
 
     await expect(service.verifyReservation("valid-token", { headers: {} })).resolves.toEqual({ success: true });
     expect(fetch).toHaveBeenCalledWith(TurnstileService.SITEVERIFY_URL, expect.objectContaining({
       method: "POST",
-      body: expect.stringContaining("remoteip=203.0.113.9")
+      body: expect.not.stringContaining("remoteip=")
     }));
   });
 
