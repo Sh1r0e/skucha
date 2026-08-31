@@ -372,11 +372,7 @@ function createMailService(customDependencies) {
       html: message.bodyHtml || undefined
     };
 
-    if (Array.isArray(message.attachments) && message.attachments.length) {
-      content.attachments = message.attachments;
-    }
-
-    const poller = await emailClient.beginSend({
+    const emailMessage = {
       senderAddress: senderAddress,
       content: content,
       recipients: {
@@ -387,7 +383,13 @@ function createMailService(customDependencies) {
           }
         ]
       }
-    });
+    };
+
+    if (Array.isArray(message.attachments) && message.attachments.length) {
+      emailMessage.attachments = message.attachments;
+    }
+
+    const poller = await emailClient.beginSend(emailMessage);
 
     const response = await poller.pollUntilDone();
 

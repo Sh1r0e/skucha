@@ -172,13 +172,14 @@ describe("MailService", function () {
     expect(message.content.html).not.toContain("△");
     expect(message.content.html).not.toContain("▣");
     expect(message.content.plainText).toContain("/api/reservation/cancel?reservation_id=res-1");
-    expect(message.content.attachments).toHaveLength(2);
-    expect(message.content.attachments.map(function (attachment) { return attachment.name; })).toEqual([
+    expect(message.content.attachments).toBeUndefined();
+    expect(message.attachments).toHaveLength(2);
+    expect(message.attachments.map(function (attachment) { return attachment.name; })).toEqual([
       "rental-terms-v1.0.pdf",
       "privacy-policy-v1.0.pdf"
     ]);
-    expect(message.content.attachments[0].contentType).toBe("application/pdf");
-    expect(message.content.attachments[0].contentInBase64.length).toBeGreaterThan(100);
+    expect(message.attachments[0].contentType).toBe("application/pdf");
+    expect(message.attachments[0].contentInBase64.length).toBeGreaterThan(100);
   });
 
   it("should_send_expired_checkout_notification_with_acs_when_enabled()", async function () {
