@@ -255,8 +255,7 @@ function buildPaymentEmailHtml(reservation, title, introduction, options) {
     + '<div style="margin-top:12px;">' + buildEmailSummaryHtml(details, settings) + '</div>'
     + buildEmailActionsHtml(details, settings)
     + (settings.cancellationClosedMessage ? '<p style="margin:8px 0 0;color:#6b6862;font-size:13px;line-height:1.5;">' + escapeHtml(settings.cancellationClosedMessage) + '</p>' : '')
-    + '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Co musisz wiedzieć</div>'
-    + buildEmailKnowledgeHtml(details)
+    + (settings.includeKnowledge === false ? '' : '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Co musisz wiedzieć</div>' + buildEmailKnowledgeHtml(details))
     + (settings.attachmentNote ? '<p style="margin:18px 0 0;color:#6b6862;font-size:12px;line-height:1.5;">' + escapeHtml(settings.attachmentNote) + '</p>' : '')
     + '<p style="margin:18px 0 0;color:#6b6862;font:11px/1.5 monospace;">Wiadomość automatyczna z adresu rental@skucha.co.</p></div></div></body></html>';
 }
@@ -367,10 +366,17 @@ function createMailService(customDependencies) {
 
     const emailClient = getClient();
     const content = {
-      subject: message.subject,
-      plainText: message.bodyText,
-      html: message.bodyHtml || undefined
+      subject: message.subject
     };
+
+    if (message.bodyHtml) {
+      content.html = message.bodyHtml;
+      if (!message.htmlOnly) {
+        content.plainText = message.bodyText;
+      }
+    } else {
+      content.plainText = message.bodyText;
+    }
 
     const emailMessage = {
       senderAddress: senderAddress,
@@ -411,7 +417,8 @@ function createMailService(customDependencies) {
       {
         includeCheckoutUrl: true,
         includeCancellation,
-        cancellationLabel: "Anuluj rezerwację"
+        cancellationLabel: "Anuluj rezerwację",
+        includeKnowledge: false
       }
     );
 
@@ -471,7 +478,8 @@ function createMailService(customDependencies) {
         cancellationClosedMessage: includeCancellation
           ? "Bezpłatne anulowanie ze zwrotem jest dostępne do 24 godzin przed rozpoczęciem najmu."
           : "Termin bezpłatnego anulowania ze zwrotem minął. W razie pytań skontaktuj się z nami.",
-        attachmentNote: "W załącznikach znajdziesz Regulamin SKUCHA oraz Politykę prywatności w wersji zaakceptowanej przy rezerwacji."
+        attachmentNote: "W załącznikach znajdziesz Regulamin SKUCHA oraz Politykę prywatności w wersji zaakceptowanej przy rezerwacji.",
+        includeKnowledge: false
       }
     );
 
@@ -481,6 +489,7 @@ function createMailService(customDependencies) {
       subject: "Skucha - płatność potwierdzona",
       bodyText: bodyText + "\n\nW załącznikach: Regulamin SKUCHA oraz Polityka prywatności w wersji zaakceptowanej przy rezerwacji.",
       bodyHtml: bodyHtml,
+      htmlOnly: true,
       attachments: loadLegalAttachments(dependencies)
     });
   }
