@@ -627,15 +627,18 @@ class Component extends DCLogic {
     return Math.max(0,m);
   }
 
-  async loadMonthAvailability(year, month){
+  async loadMonthAvailability(year, month, forceRefresh){
     const monthKey = year + '-' + String(month + 1).padStart(2, '0');
-    if (this.state.loadedMonths[monthKey]) return;
+    if (this.state.loadedMonths[monthKey] && !forceRefresh) return;
 
     const from = this.key(new Date(year, month, 1));
     const to = this.key(new Date(year, month + 1, 0));
 
     try {
-      const response = await fetch('/api/availability?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const response = await fetch('/api/availability?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to), {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
       const payload = await this.readApiPayload(response);
       if (!response.ok || !payload || typeof payload.days !== 'object') return;
 
@@ -652,6 +655,14 @@ class Component extends DCLogic {
     } catch (error) {
       // Keep optimistic defaults when API is temporarily unavailable.
     }
+  }
+
+  scheduleAvailabilityRefresh(){
+    if(this._availabilityRefreshTimer) clearTimeout(this._availabilityRefreshTimer);
+    this._availabilityRefreshTimer = setTimeout(() => {
+      this._availabilityRefreshTimer = null;
+      this.loadMonthAvailability(this.state.calYear, this.state.calMonth, true);
+    }, 150);
   }
 
   async readApiPayload(response){
@@ -692,6 +703,12 @@ class Component extends DCLogic {
   componentDidMount(){
     this.applyTheme();
     this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
+    this._onAvailabilityFocus = () => this.scheduleAvailabilityRefresh();
+    this._onAvailabilityVisibility = () => {
+      if(!document.hidden) this.scheduleAvailabilityRefresh();
+    };
+    window.addEventListener('focus', this._onAvailabilityFocus);
+    document.addEventListener('visibilitychange', this._onAvailabilityVisibility);
     this.renderTurnstile();
   }
 
@@ -706,6 +723,9 @@ class Component extends DCLogic {
   }
 
   componentWillUnmount(){
+    if(this._availabilityRefreshTimer) clearTimeout(this._availabilityRefreshTimer);
+    window.removeEventListener('focus', this._onAvailabilityFocus);
+    document.removeEventListener('visibilitychange', this._onAvailabilityVisibility);
     if (this._turnstileWidgetId !== undefined && window.turnstile) {
       window.turnstile.remove(this._turnstileWidgetId);
     }

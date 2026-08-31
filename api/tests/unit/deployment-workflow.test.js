@@ -18,6 +18,7 @@ const {
 } = require("../../scripts/build-site");
 const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
 const sourceSiteConfigPath = path.resolve(__dirname, "../../..", "config", "config.json");
+const reservationPagePath = path.resolve(__dirname, "../../..", "skucha.html");
 const paymentSuccessPagePath = path.resolve(__dirname, "../../..", "skucha-payment-success.html");
 const reservationCancelPagePath = path.resolve(__dirname, "../../..", "reservation-cancel.html");
 const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
@@ -136,6 +137,17 @@ describe("deployment workflow", function () {
     expect(reservationCancelPage).toContain('refundStatus === "pending"');
     expect(reservationCancelPage).toContain('refundStatus === "failed"');
     expect(reservationCancelPage).toContain("Stripe potwierdził pełny zwrot pieniędzy");
+  });
+
+  it("should_refresh_calendar_availability_when_the_reservation_tab_becomes_active", function () {
+    const reservationPage = fs.readFileSync(reservationPagePath, "utf8");
+
+    expect(reservationPage).toContain("loadMonthAvailability(this.state.calYear, this.state.calMonth, true)");
+    expect(reservationPage).toContain("cache: 'no-store'");
+    expect(reservationPage).toContain("window.addEventListener('focus', this._onAvailabilityFocus)");
+    expect(reservationPage).toContain("document.addEventListener('visibilitychange', this._onAvailabilityVisibility)");
+    expect(reservationPage).toContain("window.removeEventListener('focus', this._onAvailabilityFocus)");
+    expect(reservationPage).toContain("document.removeEventListener('visibilitychange', this._onAvailabilityVisibility)");
   });
 
   it("should leave admin API authorization to the Function handlers", function () {
