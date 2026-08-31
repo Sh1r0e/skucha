@@ -362,17 +362,17 @@
       }
 
       var params = new URLSearchParams(window.location.search);
-      var reservationId = params.get('reservation_id') || '-';
-      var sessionId = params.get('session_id') || '-';
-      var amount = params.get('amount') || '-';
-      var dateFrom = params.get('dateFrom') || '';
-      var dateTo = params.get('dateTo') || '';
-      var padsCount = params.get('padsCount') || '-';
-      var pickupPoint = params.get('pickupPoint') || '';
+      var lookupReservationId = params.get('reservation_id') || '';
+      var lookupSessionId = params.get('session_id') || '';
+      var reservationId = '-';
+      var amount = '-';
+      var dateFrom = '';
+      var dateTo = '';
+      var padsCount = '-';
+      var pickupPoint = '';
 
-      var statusText = params.get('payment_status') || 'pending_confirmation';
-      var hasReservationId = reservationId !== '-';
-      var hasSessionId = sessionId !== '-';
+      var hasReservationId = lookupReservationId !== '';
+      var hasSessionId = lookupSessionId !== '';
       var statusChecksRemaining = 12;
       var statusCheckDelayMs = 2500;
 
@@ -445,7 +445,7 @@
 
         statusChecksRemaining -= 1;
 
-        fetch('/api/reservation?id=' + encodeURIComponent(reservationId) + '&session_id=' + encodeURIComponent(sessionId))
+        fetch('/api/reservation?id=' + encodeURIComponent(lookupReservationId) + '&session_id=' + encodeURIComponent(lookupSessionId))
           .then(function (res) { return res.ok ? res.json() : null; })
           .then(function (data) {
             var paid = updateStatusFromApi(data);
@@ -469,6 +469,7 @@
         fetchStatusWithRetry();
       } else {
         finishSummaryLoading();
+        byId('statusText').textContent = 'Nie udało się zweryfikować rezerwacji.';
       }
     })();
   </script>

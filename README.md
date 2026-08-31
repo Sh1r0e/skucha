@@ -10,7 +10,7 @@ This project is intentionally lightweight:
 - static HTML/CSS/JavaScript frontend
 - Azure Functions integrated in `/api`
 - API deployment bundle generated with esbuild
-- Static site artifact generated with `npm run build:site` from an explicit allowlist
+- Static site artifact generated with `npm run build:site` from an explicit allowlist, local React bundle, and precompiled component logic
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Frontend responsibilities:
 - perform basic form validation
 - call API endpoints
 - check `/api/site-status` before exposing new booking interactions
-- keep existing payment and cancellation operations available during maintenance
+- show the maintenance page while every operational API, including payment and cancellation processing, fails closed
 
 Backend responsibilities:
 
@@ -169,6 +169,8 @@ Stripe runtime settings are provided via environment variables in Azure Function
 - `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret for `/api/stripe-webhook`
 
 Production configuration validation also requires a canonical HTTPS public base URL, same-origin HTTPS Stripe return URLs containing `{CHECKOUT_SESSION_ID}`, a live `sk_live_` Stripe key, a `whsec_` webhook secret, and strong distinct values for `RESERVATION_CANCEL_TOKEN_SECRET` and `HOUSEKEEPING_SECRET`. The production dependency audit is enforced in CI; the audit document records the remaining Azure transitive exceptions and their runtime compatibility constraint.
+
+The canonical production origin is `https://www.skucha.co`. Production configuration rejects another origin, and the main deployment probes canonical application routes plus same-path redirects from `https://skucha.co`. The apex redirect is managed by GoDaddy DNS/forwarding and must preserve each request path.
 
 Cancellation link settings:
 

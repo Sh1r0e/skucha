@@ -22,9 +22,9 @@ jobs:
       run:
         working-directory: api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -52,19 +52,18 @@ jobs:
       run:
         working-directory: api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: api/package-lock.json
       - name: Verify pinned production package versions are published
         run: |
-          test "$(npm view @azure/communication-email@1.0.0 version)" = "1.0.0"
-          test "$(npm view @azure/data-tables@13.2.2 version)" = "13.2.2"
+          test "$(npm view @azure/communication-email@1.1.0 version)" = "1.1.0"
+          test "$(npm view @azure/data-tables@13.3.2 version)" = "13.3.2"
           test "$(npm view stripe@22.3.2 version)" = "22.3.2"
-          test "$(npm view uuid@11.0.5 version)" = "11.0.5"
       - name: Install development dependencies
         run: npm ci
       - name: Verify source build and Function entrypoints
@@ -85,12 +84,12 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
           lfs: false
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -105,7 +104,7 @@ jobs:
           npm run build:site
       - name: Build And Deploy
         id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WITTY_BUSH_0164EBC10 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
@@ -119,6 +118,29 @@ jobs:
           skip_api_build: true
           production_branch: "main"
           ###### End of Repository/Build Configurations ######
+      - name: Verify production canonical routes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          canonical_origin="https://www.skucha.co"
+          apex_origin="https://skucha.co"
+          paths=(
+            "/skucha.html"
+            "/privacy-policy.html"
+            "/rental-terms.html"
+            "/reservation-cancel.html"
+            "/skucha-payment-success.html"
+            "/api/site-status"
+          )
+
+          for path in "${paths[@]}"; do
+            curl --fail --silent --show-error --retry 5 --retry-all-errors \
+              --output /dev/null "${canonical_origin}${path}"
+            final_url="$(curl --fail --silent --show-error --location \
+              --output /dev/null --write-out '%{url_effective}' "${apex_origin}${path}")"
+            test "$final_url" = "${canonical_origin}${path}"
+          done
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -127,7 +149,7 @@ jobs:
     steps:
       - name: Close Pull Request
         id: closepullrequest
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_WITTY_BUSH_0164EBC10 }}
           action: "close"
