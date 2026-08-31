@@ -75,10 +75,16 @@ function createTurnstileService(customDependencies) {
         body: body.toString(),
         signal: controller.signal
       });
+      result = await response.json();
       if (!response.ok) {
+        const errorCodes = Array.isArray(result && result["error-codes"])
+          ? result["error-codes"]
+          : [];
+        if (errorCodes.includes("missing-input-secret") || errorCodes.includes("invalid-input-secret")) {
+          throw verificationError("Bot verification is not configured", 503, "BotVerificationNotConfigured");
+        }
         throw verificationError("Bot verification is temporarily unavailable", 503, "BotVerificationUnavailable");
       }
-      result = await response.json();
     } catch (error) {
       if (error && error.statusCode) {
         throw error;
