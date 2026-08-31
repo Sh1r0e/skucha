@@ -173,6 +173,24 @@ function formatEmailDate(value) {
   return match ? match[3] + "." + match[2] : String(value || "-");
 }
 
+function formatEmailSentAt(value) {
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("pl-PL", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(date);
+}
+
 function formatEmailPeriod(details) {
   const start = new Date(String(details.dateFrom) + "T00:00:00Z");
   const end = new Date(String(details.dateTo || details.dateFrom) + "T00:00:00Z");
@@ -245,6 +263,7 @@ function buildEmailActionsHtml(details, options) {
 function buildPaymentEmailHtml(reservation, title, introduction, options) {
   const details = normalizeReservation(reservation);
   const settings = options || {};
+  const sentAt = formatEmailSentAt(settings.sentAt);
   return '<!doctype html><html lang="pl"><body style="margin:0;padding:24px 12px;background:#f5f4f1;color:#1a1916;font-family:Arial,sans-serif;">'
     + '<div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e7e5e1;border-radius:18px;overflow:hidden;">'
     + '<div style="padding:24px 26px;border-bottom:1px solid #e7e5e1;"><div style="font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#fb5a12;">SKUCHA · Stripe checkout</div>'
@@ -253,11 +272,13 @@ function buildPaymentEmailHtml(reservation, title, introduction, options) {
     + '<div style="margin-top:14px;color:#9a968e;font:10px/1.2 monospace;letter-spacing:.06em;text-transform:uppercase;">ID rezerwacji <strong style="margin-left:5px;color:#1a1916;font-size:11px;letter-spacing:0;">' + escapeHtml(details.id) + '</strong></div></div>'
     + '<div style="padding:24px 26px;"><div style="font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Twoja rezerwacja</div>'
     + '<div style="margin-top:12px;">' + buildEmailSummaryHtml(details, settings) + '</div>'
-    + buildEmailActionsHtml(details, settings)
     + (settings.cancellationClosedMessage ? '<p style="margin:8px 0 0;color:#6b6862;font-size:13px;line-height:1.5;">' + escapeHtml(settings.cancellationClosedMessage) + '</p>' : '')
     + (settings.includeKnowledge === false ? '' : '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Co musisz wiedzieć</div>' + buildEmailKnowledgeHtml(details))
     + (settings.attachmentNote ? '<p style="margin:18px 0 0;color:#6b6862;font-size:12px;line-height:1.5;">' + escapeHtml(settings.attachmentNote) + '</p>' : '')
-    + '<p style="margin:18px 0 0;color:#6b6862;font:11px/1.5 monospace;">Wiadomość automatyczna z adresu rental@skucha.co.</p></div></div></body></html>';
+    + buildEmailActionsHtml(details, settings)
+    + '<p style="margin:18px 0 0;color:#6b6862;font:11px/1.5 monospace;">Wiadomość automatyczna z adresu rental@skucha.co. ' + escapeHtml(title) + '.'
+    + (sentAt ? ' Wysłano: ' + escapeHtml(sentAt) + '.' : '')
+    + '</p></div></div></body></html>';
 }
 
 function buildCancellationEmail(reservation) {
@@ -418,7 +439,7 @@ function createMailService(customDependencies) {
         includeCheckoutUrl: true,
         includeCancellation,
         cancellationLabel: "Anuluj rezerwację",
-        includeKnowledge: false
+        sentAt: dependencies.now()
       }
     );
 
@@ -479,7 +500,7 @@ function createMailService(customDependencies) {
           ? "Bezpłatne anulowanie ze zwrotem jest dostępne do 24 godzin przed rozpoczęciem najmu."
           : "Termin bezpłatnego anulowania ze zwrotem minął. W razie pytań skontaktuj się z nami.",
         attachmentNote: "W załącznikach znajdziesz Regulamin SKUCHA oraz Politykę prywatności w wersji zaakceptowanej przy rezerwacji.",
-        includeKnowledge: false
+        sentAt: dependencies.now()
       }
     );
 

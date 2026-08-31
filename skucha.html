@@ -354,12 +354,12 @@
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">01</div>
           <div style="font-size:19px; font-weight:700; margin-top:30px;">Wybierz daty i liczbę padów</div>
-          <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">W kalendarzu. Cena liczy się sama — dni robocze i weekendowe osobno.</div>
+          <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">Użyj kalendarza. Cena liczy się sama.</div>
         </div>
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">02</div>
           <div style="font-size:19px; font-weight:700; margin-top:30px;">Odbiór albo dowóz</div>
-          <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">Wpadasz do Stabłowic, albo dowozimy pod sektor — koszt dowozu ustalamy indywidualnie.</div>
+          <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">Wpadasz do nas we Wrocławiu, płacisz i odbierasz.</div>
         </div>
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">03</div>
@@ -368,7 +368,7 @@
         </div>
         <div style="background:#fff; border:1px solid #ededea; border-radius:var(--r-lg); padding:24px; min-height:200px;">
           <div style="font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:15px;">04</div>
-          <div style="font-size:19px; font-weight:700; margin-top:30px;">Łap projekty bez strachu</div>
+          <div style="font-size:19px; font-weight:700; margin-top:30px;">Spadaj bez strachu</div>
           <div style="font-size:14.5px; color:#6b6862; margin-top:8px; line-height:1.5;">Oddajesz pady w umówionym terminie. Tyle.</div>
         </div>
       </div>
@@ -382,7 +382,7 @@
         <div>
           <div style="font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; color:var(--accent); font-weight:700; text-transform:uppercase;">02 · Cennik</div>
           <h2 class="pricing-title" style="margin:12px 0 16px; font-size:42px; font-weight:800; letter-spacing:-0.03em; line-height:1.02;">Prosto, za pad, za dzień</h2>
-          <p style="font-family:var(--font-mono); font-size:12.5px; color:#9a968e; line-height:1.6; max-width:32ch;">Ceny za jeden pad. Kilka padów = wielokrotność. Dowóz liczony za każdy pad.</p>
+          <p style="font-family:var(--font-mono); font-size:12.5px; color:#9a968e; line-height:1.6; max-width:32ch;">Ceny za jeden pad. Kilka padów = wielokrotność. Dowóz liczony za każdy pad. Kaucja 200 zł płatna gotówką przy wypożyczeniu i oddawana przy odbiorze.</p>
         </div>
         <div class="pricing-cards" style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px;">
           <div class="pricing-card" style="border:1px solid #34322d; border-radius:var(--r-lg); padding:24px; display:flex; flex-direction:column; justify-content:space-between; min-height:170px;">
@@ -435,7 +435,7 @@
       <div style="max-width:60ch;">
         <div style="font-family:var(--font-mono); font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">Wkrótce więcej</div>
         <div style="font-size:22px; font-weight:800; margin-top:8px; line-height:1.1;">Rozwijamy ofertę</div>
-        <p style="font-size:15px; color:#6b6862; line-height:1.55; margin:10px 0 0;">Na start jeździmy na sprawdzonych Circuitach, ale flota rośnie — dokładamy kolejne pady i większe modele na highballe. Potrzebujesz konkretnego rozmiaru albo większej liczby sztuk na wyjazd? Napisz, dogadamy.</p>
+        <p style="font-size:15px; color:#6b6862; line-height:1.55; margin:10px 0 0;">Na start jeździmy na sprawdzonych Circuitach, ale flota będzie rosnąć. Potrzebujesz konkretnego rozmiaru albo większej liczby sztuk na wyjazd? Napisz, dogadamy.</p>
       </div>
       <div class="upcoming-tags" style="display:flex; flex-direction:column; gap:10px; flex:none;">
         <span style="font-family:var(--font-mono); font-size:12px; background:#fff; border:1px solid #e7e5e1; padding:9px 14px; border-radius:999px; font-weight:700; text-align:center;">+ WIĘKSZE PADY</span>
@@ -611,6 +611,8 @@ class Component extends DCLogic {
     const today = this.mk(this.todayIso());
     const d = this.mk(str);
     if(!d || d < today) return -1;
+    const monthKey = String(str).slice(0, 7);
+    if(!this.state.loadedMonths[monthKey]) return -2;
     const fromApi = this.state.availabilityByDate[str];
     if(typeof fromApi === 'number') return Math.max(0, Math.min(4, fromApi));
     return 4;
@@ -627,15 +629,18 @@ class Component extends DCLogic {
     return Math.max(0,m);
   }
 
-  async loadMonthAvailability(year, month){
+  async loadMonthAvailability(year, month, forceRefresh){
     const monthKey = year + '-' + String(month + 1).padStart(2, '0');
-    if (this.state.loadedMonths[monthKey]) return;
+    if (this.state.loadedMonths[monthKey] && !forceRefresh) return;
 
     const from = this.key(new Date(year, month, 1));
     const to = this.key(new Date(year, month + 1, 0));
 
     try {
-      const response = await fetch('/api/availability?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+      const response = await fetch('/api/availability?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to), {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
       const payload = await this.readApiPayload(response);
       if (!response.ok || !payload || typeof payload.days !== 'object') return;
 
@@ -652,6 +657,14 @@ class Component extends DCLogic {
     } catch (error) {
       // Keep optimistic defaults when API is temporarily unavailable.
     }
+  }
+
+  scheduleAvailabilityRefresh(){
+    if(this._availabilityRefreshTimer) clearTimeout(this._availabilityRefreshTimer);
+    this._availabilityRefreshTimer = setTimeout(() => {
+      this._availabilityRefreshTimer = null;
+      this.loadMonthAvailability(this.state.calYear, this.state.calMonth, true);
+    }, 150);
   }
 
   async readApiPayload(response){
@@ -686,26 +699,34 @@ class Component extends DCLogic {
     const minIdx = now.getFullYear() * 12 + now.getMonth();
     const maxIdx = minIdx + this.horizonMonths() - 1;
     if(idx < minIdx || idx > maxIdx) return;
-    this.setState({ calYear:y, calMonth:m });
+    this.setState({ calYear:y, calMonth:m }, () => {
+      this.loadMonthAvailability(y, m);
+    });
   }
 
   componentDidMount(){
     this.applyTheme();
     this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
+    this._onAvailabilityFocus = () => this.scheduleAvailabilityRefresh();
+    this._onAvailabilityVisibility = () => {
+      if(!document.hidden) this.scheduleAvailabilityRefresh();
+    };
+    window.addEventListener('focus', this._onAvailabilityFocus);
+    document.addEventListener('visibilitychange', this._onAvailabilityVisibility);
     this.renderTurnstile();
   }
 
-  componentDidUpdate(prevProps, prevState){
+  componentDidUpdate(prevProps){
     this.applyTheme();
-    if (prevState && (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth)) {
-      this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
-    }
     if (prevProps && prevProps.turnstileSiteKey !== this.props.turnstileSiteKey) {
       this.renderTurnstile();
     }
   }
 
   componentWillUnmount(){
+    if(this._availabilityRefreshTimer) clearTimeout(this._availabilityRefreshTimer);
+    window.removeEventListener('focus', this._onAvailabilityFocus);
+    document.removeEventListener('visibilitychange', this._onAvailabilityVisibility);
     if (this._turnstileWidgetId !== undefined && window.turnstile) {
       window.turnstile.remove(this._turnstileWidgetId);
     }
@@ -1015,6 +1036,7 @@ class Component extends DCLogic {
       let dot="font-family:var(--font-mono); font-size:10px; font-weight:700; line-height:1;";
       let freeLabel='';
       if(f===-1){ cell+="color:#cdc9c1; cursor:default;"; }
+      else if(f===-2){ cell+="background:#faf9f7; color:#bcb8b0; cursor:wait;"; dot+="color:#cbc7bf;"; freeLabel='…'; }
       else if(f===0){ cell+="background:#f3f1ee; color:#bcb8b0; cursor:not-allowed;"; dot+="color:#cbc7bf;"; freeLabel='–'; }
       else {
         cell+="cursor:pointer;"; freeLabel=String(f);

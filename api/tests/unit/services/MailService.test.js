@@ -65,9 +65,14 @@ describe("MailService", function () {
     expect(beginSend.mock.calls[0][0]).toMatchObject({
       senderAddress: "rental@skucha.co"
     });
-    expect(beginSend.mock.calls[0][0].content.html).toContain("Twoja rezerwacja");
-    expect(beginSend.mock.calls[0][0].content.html).toContain("Przejdź do płatności");
-    expect(beginSend.mock.calls[0][0].content.html).not.toContain("Co musisz wiedzieć");
+    const html = beginSend.mock.calls[0][0].content.html;
+    expect(html).toContain("Twoja rezerwacja");
+    expect(html).toContain("Przejdź do płatności");
+    expect(html).toContain("Co musisz wiedzieć");
+    expect(html).toContain("Bouldering jest niebezpieczny");
+    expect(html.indexOf("Przejdź do płatności")).toBeGreaterThan(html.indexOf("Oddajesz w umówionym terminie"));
+    expect(html).not.toContain("<details");
+    expect(html).not.toContain("<summary");
     expect(result).toMatchObject({
       queued: true,
       mode: "acs-email",
@@ -159,13 +164,21 @@ describe("MailService", function () {
     expect(message.content.html).toContain("Kaucja zwrotna");
     expect(message.content.html).not.toContain("Stripe Session ID");
     expect(message.content.html).not.toContain("Stripe Payment Intent");
-    expect(message.content.html).not.toContain("Co musisz wiedzieć");
-    expect(message.content.html).not.toContain("Bouldering jest niebezpieczny");
+    expect(message.content.html).toContain("Co musisz wiedzieć");
+    expect(message.content.html).toContain("Bouldering jest niebezpieczny");
+    expect(message.content.html).toContain("Weź dokument tożsamości");
+    expect(message.content.html).toContain("Normalne zużycie nic nie kosztuje");
+    expect(message.content.html).toContain("Oddajesz w umówionym terminie");
+    expect(message.content.html).toContain("Wysłano:");
+    expect(message.content.html).not.toContain("<details");
+    expect(message.content.html).not.toContain("<summary");
     expect(message.content.html).not.toContain(">Czynsz<");
     expect(message.content.html).toContain(">Zapłacono<");
     expect(message.content.html).not.toContain(">Do zapłaty teraz<");
     expect(message.content.html).toContain("Anuluj rezerwację i poproś o zwrot");
     expect(message.content.html).toContain("mailto:rental@skucha.co");
+    expect(message.content.html.indexOf("Anuluj rezerwację i poproś o zwrot"))
+      .toBeGreaterThan(message.content.html.indexOf("W załącznikach znajdziesz"));
     expect(message.content.html).not.toContain("△");
     expect(message.content.html).not.toContain("▣");
     expect(message.content.attachments).toBeUndefined();

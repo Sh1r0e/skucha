@@ -10,7 +10,7 @@ This project is intentionally lightweight:
 - static HTML/CSS/JavaScript frontend
 - Azure Functions integrated in `/api`
 - API deployment bundle generated with esbuild
-- Static site artifact generated with `npm run build:site` from an explicit allowlist
+- Static site artifact generated with `npm run build:site` from an explicit allowlist, local React bundle, and precompiled component logic
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Frontend responsibilities:
 - perform basic form validation
 - call API endpoints
 - check `/api/site-status` before exposing new booking interactions
-- keep existing payment and cancellation operations available during maintenance
+- show the maintenance page while every operational API, including payment and cancellation processing, fails closed
 
 Backend responsibilities:
 
@@ -53,9 +53,10 @@ Signing in with Microsoft Entra ID grants the built-in `authenticated` role; sta
 
 1. `POST /api/reservation` validates the required legal acknowledgements, claims the production `Idempotency-Key`, acquires the inventory lease, re-checks availability, saves a `Pending` reservation with consent evidence, creates a Stripe Checkout session, stores payment/cancellation data, and sends the checkout-start email.
 2. `checkout.session.completed` is durably deduplicated. A paid `Pending` reservation becomes `Confirmed`; late events never resurrect `Cancelled`, `Expired`, `InProgress`, or `Completed` reservations.
-3. `checkout.session.expired` conditionally changes unpaid `Pending` reservations to `Expired` and releases inventory.
-4. The emailed cancellation link opens a confirmation page. Only its explicit `POST /api/reservation/cancel` request can mutate state. Cancellation is allowed through 24 hours before rental start in `Europe/Warsaw`; paid refunds use Stripe idempotency and `CancellationPending` recovery.
-5. Staff use `/admin/reservations.html` to move `Confirmed` reservations to `InProgress` at collection and to `Completed` after all pads are returned.
+3. The payment-success page polls the reservation endpoint. If webhook delivery is delayed, the API retrieves the matching Checkout session and conditionally reconciles a paid `Pending` reservation after validating its reservation ID, session ID, amount, currency, and mode.
+4. `checkout.session.expired` conditionally changes unpaid `Pending` reservations to `Expired` and releases inventory.
+5. The emailed cancellation link opens a confirmation page. Only its explicit `POST /api/reservation/cancel` request can mutate state. Cancellation is allowed through 24 hours before rental start in `Europe/Warsaw`; paid refunds use Stripe idempotency and `CancellationPending` recovery.
+6. Staff use `/admin/reservations.html` to move `Confirmed` reservations to `InProgress` at collection and to `Completed` after all pads are returned.
 
 Published legal documents:
 
@@ -168,6 +169,8 @@ Stripe runtime settings are provided via environment variables in Azure Function
 - `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret for `/api/stripe-webhook`
 
 Production configuration validation also requires a canonical HTTPS public base URL, same-origin HTTPS Stripe return URLs containing `{CHECKOUT_SESSION_ID}`, a live `sk_live_` Stripe key, a `whsec_` webhook secret, and strong distinct values for `RESERVATION_CANCEL_TOKEN_SECRET` and `HOUSEKEEPING_SECRET`. The production dependency audit is enforced in CI; the audit document records the remaining Azure transitive exceptions and their runtime compatibility constraint.
+
+The canonical production origin is `https://www.skucha.co`. Production configuration rejects another origin, and the main deployment probes canonical application routes plus same-path redirects from `https://skucha.co`. The apex redirect is managed by GoDaddy DNS/forwarding and must preserve each request path.
 
 Cancellation link settings:
 

@@ -18,6 +18,9 @@ const {
 } = require("../../scripts/build-site");
 const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
 const sourceSiteConfigPath = path.resolve(__dirname, "../../..", "config", "config.json");
+const reservationPagePath = path.resolve(__dirname, "../../..", "skucha.html");
+const paymentSuccessPagePath = path.resolve(__dirname, "../../..", "skucha-payment-success.html");
+const reservationCancelPagePath = path.resolve(__dirname, "../../..", "reservation-cancel.html");
 const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
 const adminHousekeepingConfigPath = path.resolve(__dirname, "../../admin/housekeeping/function.json");
 
@@ -34,14 +37,22 @@ describe("deployment workflow", function () {
     expect(uploadJobEnd).toBeGreaterThan(uploadJobStart);
 
     const uploadJob = workflow.slice(uploadJobStart, uploadJobEnd);
+    const actionUses = workflow.match(/^\s*-?\s*uses:\s+\S+@[^\s]+/gm) || [];
 
-    expect(uploadJob).toMatch(/uses: Azure\/static-web-apps-deploy@v1/);
+    expect(uploadJob).toMatch(/uses: Azure\/static-web-apps-deploy@[a-f0-9]{40} # v1/);
+    expect(actionUses).toHaveLength(8);
+    actionUses.forEach(function (use) {
+      expect(use).toMatch(/@[a-f0-9]{40}$/);
+    });
     expect(uploadJob).toMatch(/^\s+production_branch: "main"\s*$/m);
     expect(workflow).toMatch(/^permissions:\n\x20{2}contents: read\s*$/m);
     expect(workflow).not.toMatch(/^\x20{2}pull-requests: write\s*$/m);
     expect(uploadJob).toMatch(/^\x20{4}permissions:\n\x20{6}contents: read\n\x20{6}pull-requests: write\s*$/m);
     expect(uploadJob).toMatch(/npm run build:site/);
     expect(uploadJob).toMatch(/app_location: "site-dist"/);
+    expect(uploadJob).toContain('canonical_origin="https://www.skucha.co"');
+    expect(uploadJob).toContain('apex_origin="https://skucha.co"');
+    expect(uploadJob).toContain("final_url=");
     expect(uploadJob).toMatch(
       /SKUCHA_DEPLOYMENT_ENV: \$\{\{ github\.ref_name == 'main' && 'production' \|\| 'preview' \}\}/
     );
@@ -82,6 +93,9 @@ describe("deployment workflow", function () {
       "config/config.json",
       "config/config-loader.js",
       "staticwebapp.config.json",
+      "react-runtime.js",
+      "skucha-logic.js",
+      "skucha-print-logic.js",
       "images/crash-pad-circuit.webp"
     ].forEach(function (requiredFile) {
       expect(files).toContain(requiredFile);
@@ -122,6 +136,40 @@ describe("deployment workflow", function () {
     expect(productionConfig.botProtection.turnstileSiteKey).not.toBe("");
   });
 
+  it("should_show_payment_loading_and_human_readable_refund_outcomes", function () {
+    const paymentSuccessPage = fs.readFileSync(paymentSuccessPagePath, "utf8");
+    const reservationCancelPage = fs.readFileSync(reservationCancelPagePath, "utf8");
+
+    expect(paymentSuccessPage).toContain('id="summaryLoading"');
+    expect(paymentSuccessPage).toContain('aria-busy="true"');
+    expect(paymentSuccessPage).toContain("finishSummaryLoading()");
+    expect(paymentSuccessPage).toContain("showVerificationUnavailable()");
+    expect(paymentSuccessPage).toContain("var lookupReservationId = params.get('reservation_id')");
+    expect(paymentSuccessPage).toContain("var reservationId = '-'");
+    expect(paymentSuccessPage).not.toContain("params.get('amount')");
+    expect(paymentSuccessPage).not.toContain("params.get('padsCount')");
+    expect(paymentSuccessPage).not.toContain("params.get('payment_status')");
+    expect(reservationCancelPage).toContain('refundStatus === "succeeded"');
+    expect(reservationCancelPage).toContain('refundStatus === "pending"');
+    expect(reservationCancelPage).toContain('refundStatus === "failed"');
+    expect(reservationCancelPage).toContain("Stripe potwierdził pełny zwrot pieniędzy");
+  });
+
+  it("should_refresh_calendar_availability_when_the_reservation_tab_becomes_active", function () {
+    const reservationPage = fs.readFileSync(reservationPagePath, "utf8");
+
+    expect(reservationPage).toContain("loadMonthAvailability(this.state.calYear, this.state.calMonth, true)");
+    expect(reservationPage).toContain("this.loadMonthAvailability(y, m)");
+    expect(reservationPage).not.toContain("componentDidUpdate(prevProps, prevState)");
+    expect(reservationPage).toContain("if(!this.state.loadedMonths[monthKey]) return -2");
+    expect(reservationPage).toContain("freeLabel='…'");
+    expect(reservationPage).toContain("cache: 'no-store'");
+    expect(reservationPage).toContain("window.addEventListener('focus', this._onAvailabilityFocus)");
+    expect(reservationPage).toContain("document.addEventListener('visibilitychange', this._onAvailabilityVisibility)");
+    expect(reservationPage).toContain("window.removeEventListener('focus', this._onAvailabilityFocus)");
+    expect(reservationPage).toContain("document.removeEventListener('visibilitychange', this._onAvailabilityVisibility)");
+  });
+
   it("should leave admin API authorization to the Function handlers", function () {
     const staticWebAppConfig = JSON.parse(fs.readFileSync(staticWebAppConfigPath, "utf8"));
     const adminApiRule = staticWebAppConfig.routes.find(function (route) {
@@ -154,6 +202,9 @@ describe("deployment workflow", function () {
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
     expect(headers["Permissions-Policy"]).toContain("camera=()");
+    expect(headers["Content-Security-Policy"]).not.toContain("'unsafe-eval'");
+    expect(headers["Content-Security-Policy"]).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    expect(headers["Content-Security-Policy"]).not.toContain("unpkg.com");
 
     ["/skucha-payment-success.html", "/skucha-payment-cancel.html"].forEach(function (routePath) {
       const route = staticWebAppConfig.routes.find(function (candidate) {
@@ -163,5 +214,23 @@ describe("deployment workflow", function () {
       expect(route.headers["Cache-Control"]).toBe("no-store");
       expect(route.headers["Referrer-Policy"]).toBe("no-referrer");
     });
+  });
+
+  it("should_precompile_component_logic_and_externalize_executable_scripts", function () {
+    buildSite({ deploymentEnvironment: "production" });
+
+    const runtime = fs.readFileSync(path.join(outputRoot, "support.js"), "utf8");
+    const reservationPage = fs.readFileSync(path.join(outputRoot, "skucha.html"), "utf8");
+    const paymentPage = fs.readFileSync(path.join(outputRoot, "skucha-payment-success.html"), "utf8");
+
+    expect(runtime).not.toContain("new Function");
+    expect(runtime).not.toContain("unpkg.com");
+    expect(runtime).not.toContain("loadReactUmd");
+    expect(runtime).toContain("function hideRawTemplate()");
+    expect(reservationPage).toContain('src="./react-runtime.js"');
+    expect(reservationPage).toContain('src="./skucha-logic.js"');
+    expect(reservationPage).toContain("precompiled:skucha");
+    expect(reservationPage).not.toContain("class Component extends DCLogic");
+    expect(paymentPage).toMatch(/src="\/assets\/generated\/skucha-payment-success-inline-\d+\.js"/);
   });
 });

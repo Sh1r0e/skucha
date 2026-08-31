@@ -182,10 +182,10 @@ describe("ConfigurationService", function () {
     try {
       process.env.STORAGE_CONNECTION_STRING = "storage";
       process.env.STRIPE_SECRET_KEY = ["sk", "live", "unit-test-key"].join("_");
-      process.env.STRIPE_CHECKOUT_SUCCESS_URL = "https://example.com/success?session_id={CHECKOUT_SESSION_ID}";
-      process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://example.com/cancel?session_id={CHECKOUT_SESSION_ID}";
+      process.env.STRIPE_CHECKOUT_SUCCESS_URL = "https://www.skucha.co/success?session_id={CHECKOUT_SESSION_ID}";
+      process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://www.skucha.co/cancel?session_id={CHECKOUT_SESSION_ID}";
       process.env.STRIPE_WEBHOOK_SECRET = "whsec_12345678901234567890123456789012";
-      process.env.RESERVATION_PUBLIC_BASE_URL = "https://example.com";
+      process.env.RESERVATION_PUBLIC_BASE_URL = "https://www.skucha.co";
       process.env.RESERVATION_CANCEL_TOKEN_SECRET = "cancel-secret-123456789012345678901";
       process.env.HOUSEKEEPING_SECRET = "housekeeping-secret-1234567890123456";
       process.env.RATE_LIMIT_HASH_SECRET = "rate-limit-secret-12345678901234567890";
@@ -229,6 +229,7 @@ describe("ConfigurationService", function () {
       const issues = ConfigurationService.getRuntimeConfigurationIssues({ production: true });
 
       expect(issues).toContain("STRIPE_SECRET_KEY_NOT_LIVE");
+      expect(issues).toContain("RESERVATION_PUBLIC_BASE_URL_NOT_CANONICAL");
       expect(issues).toContain("STRIPE_CHECKOUT_SUCCESS_URL_INVALID");
       expect(issues).toContain("STRIPE_CHECKOUT_CANCEL_URL_ORIGIN_MISMATCH");
       expect(issues).toContain("STRIPE_WEBHOOK_SECRET_INVALID");

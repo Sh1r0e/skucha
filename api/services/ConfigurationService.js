@@ -1,3 +1,5 @@
+const PRODUCTION_PUBLIC_ORIGIN = "https://www.skucha.co";
+
 function getStorageConnectionString() {
   return process.env.STORAGE_CONNECTION_STRING;
 }
@@ -149,6 +151,8 @@ function getRuntimeConfigurationIssues(options) {
       issues.push("RESERVATION_PUBLIC_BASE_URL");
     } else if (!publicBaseUrl) {
       issues.push("RESERVATION_PUBLIC_BASE_URL_INVALID");
+    } else if (publicBaseUrl.origin !== PRODUCTION_PUBLIC_ORIGIN) {
+      issues.push("RESERVATION_PUBLIC_BASE_URL_NOT_CANONICAL");
     }
 
     if (getStripeSecretKey() && !String(getStripeSecretKey()).startsWith("sk_live_")) {

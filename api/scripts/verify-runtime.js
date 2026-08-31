@@ -8,8 +8,7 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(apiRoot, "package.json"
 const requiredProductionPackages = [
   "@azure/communication-email",
   "@azure/data-tables",
-  "stripe",
-  "uuid"
+  "stripe"
 ];
 
 function listFunctionDirectories(directory) {

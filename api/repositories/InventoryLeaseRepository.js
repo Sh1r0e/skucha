@@ -1,5 +1,5 @@
 const { TableClient } = require("@azure/data-tables");
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID: uuidv4 } = require("crypto");
 const ConfigurationService = require("../services/ConfigurationService");
 
 const TABLE_NAME = "InventoryLeases";
