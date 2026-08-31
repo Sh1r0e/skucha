@@ -27,6 +27,12 @@ function isPreviewDeployment() {
   return process.env.SKUCHA_DEPLOYMENT_ENV === "preview";
 }
 
+function getAllowedHostnames(expectedHostname) {
+  const hostname = String(expectedHostname || "").toLowerCase();
+  const alternate = hostname.startsWith("www.") ? hostname.slice(4) : "www." + hostname;
+  return new Set([hostname, alternate]);
+}
+
 function createTurnstileService(customDependencies) {
   const dependencies = {
     ...defaultDependencies,
@@ -109,7 +115,8 @@ function createTurnstileService(customDependencies) {
         receivedAction: String(result.action || "")
       });
     }
-    if (String(result.hostname || "").toLowerCase() !== expectedHostname.toLowerCase()) {
+    const receivedHostname = String(result.hostname || "").toLowerCase();
+    if (!getAllowedHostnames(expectedHostname).has(receivedHostname)) {
       throw verificationError("Complete the bot verification and try again", 400, "BotVerificationFailed", {
         reason: "hostname-mismatch",
         expectedHostname,

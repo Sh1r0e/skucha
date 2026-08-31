@@ -25,6 +25,18 @@ describe("TurnstileService", function () {
     }));
   });
 
+  it("should_accept_the_canonical_apex_hostname_for_the_www_public_url", async function () {
+    const service = TurnstileService.createTurnstileService({
+      ConfigurationService: configuration("turnstile-secret"),
+      fetch: vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ success: true, action: "reservation", hostname: "skucha.co" })
+      })
+    });
+
+    await expect(service.verifyReservation("valid-token", {})).resolves.toEqual({ success: true });
+  });
+
   it("should_reject_missing_invalid_or_context-mismatched_tokens", async function () {
     const failedFetch = vi.fn().mockResolvedValue({
       ok: true,
