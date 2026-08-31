@@ -611,6 +611,8 @@ class Component extends DCLogic {
     const today = this.mk(this.todayIso());
     const d = this.mk(str);
     if(!d || d < today) return -1;
+    const monthKey = String(str).slice(0, 7);
+    if(!this.state.loadedMonths[monthKey]) return -2;
     const fromApi = this.state.availabilityByDate[str];
     if(typeof fromApi === 'number') return Math.max(0, Math.min(4, fromApi));
     return 4;
@@ -697,7 +699,9 @@ class Component extends DCLogic {
     const minIdx = now.getFullYear() * 12 + now.getMonth();
     const maxIdx = minIdx + this.horizonMonths() - 1;
     if(idx < minIdx || idx > maxIdx) return;
-    this.setState({ calYear:y, calMonth:m });
+    this.setState({ calYear:y, calMonth:m }, () => {
+      this.loadMonthAvailability(y, m);
+    });
   }
 
   componentDidMount(){
@@ -712,11 +716,8 @@ class Component extends DCLogic {
     this.renderTurnstile();
   }
 
-  componentDidUpdate(prevProps, prevState){
+  componentDidUpdate(prevProps){
     this.applyTheme();
-    if (prevState && (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth)) {
-      this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
-    }
     if (prevProps && prevProps.turnstileSiteKey !== this.props.turnstileSiteKey) {
       this.renderTurnstile();
     }
@@ -1035,6 +1036,7 @@ class Component extends DCLogic {
       let dot="font-family:var(--font-mono); font-size:10px; font-weight:700; line-height:1;";
       let freeLabel='';
       if(f===-1){ cell+="color:#cdc9c1; cursor:default;"; }
+      else if(f===-2){ cell+="background:#faf9f7; color:#bcb8b0; cursor:wait;"; dot+="color:#cbc7bf;"; freeLabel='…'; }
       else if(f===0){ cell+="background:#f3f1ee; color:#bcb8b0; cursor:not-allowed;"; dot+="color:#cbc7bf;"; freeLabel='–'; }
       else {
         cell+="cursor:pointer;"; freeLabel=String(f);

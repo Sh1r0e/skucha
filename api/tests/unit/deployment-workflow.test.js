@@ -143,6 +143,10 @@ describe("deployment workflow", function () {
     const reservationPage = fs.readFileSync(reservationPagePath, "utf8");
 
     expect(reservationPage).toContain("loadMonthAvailability(this.state.calYear, this.state.calMonth, true)");
+    expect(reservationPage).toContain("this.loadMonthAvailability(y, m)");
+    expect(reservationPage).not.toContain("componentDidUpdate(prevProps, prevState)");
+    expect(reservationPage).toContain("if(!this.state.loadedMonths[monthKey]) return -2");
+    expect(reservationPage).toContain("freeLabel='…'");
     expect(reservationPage).toContain("cache: 'no-store'");
     expect(reservationPage).toContain("window.addEventListener('focus', this._onAvailabilityFocus)");
     expect(reservationPage).toContain("document.addEventListener('visibilitychange', this._onAvailabilityVisibility)");
