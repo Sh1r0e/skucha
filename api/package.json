@@ -9,6 +9,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "build:api": "node scripts/build-api.js",
+    "build:site": "node scripts/build-site.js",
     "verify:build": "node scripts/verify-runtime.js",
     "lint": "eslint . --max-warnings=0",
     "ci": "npm run lint && npm run test:coverage"
@@ -19,7 +20,7 @@
   "dependencies": {
     "@azure/communication-email": "1.0.0",
     "@azure/data-tables": "13.2.2",
-    "stripe": "^22.3.2",
+    "stripe": "22.3.2",
     "uuid": "11.0.5"
   },
   "devDependencies": {

@@ -1,8 +1,18 @@
 const ReservationRepository = require("../repositories/ReservationRepository");
+const BotProtectionService = require("../services/BotProtectionService");
 const { rejectDuringMaintenance } = require("../helpers/maintenance");
+const { jsonResponse } = require("../helpers/http");
+const { rejectRateLimitedRequest } = require("../helpers/bot-protection");
+
+const IDENTIFIER_PATTERN = /^[A-Za-z0-9_-]{1,255}$/;
+
+function isSafeIdentifier(value) {
+  return typeof value === "string" && IDENTIFIER_PATTERN.test(value.trim());
+}
 
 const defaultDependencies = {
-  ReservationRepository
+  ReservationRepository,
+  BotProtectionService
 };
 
 function createGetReservationHandler(customDependencies) {
@@ -17,6 +27,9 @@ function createGetReservationHandler(customDependencies) {
     }
 
     const request = req || context.req || {};
+    if (await rejectRateLimitedRequest(context, request, "reservation-lookup", dependencies.BotProtectionService)) {
+      return;
+    }
     let query = request.query || {};
 
     if ((!query.id || !query.session_id) && typeof request.url === "string") {
@@ -32,21 +45,13 @@ function createGetReservationHandler(customDependencies) {
     const id = query.id || query.reservation_id || "";
     const sessionId = query.session_id || query.sessionId || "";
 
-    if (!id || typeof id !== "string" || !id.trim()) {
-      context.res = {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-        body: { message: "id query parameter is required", code: "MissingId" }
-      };
+    if (!id || !isSafeIdentifier(id)) {
+      context.res = jsonResponse(400, { message: "id query parameter is required", code: "MissingId" });
       return;
     }
 
-    if (!sessionId || typeof sessionId !== "string" || !sessionId.trim()) {
-      context.res = {
-        status: 400,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-        body: { message: "session_id query parameter is required", code: "MissingSessionId" }
-      };
+    if (!sessionId || !isSafeIdentifier(sessionId)) {
+      context.res = jsonResponse(400, { message: "session_id query parameter is required", code: "MissingSessionId" });
       return;
     }
 
@@ -60,39 +65,24 @@ function createGetReservationHandler(customDependencies) {
         message: error.message,
         code: error.code
       });
-      context.res = {
-        status: error.statusCode || 503,
-        headers: { "Content-Type": "application/json" },
-        body: {
-          message: "Unable to load reservation",
-          code: error.code || "StorageError"
-        }
-      };
+      context.res = jsonResponse(error.statusCode || 503, {
+        message: "Unable to load reservation",
+        code: error.code || "StorageError"
+      });
       return;
     }
 
     if (!reservation) {
-      context.res = {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-        body: { message: "Reservation not found", code: "NotFound" }
-      };
+      context.res = jsonResponse(404, { message: "Reservation not found", code: "NotFound" });
       return;
     }
 
     if (reservation.paymentSessionId !== sessionId.trim()) {
-      context.res = {
-        status: 404,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-        body: { message: "Reservation not found", code: "NotFound" }
-      };
+      context.res = jsonResponse(404, { message: "Reservation not found", code: "NotFound" });
       return;
     }
 
-    context.res = {
-      status: 200,
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-      body: {
+    context.res = jsonResponse(200, {
         id: reservation.id,
         status: reservation.status,
         dateFrom: reservation.fromDate,
@@ -102,16 +92,13 @@ function createGetReservationHandler(customDependencies) {
         pickupPoint: reservation.pickupPoint || "",
         payment: {
           status: reservation.paymentStatus || "",
-          sessionId: reservation.paymentSessionId || "",
           amount: reservation.paymentAmountMinor
             ? Number(reservation.paymentAmountMinor) / 100
             : null,
           amountMinor: Number(reservation.paymentAmountMinor || 0),
-          currency: String(reservation.paymentCurrency || "PLN").toUpperCase(),
-          paymentIntentId: reservation.paymentIntentId || ""
+          currency: String(reservation.paymentCurrency || "PLN").toUpperCase()
         }
-      }
-    };
+      });
   };
 }
 

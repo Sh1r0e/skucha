@@ -72,7 +72,7 @@
 
   function renderConfig(config) {
     setText("businessName", config.business && config.business.name ? config.business.name : "Skucha");
-    setText("cityName", config.business && config.business.city ? config.business.city : "Wroclaw");
+    setText("cityName", config.business && config.business.city ? config.business.city : "Wrocław");
     setText("phoneNumber", config.contact && config.contact.phone ? config.contact.phone : "-");
     setText("emailAddress", config.contact && config.contact.email ? config.contact.email : "-");
     setText("weekdayPrice", String(config.pricing && config.pricing.weekday ? config.pricing.weekday : 0));
@@ -92,7 +92,7 @@
 
   function validateReservationInput(data) {
     if (!data.fullName || !data.email || !data.phone || !data.pickupPoint) {
-      return "Wypelnij wszystkie wymagane pola.";
+      return "Wypełnij wszystkie wymagane pola.";
     }
 
     var fromDate = parseDateInput(data.dateFrom);
@@ -103,11 +103,11 @@
     }
 
     if (fromDate.getTime() > toDate.getTime()) {
-      return "Data odbioru nie moze byc pozniejsza niz data zwrotu.";
+      return "Data odbioru nie może być późniejsza niż data zwrotu.";
     }
 
     if (!data.acceptTerms) {
-      return "Musisz zaakceptowac regulamin.";
+      return "Musisz zaakceptować regulamin.";
     }
 
     return null;
@@ -136,24 +136,24 @@
       return;
     }
 
-    setStatus("availabilityStatus", "Sprawdzam dostepnosc...", "");
+    setStatus("availabilityStatus", "Sprawdzam dostępność...", "");
 
     try {
       var response = await fetch("/api/availability?from=" + encodeURIComponent(dateFrom) + "&to=" + encodeURIComponent(dateTo));
       var payload = await response.json();
 
       if (!response.ok) {
-        setStatus("availabilityStatus", payload.message || "Nie udalo sie pobrac dostepnosci.", "error");
+        setStatus("availabilityStatus", payload.message || "Nie udało się pobrać dostępności.", "error");
         return;
       }
 
       if (payload.available) {
-        setStatus("availabilityStatus", "Termin jest dostepny. Mozesz przejsc do rezerwacji.", "ok");
+        setStatus("availabilityStatus", "Termin jest dostępny. Możesz przejść do rezerwacji.", "ok");
       } else {
-        setStatus("availabilityStatus", payload.message || "Termin jest niedostepny.", "warn");
+        setStatus("availabilityStatus", payload.message || "Termin jest niedostępny.", "warn");
       }
     } catch (error) {
-      setStatus("availabilityStatus", "Blad polaczenia z API.", "error");
+      setStatus("availabilityStatus", "Błąd połączenia z API.", "error");
     }
   }
 
@@ -168,7 +168,7 @@
       return;
     }
 
-    setStatus("reservationStatus", "Wysylam rezerwacje...", "");
+    setStatus("reservationStatus", "Wysyłam rezerwację...", "");
 
     try {
       var response = await fetch("/api/reservation", {
@@ -186,10 +186,10 @@
         return;
       }
 
-      setStatus("reservationStatus", payload.message || "Rezerwacja przyjeta.", "ok");
+      setStatus("reservationStatus", payload.message || "Rezerwacja przyjęta.", "ok");
       byId("reservationForm").reset();
     } catch (error) {
-      setStatus("reservationStatus", "Blad polaczenia z API.", "error");
+      setStatus("reservationStatus", "Błąd połączenia z API.", "error");
     }
   }
 
@@ -197,10 +197,10 @@
     try {
       appState.config = await window.ConfigLoader.loadConfig();
       renderConfig(appState.config);
-      setStatus("availabilityStatus", "Wybierz daty i kliknij Sprawdz dostepnosc.", "");
+      setStatus("availabilityStatus", "Wybierz daty i kliknij Sprawdź dostępność.", "");
       setStatus("reservationStatus", "", "");
     } catch (error) {
-      setStatus("reservationStatus", "Nie udalo sie zaladowac konfiguracji.", "error");
+      setStatus("reservationStatus", "Nie udało się załadować konfiguracji.", "error");
     }
 
     byId("checkAvailabilityBtn").addEventListener("click", checkAvailability);

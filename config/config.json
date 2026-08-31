@@ -18,6 +18,9 @@
     "totalPads": 4,
     "horizonMonths": 6
   },
+  "botProtection": {
+    "turnstileSiteKey": "0x4AAAAAAEi3SYrrCxLn9qJR"
+  },
   "pickupPoints": [
     {
       "name": "Stabłowice",

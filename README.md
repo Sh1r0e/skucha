@@ -2,12 +2,15 @@
 
 Website for renting climbing crash pads in Wroclaw.
 
+See [security-audit.md](security-audit.md) for the current release security decision, open infrastructure controls, refined requirements, and implementation plan.
+
 This project is intentionally lightweight:
 
 - Azure Static Web Apps
 - static HTML/CSS/JavaScript frontend
 - Azure Functions integrated in `/api`
 - API deployment bundle generated with esbuild
+- Static site artifact generated with `npm run build:site` from an explicit allowlist
 
 ## Architecture
 
@@ -24,6 +27,7 @@ Backend responsibilities:
 - validate reservation payloads
 - check availability
 - persist reservations in Azure Table Storage
+- upsert explicitly opted-in email addresses into the `MarketingContacts` Azure Table
 - serialize reservation creation with the inventory lease
 - enforce production request idempotency and persist versioned legal-consent evidence
 - send checkout-stage, payment, and cancellation notifications through Azure Communication Services Email
@@ -96,6 +100,7 @@ Reservation statuses:
 			housekeeping/
 		repositories/
 			InventoryLeaseRepository.js
+			MarketingContactRepository.js
 			ReservationIdempotencyRepository.js
 			ReservationRepository.js
 			StripeEventRepository.js
@@ -140,12 +145,29 @@ Frontend loads config through `config/config-loader.js`.
 
 Backend also reads `config/config.json` through `api/services/ConfigService.js`.
 
+### Bot Protection
+
+Public booking APIs use distributed fixed-window limits stored in the existing Azure Table Storage account. Client addresses are HMAC-hashed before storage; raw addresses and customer data are not written to the `AbuseProtection` table. The limits are 120 availability requests per minute, 60 reservation lookups per five minutes, and 10 booking or cancellation requests per five minutes for each hashed address. One entity is reused per policy and address, so repeated windows do not continually add rows.
+
+Reservation creation also requires a Cloudflare Turnstile token that is verified server-side for the `reservation` action and the hostname from `RESERVATION_PUBLIC_BASE_URL`.
+
+1. In Cloudflare Turnstile, create a free widget and allow the canonical production hostname. Create a separate preview widget or add the exact preview hostname when testing a branch environment.
+2. Put the public site key in `botProtection.turnstileSiteKey` in `config/config.json`. This value is intentionally public.
+3. Add `TURNSTILE_SECRET_KEY` to the Static Web App application settings. Never put this secret in `config/config.json` or source control.
+4. Generate a separate random value of at least 32 characters for `RATE_LIMIT_HASH_SECRET` and add it to the application settings. It must differ from the Turnstile, cancellation, and housekeeping secrets.
+5. Save the settings, restart the app, and configure the same settings independently for each preview environment that will exercise booking.
+6. Verify a normal booking and an automated burst in the deployed environment. Confirm excess requests receive a generic `429` and verify which platform-provided forwarding header contains the real client address.
+
+These controls make automated form spam and repeated API abuse more expensive at near-zero additional infrastructure cost. They run inside Azure Functions, so they do not absorb volumetric attacks before requests consume Static Web Apps or Functions quota and are not a replacement for an edge WAF or DDoS service. Addresses that are never seen again leave one small row per policy; plan a periodic retention purge if distinct-client growth becomes material.
+
 Stripe runtime settings are provided via environment variables in Azure Functions:
 
 - `STRIPE_SECRET_KEY` - Stripe sandbox/live secret key (`sk_test_...` in sandbox)
 - `STRIPE_CHECKOUT_SUCCESS_URL` - full URL where Stripe redirects after successful payment
 - `STRIPE_CHECKOUT_CANCEL_URL` - full URL where Stripe redirects after canceled payment
 - `STRIPE_WEBHOOK_SECRET` - Stripe webhook signing secret for `/api/stripe-webhook`
+
+Production configuration validation also requires a canonical HTTPS public base URL, same-origin HTTPS Stripe return URLs containing `{CHECKOUT_SESSION_ID}`, a live `sk_live_` Stripe key, a `whsec_` webhook secret, and strong distinct values for `RESERVATION_CANCEL_TOKEN_SECRET` and `HOUSEKEEPING_SECRET`. The production dependency audit is enforced in CI; the audit document records the remaining Azure transitive exceptions and their runtime compatibility constraint.
 
 Cancellation link settings:
 
@@ -203,6 +225,8 @@ Configure ACS email in the Azure portal:
 	- `RESERVATION_TIMEZONE` = `Europe/Warsaw`
 	- `HOUSEKEEPING_SECRET` = a separate long random secret
 	- `INVENTORY_LEASE_TTL_MS` = `30000`
+	- `TURNSTILE_SECRET_KEY` = the secret for the production Cloudflare Turnstile widget
+	- `RATE_LIMIT_HASH_SECRET` = a separate random secret of at least 32 characters
 6. Save the settings and restart the Static Web App. For `development-preview`, add the same settings under the preview environment's configuration; Static Web Apps does not automatically copy production application settings to branch environments. Send a test reservation in Stripe test mode and confirm both the checkout-start email and the paid confirmation email arrive.
 
 Create GitHub repository secrets `SKUCHA_PUBLIC_BASE_URL` and `HOUSEKEEPING_SECRET` for the scheduled workflow in `.github/workflows/housekeeping.yml`. Configure Stripe to send `checkout.session.completed` and `checkout.session.expired` to `/api/stripe-webhook`.
@@ -242,4 +266,4 @@ Current GitHub Actions workflow uses:
 2. Availability with Table Storage persistence and inventory lease
 3. Cancellation cutoff, refund recovery, and pending housekeeping
 4. Protected collection/return admin workflow
-5. Monitoring, backup/restore, retention, and external rate limiting
+5. Monitoring, backup/restore, retention, and optional edge WAF protection

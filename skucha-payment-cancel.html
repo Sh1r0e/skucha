@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="./maintenance-gate.js"></script>
-  <title>Skucha - Platnosc anulowana</title>
+  <title>Skucha - Płatność anulowana</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -222,10 +222,10 @@
     <section class="card">
       <header class="top">
         <div class="kicker">Stripe Redirect · SKUCHA</div>
-        <h1>Platnosc anulowana</h1>
-        <p class="lead">Nie martw sie, rezerwacja moze zostac oplacona ponownie. Ponizej masz dane zamowienia, zeby latwo wrocic do procesu.</p>
+        <h1>Płatność anulowana</h1>
+        <p class="lead">Nie martw się, rezerwacja może zostać opłacona ponownie. Poniżej znajdziesz dane zamówienia, aby łatwo wrócić do procesu.</p>
         <div class="reservation-meta">ID rezerwacji<strong id="topReservationId">-</strong></div>
-        <div class="status-row"><span class="dot"></span><span id="statusText">Platnosc nie zostala zakonczona</span></div>
+        <div class="status-row"><span class="dot"></span><span id="statusText">Płatność nie została zakończona</span></div>
       </header>
 
       <div class="content">
@@ -235,7 +235,6 @@
           <div class="summary-row"><span>Okres najmu</span><strong id="dates">-</strong></div>
           <div class="summary-row"><span>Odbiór i zwrot</span><strong id="pickup">-</strong></div>
           <div class="summary-row"><span>Czynsz</span><strong id="rent">-</strong></div>
-          <div class="summary-row total"><span>Do zapłaty teraz</span><strong id="amountDue">-</strong></div>
           <div class="summary-row deposit"><span>Kaucja zwrotna</span><strong id="deposit">-</strong></div>
         </div>
 
@@ -253,15 +252,6 @@
     (function () {
       function byId(id) {
         return document.getElementById(id);
-      }
-
-      function readLastOrder() {
-        try {
-          var raw = localStorage.getItem('skucha_last_order');
-          return raw ? JSON.parse(raw) : null;
-        } catch (_error) {
-          return null;
-        }
       }
 
       function formatMoney(value) {
@@ -288,20 +278,15 @@
       }
 
       var params = new URLSearchParams(window.location.search);
-      var last = readLastOrder() || {};
-      var payload = last.payload || {};
-      var reservation = last.reservation || {};
-      var payment = last.payment || {};
+      var reservationId = params.get('reservation_id') || '-';
+      var sessionId = params.get('session_id') || '-';
+      var amount = params.get('amount') || '-';
+      var dateFrom = params.get('dateFrom') || '';
+      var dateTo = params.get('dateTo') || '';
+      var padsCount = params.get('padsCount') || '-';
+      var pickupPoint = params.get('pickupPoint') || '';
 
-      var reservationId = params.get('reservation_id') || last.reservationId || reservation.id || '-';
-      var sessionId = params.get('session_id') || payment.sessionId || '-';
-      var amount = params.get('amount') || payment.amount || '-';
-      var dateFrom = params.get('dateFrom') || reservation.dateFrom || payload.dateFrom || '';
-      var dateTo = params.get('dateTo') || reservation.dateTo || payload.dateTo || '';
-      var padsCount = params.get('padsCount') || reservation.padsCount || payload.padsCount || '-';
-      var pickupPoint = params.get('pickupPoint') || reservation.pickupPoint || payload.pickupPoint || '';
-
-      var statusText = params.get('payment_status') || payment.status || 'cancelled';
+      var statusText = params.get('payment_status') || 'cancelled';
 
       function renderSummary() {
         var pads = Number(padsCount) || 0;
@@ -310,7 +295,6 @@
         byId('dates').textContent = formatPeriod(dateFrom, dateTo);
         byId('pickup').textContent = pickupPoint ? pickupPoint + ', Wrocław' : '-';
         byId('rent').textContent = formatMoney(amount);
-        byId('amountDue').textContent = formatMoney(amount);
         byId('deposit').textContent = deposit === null ? '-' : formatMoney(deposit) + ' - gotówką przy odbiorze';
         byId('topReservationId').textContent = reservationId;
       }
@@ -331,9 +315,7 @@
             padsCount = data.pads || padsCount;
             pickupPoint = data.pickupPoint || pickupPoint;
             if (data.payment) {
-              sessionId = data.payment.sessionId || sessionId;
               amount = data.payment.amount === null || data.payment.amount === undefined ? amount : data.payment.amount;
-              currency = data.payment.currency || currency;
             }
             renderSummary();
             var ps = data.payment && data.payment.status ? data.payment.status : '';
@@ -342,7 +324,7 @@
             byId('statusText').textContent = 'Status: ' + (ps || rs || statusText).replace(/_/g, ' ');
 
           })
-          .catch(function () { /* keep localStorage fallback on network error */ });
+          .catch(function () {});
       }
     })();
   </script>

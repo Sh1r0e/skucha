@@ -116,9 +116,12 @@ describe("MailService", function () {
 
     MailService.__setDependencies({
       emailClient: { beginSend: beginSend },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T10:00:00.000Z")),
       ConfigurationService: {
         getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
-        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co")
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co"),
+        getReservationCancellationCutoffHours: vi.fn().mockReturnValue(24),
+        getReservationTimezone: vi.fn().mockReturnValue("Europe/Warsaw")
       }
     });
 
@@ -145,10 +148,10 @@ describe("MailService", function () {
 
     const message = beginSend.mock.calls[0][0];
 
-    expect(message.content.subject).toBe("Skucha - platnosc potwierdzona");
+    expect(message.content.subject).toBe("Skucha - płatność potwierdzona");
     expect(message.content.plainText).toContain("Jan Kowalski");
     expect(message.content.plainText).toContain("2026-08-10 - 2026-08-12");
-    expect(message.content.plainText).toContain("Liczba padow: 2");
+    expect(message.content.plainText).toContain("Liczba padów: 2");
     expect(message.content.plainText).toContain("Punkt odbioru: Stablowice");
     expect(message.content.plainText).toContain("Uwagi: Bring extra straps");
     expect(message.content.plainText).toContain("120 PLN");
@@ -161,6 +164,13 @@ describe("MailService", function () {
     expect(message.content.html).not.toContain("Stripe Payment Intent");
     expect(message.content.html).toContain("Co musisz wiedzieć");
     expect(message.content.html).toContain("Bouldering jest niebezpieczny");
+    expect(message.content.html).not.toContain(">Czynsz<");
+    expect(message.content.html).toContain(">Zapłacono<");
+    expect(message.content.html).not.toContain(">Do zapłaty teraz<");
+    expect(message.content.html).toContain("Anuluj rezerwację i poproś o zwrot");
+    expect(message.content.html).toContain("mailto:rental@skucha.co");
+    expect(message.content.html).not.toContain("△");
+    expect(message.content.html).not.toContain("▣");
     expect(message.content.plainText).toContain("/api/reservation/cancel?reservation_id=res-1");
     expect(message.content.attachments).toHaveLength(2);
     expect(message.content.attachments.map(function (attachment) { return attachment.name; })).toEqual([
@@ -192,7 +202,7 @@ describe("MailService", function () {
       paymentStatus: "Expired"
     });
 
-    expect(beginSend.mock.calls[0][0].content.subject).toBe("Skucha - sesja platnosci wygasla");
+    expect(beginSend.mock.calls[0][0].content.subject).toBe("Skucha - sesja płatności wygasła");
     expect(result.operationId).toBe("mail-op-4");
   });
 
@@ -221,6 +231,37 @@ describe("MailService", function () {
       mode: "log-only",
       recipient: "jan@example.com"
     });
+  });
+
+  it("should_hide_the_refund_action_inside_the_24_hour_cutoff", async function () {
+    process.env.MAIL_MODE = "acs-email";
+    const beginSend = vi.fn().mockResolvedValue({
+      pollUntilDone: vi.fn().mockResolvedValue({ id: "mail-op-cutoff" })
+    });
+
+    MailService.__setDependencies({
+      emailClient: { beginSend: beginSend },
+      now: vi.fn().mockReturnValue(new Date("2026-08-09T10:00:00.000Z")),
+      ConfigurationService: {
+        getAcsConnectionString: vi.fn().mockReturnValue("endpoint=https://example"),
+        getAcsSenderAddress: vi.fn().mockReturnValue("rental@skucha.co"),
+        getReservationCancellationCutoffHours: vi.fn().mockReturnValue(24),
+        getReservationTimezone: vi.fn().mockReturnValue("Europe/Warsaw")
+      }
+    });
+
+    await MailService.sendPaymentConfirmationNotification({
+      id: "res-cutoff",
+      email: "jan@example.com",
+      dateFrom: "2026-08-10",
+      dateTo: "2026-08-10",
+      cancelUrl: "https://www.skucha.co/reservation-cancel.html?reservation_id=res-cutoff&token=abc"
+    });
+
+    const content = beginSend.mock.calls[0][0].content;
+    expect(content.html).not.toContain("reservation-cancel.html");
+    expect(content.html).toContain("Termin bezpłatnego anulowania ze zwrotem minął");
+    expect(content.plainText).not.toContain("reservation-cancel.html");
   });
 
   it("should_use_default_values_for_sparse_checkout_notification()", async function () {

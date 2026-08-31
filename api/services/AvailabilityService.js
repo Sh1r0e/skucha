@@ -4,6 +4,8 @@ const ConfigurationService = require("./ConfigurationService");
 const TimeService = require("./ReservationTimeService");
 const Lifecycle = require("./ReservationLifecycleService");
 
+const MAX_AVAILABILITY_RANGE_DAYS = 366;
+
 const defaultDependencies = {
   ConfigService,
   ReservationRepository,
@@ -17,16 +19,18 @@ const defaultDependencies = {
 function asDate(value, fieldName) {
   var date = null;
 
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    try {
-      date = TimeService.parseDateOnlyAsUtc(value);
-    } catch (_error) {
-      const invalidError = new Error("Invalid date: " + fieldName);
-      invalidError.statusCode = 400;
-      throw invalidError;
-    }
-  } else {
-    date = new Date(value);
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const invalidError = new Error("Invalid date: " + fieldName);
+    invalidError.statusCode = 400;
+    throw invalidError;
+  }
+
+  try {
+    date = TimeService.parseDateOnlyAsUtc(value);
+  } catch (_error) {
+    const invalidError = new Error("Invalid date: " + fieldName);
+    invalidError.statusCode = 400;
+    throw invalidError;
   }
 
   if (!date || Number.isNaN(date.getTime())) {
@@ -114,6 +118,14 @@ function createAvailabilityService(customDependencies) {
     if (from.getTime() > to.getTime()) {
       const error = new Error("from cannot be later than to");
       error.statusCode = 400;
+      throw error;
+    }
+
+    const rangeDays = Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+    if (rangeDays > MAX_AVAILABILITY_RANGE_DAYS) {
+      const error = new Error("Availability date range is too long");
+      error.statusCode = 400;
+      error.code = "AvailabilityRangeTooLong";
       throw error;
     }
 

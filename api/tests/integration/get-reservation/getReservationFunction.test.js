@@ -42,12 +42,28 @@ describe("get-reservation function", function () {
     expect(context.res.body.status).toBe("Confirmed");
     expect(context.res.body.pickupPoint).toBe("Stablowice");
     expect(context.res.body.payment.status).toBe("Paid");
-    expect(context.res.body.payment.sessionId).toBe("cs_test_123");
     expect(context.res.body.payment.amount).toBe(120);
     expect(context.res.body.payment.currency).toBe("PLN");
-    expect(context.res.body.payment.paymentIntentId).toBe("pi_test_123");
+    expect(context.res.body.payment.sessionId).toBeUndefined();
+    expect(context.res.body.payment.paymentIntentId).toBeUndefined();
     expect(context.res.body.customerName).toBeUndefined();
     expect(context.res.body.customerEmail).toBeUndefined();
+  });
+
+  it("should_return_429_before_reservation_storage_lookup", async function () {
+    const getReservation = vi.fn();
+    handler.__setDependencies({
+      ReservationRepository: { getReservation },
+      BotProtectionService: {
+        checkRequest: vi.fn().mockResolvedValue({ allowed: false, resetAt: "2099-01-01T00:00:00.000Z" })
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res-1", session_id: "cs_test_123" } });
+
+    expect(context.res.status).toBe(429);
+    expect(getReservation).not.toHaveBeenCalled();
   });
 
   it("should_return_404_when_reservation_does_not_exist()", async function () {
@@ -72,6 +88,18 @@ describe("get-reservation function", function () {
 
     expect(context.res.status).toBe(400);
     expect(context.res.body.code).toBe("MissingId");
+  });
+
+  it("should_reject_identifiers_with_unsafe_characters_before_storage_lookup()", async function () {
+    const getReservation = vi.fn();
+    handler.__setDependencies({ ReservationRepository: { getReservation: getReservation } });
+    const context = createMockContext();
+
+    await handler(context, { query: { id: "res%27injected", session_id: "cs_test_123" } });
+
+    expect(context.res.status).toBe(400);
+    expect(context.res.body.code).toBe("MissingId");
+    expect(getReservation).not.toHaveBeenCalled();
   });
 
   it("should_return_400_when_id_is_whitespace()", async function () {

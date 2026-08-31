@@ -121,6 +121,8 @@ describe("ConfigurationService", function () {
       webhook: process.env.STRIPE_WEBHOOK_SECRET,
       cancellation: process.env.RESERVATION_CANCEL_TOKEN_SECRET,
       housekeeping: process.env.HOUSEKEEPING_SECRET,
+      rateLimit: process.env.RATE_LIMIT_HASH_SECRET,
+      turnstile: process.env.TURNSTILE_SECRET_KEY,
       mailMode: process.env.MAIL_MODE
     };
 
@@ -132,7 +134,9 @@ describe("ConfigurationService", function () {
         "STRIPE_CHECKOUT_CANCEL_URL",
         "STRIPE_WEBHOOK_SECRET",
         "RESERVATION_CANCEL_TOKEN_SECRET",
-        "HOUSEKEEPING_SECRET"
+        "HOUSEKEEPING_SECRET",
+        "RATE_LIMIT_HASH_SECRET",
+        "TURNSTILE_SECRET_KEY"
       ].forEach(function (name) { delete process.env[name]; });
       process.env.MAIL_MODE = "log-only";
 
@@ -150,6 +154,8 @@ describe("ConfigurationService", function () {
         STRIPE_WEBHOOK_SECRET: previous.webhook,
         RESERVATION_CANCEL_TOKEN_SECRET: previous.cancellation,
         HOUSEKEEPING_SECRET: previous.housekeeping,
+        RATE_LIMIT_HASH_SECRET: previous.rateLimit,
+        TURNSTILE_SECRET_KEY: previous.turnstile,
         MAIL_MODE: previous.mailMode
       }).forEach(function (name) {
         const value = {
@@ -160,6 +166,8 @@ describe("ConfigurationService", function () {
           STRIPE_WEBHOOK_SECRET: previous.webhook,
           RESERVATION_CANCEL_TOKEN_SECRET: previous.cancellation,
           HOUSEKEEPING_SECRET: previous.housekeeping,
+          RATE_LIMIT_HASH_SECRET: previous.rateLimit,
+          TURNSTILE_SECRET_KEY: previous.turnstile,
           MAIL_MODE: previous.mailMode
         }[name];
         if (value === undefined) delete process.env[name];
@@ -173,12 +181,15 @@ describe("ConfigurationService", function () {
 
     try {
       process.env.STORAGE_CONNECTION_STRING = "storage";
-      process.env.STRIPE_SECRET_KEY = "stripe";
-      process.env.STRIPE_CHECKOUT_SUCCESS_URL = "https://example.com/success";
-      process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://example.com/cancel";
-      process.env.STRIPE_WEBHOOK_SECRET = "webhook";
-      process.env.RESERVATION_CANCEL_TOKEN_SECRET = "cancel";
-      process.env.HOUSEKEEPING_SECRET = "housekeeping";
+      process.env.STRIPE_SECRET_KEY = ["sk", "live", "unit-test-key"].join("_");
+      process.env.STRIPE_CHECKOUT_SUCCESS_URL = "https://example.com/success?session_id={CHECKOUT_SESSION_ID}";
+      process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://example.com/cancel?session_id={CHECKOUT_SESSION_ID}";
+      process.env.STRIPE_WEBHOOK_SECRET = "whsec_12345678901234567890123456789012";
+      process.env.RESERVATION_PUBLIC_BASE_URL = "https://example.com";
+      process.env.RESERVATION_CANCEL_TOKEN_SECRET = "cancel-secret-123456789012345678901";
+      process.env.HOUSEKEEPING_SECRET = "housekeeping-secret-1234567890123456";
+      process.env.RATE_LIMIT_HASH_SECRET = "rate-limit-secret-12345678901234567890";
+      process.env.TURNSTILE_SECRET_KEY = "turnstile-secret-12345678901234567890";
       process.env.MAIL_MODE = " ACS-EMAIL ";
       process.env.ACS_CONNECTION_STRING = "acs";
       process.env.RESERVATION_CANCELLATION_CUTOFF_HOURS = "invalid";
@@ -198,6 +209,48 @@ describe("ConfigurationService", function () {
     }
   });
 
+  it("should_reject_unsafe_production_credentials_and_redirect_urls()", function () {
+    const previous = { ...process.env };
+
+    try {
+      process.env.STORAGE_CONNECTION_STRING = "storage";
+      process.env.STRIPE_SECRET_KEY = "sk_test_123";
+      process.env.STRIPE_CHECKOUT_SUCCESS_URL = "http://example.com/success";
+      process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://other.example/cancel";
+      process.env.STRIPE_WEBHOOK_SECRET = "webhook";
+      process.env.RESERVATION_PUBLIC_BASE_URL = "https://example.com";
+      process.env.RESERVATION_CANCEL_TOKEN_SECRET = "short";
+      process.env.HOUSEKEEPING_SECRET = "short-housekeeping";
+      process.env.RATE_LIMIT_HASH_SECRET = "short-rate-limit";
+      process.env.TURNSTILE_SECRET_KEY = "short-turnstile";
+      process.env.MAIL_MODE = "acs-email";
+      process.env.ACS_CONNECTION_STRING = "acs";
+
+      const issues = ConfigurationService.getRuntimeConfigurationIssues({ production: true });
+
+      expect(issues).toContain("STRIPE_SECRET_KEY_NOT_LIVE");
+      expect(issues).toContain("STRIPE_CHECKOUT_SUCCESS_URL_INVALID");
+      expect(issues).toContain("STRIPE_CHECKOUT_CANCEL_URL_ORIGIN_MISMATCH");
+      expect(issues).toContain("STRIPE_WEBHOOK_SECRET_INVALID");
+      expect(issues).toContain("RESERVATION_CANCEL_TOKEN_SECRET_WEAK");
+      expect(issues).toContain("HOUSEKEEPING_SECRET_WEAK");
+      expect(issues).toContain("RATE_LIMIT_HASH_SECRET_WEAK");
+      expect(issues).toContain("TURNSTILE_SECRET_KEY_WEAK");
+
+      process.env.STRIPE_CHECKOUT_SUCCESS_URL = "https://example.com/success";
+      process.env.STRIPE_CHECKOUT_CANCEL_URL = "https://example.com/cancel";
+      const missingPlaceholderIssues = ConfigurationService.getRuntimeConfigurationIssues({ production: true });
+
+      expect(missingPlaceholderIssues).toContain("STRIPE_CHECKOUT_SUCCESS_URL_MISSING_SESSION_ID");
+      expect(missingPlaceholderIssues).toContain("STRIPE_CHECKOUT_CANCEL_URL_MISSING_SESSION_ID");
+    } finally {
+      Object.keys(process.env).forEach(function (name) {
+        if (!(name in previous)) delete process.env[name];
+      });
+      Object.keys(previous).forEach(function (name) { process.env[name] = previous[name]; });
+    }
+  });
+
   it("should_return_configured_optional_values_and_safe_numeric_defaults()", function () {
     const previous = {
       baseUrl: process.env.RESERVATION_PUBLIC_BASE_URL,
@@ -208,7 +261,9 @@ describe("ConfigurationService", function () {
       housekeeping: process.env.HOUSEKEEPING_SECRET,
       lease: process.env.INVENTORY_LEASE_TTL_MS,
       sender: process.env.ACS_SENDER_ADDRESS,
-      mail: process.env.MAIL_MODE
+      mail: process.env.MAIL_MODE,
+      rateLimit: process.env.RATE_LIMIT_HASH_SECRET,
+      turnstile: process.env.TURNSTILE_SECRET_KEY
     };
 
     try {
@@ -221,6 +276,8 @@ describe("ConfigurationService", function () {
       process.env.INVENTORY_LEASE_TTL_MS = "60000";
       process.env.ACS_SENDER_ADDRESS = "sender@example.com";
       process.env.MAIL_MODE = "LOG-ONLY";
+      process.env.RATE_LIMIT_HASH_SECRET = "rate-limit-secret";
+      process.env.TURNSTILE_SECRET_KEY = "turnstile-secret";
 
       expect(ConfigurationService.getReservationPublicBaseUrl()).toBe("https://custom.example");
       expect(ConfigurationService.getReservationCancelTokenTtlHours()).toBe(24);
@@ -231,6 +288,8 @@ describe("ConfigurationService", function () {
       expect(ConfigurationService.getInventoryLeaseTtlMs()).toBe(60000);
       expect(ConfigurationService.getAcsSenderAddress()).toBe("sender@example.com");
       expect(ConfigurationService.getMailMode()).toBe("log-only");
+      expect(ConfigurationService.getRateLimitHashSecret()).toBe("rate-limit-secret");
+      expect(ConfigurationService.getTurnstileSecretKey()).toBe("turnstile-secret");
     } finally {
       const values = {
         RESERVATION_PUBLIC_BASE_URL: previous.baseUrl,
@@ -241,7 +300,9 @@ describe("ConfigurationService", function () {
         HOUSEKEEPING_SECRET: previous.housekeeping,
         INVENTORY_LEASE_TTL_MS: previous.lease,
         ACS_SENDER_ADDRESS: previous.sender,
-        MAIL_MODE: previous.mail
+        MAIL_MODE: previous.mail,
+        RATE_LIMIT_HASH_SECRET: previous.rateLimit,
+        TURNSTILE_SECRET_KEY: previous.turnstile
       };
       Object.keys(values).forEach(function (name) {
         if (values[name] === undefined) delete process.env[name];

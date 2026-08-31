@@ -19,7 +19,8 @@ function applyHappyPathDependencies(overrides) {
     ConfigService: {
       loadConfig: vi.fn().mockResolvedValue({
         pickupPoints: [{ name: "Stablowice", enabled: true }],
-        pricing: { weekday: 40, weekend: 45, currency: "PLN" }
+        pricing: { weekday: 40, weekend: 45, currency: "PLN" },
+        availability: { horizonMonths: 6 }
       })
     },
     AvailabilityService: {
@@ -68,7 +69,14 @@ function applyHappyPathDependencies(overrides) {
       claimRequest: vi.fn(),
       completeRequest: vi.fn(),
       failRequest: vi.fn()
-    }
+    },
+    MarketingContactRepository: {
+      upsertContact: vi.fn().mockResolvedValue({
+        email: "jan.kowalski@example.com",
+        status: "Subscribed"
+      })
+    },
+    now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
   };
   const dependencies = {
     ...baseDependencies,
@@ -101,7 +109,7 @@ describe("ReservationService", function () {
     expect(result.reservation.deliveryMethod).toBe("pickup");
     expect(result.payment.sessionId).toBe("cs_test_123");
     expect(result.payment.currency).toBe("PLN");
-    expect(result.cancellation.url).toContain("/reservation-cancel.html?reservation_id=res-1");
+    expect(result.cancellation).toBeUndefined();
     expect(result.mail.queued).toBe(true);
   });
 
@@ -165,6 +173,23 @@ describe("ReservationService", function () {
         consentUserAgent: "test-agent"
       })
     );
+    expect(dependencies.MarketingContactRepository.upsertContact).toHaveBeenCalledWith({
+      email: "jan.kowalski@example.com",
+      firstName: "Jan",
+      lastName: "Kowalski",
+      reservationId: "res-1",
+      consentRecordedAt: "2026-08-01T12:00:00.000Z",
+      consentIp: "192.0.2.1",
+      consentUserAgent: "test-agent"
+    });
+  });
+
+  it("should_not_store_a_marketing_contact_without_explicit_consent()", async function () {
+    const dependencies = applyHappyPathDependencies();
+
+    await ReservationService.createReservation(buildReservation({ marketingEmail: false }));
+
+    expect(dependencies.MarketingContactRepository.upsertContact).not.toHaveBeenCalled();
   });
 
   it("should_return_the_original_result_for_a_completed_idempotency_retry()", async function () {
@@ -208,6 +233,103 @@ describe("ReservationService", function () {
     });
   });
 
+  it.each([
+    ["a past date", { dateFrom: "2026-07-31", dateTo: "2026-08-01" }, "dateFrom cannot be in the past"],
+    ["a date beyond the horizon", { dateFrom: "2027-03-01", dateTo: "2027-03-01" }, "Reservation date is outside the booking horizon"]
+  ])("should_reject_%s_before_any_side_effects()", async function (_caseName, dates, message) {
+    const dependencies = applyHappyPathDependencies({
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
+    });
+
+    await expect(ReservationService.createReservation(buildReservation(dates))).rejects.toMatchObject({
+      statusCode: 400,
+      message: message
+    });
+
+    expect(dependencies.AvailabilityService.getAvailability).not.toHaveBeenCalled();
+    expect(dependencies.ReservationRepository.saveReservation).not.toHaveBeenCalled();
+    expect(dependencies.StripeService.createCheckoutSession).not.toHaveBeenCalled();
+    expect(dependencies.MailService.sendReservationNotification).not.toHaveBeenCalled();
+  });
+
+  it("should_use_the_warsaw_calendar_date_at_a_utc_boundary()", async function () {
+    const dependencies = applyHappyPathDependencies({
+      now: vi.fn().mockReturnValue(new Date("2026-08-31T22:30:00.000Z"))
+    });
+
+    await expect(ReservationService.createReservation(buildReservation({
+      dateFrom: "2026-08-31",
+      dateTo: "2026-09-01"
+    }))).rejects.toMatchObject({
+      statusCode: 400,
+      message: "dateFrom cannot be in the past"
+    });
+
+    expect(dependencies.AvailabilityService.getAvailability).not.toHaveBeenCalled();
+  });
+
+  it("should_allow_the_clamped_end_of_month_horizon_edge()", async function () {
+    const dependencies = applyHappyPathDependencies({
+      now: vi.fn().mockReturnValue(new Date("2026-08-31T12:00:00.000Z"))
+    });
+
+    const result = await ReservationService.createReservation(buildReservation({
+      dateFrom: "2027-02-28",
+      dateTo: "2027-02-28"
+    }));
+
+    expect(result.message).toBe("Reservation accepted");
+    expect(dependencies.AvailabilityService.getAvailability).toHaveBeenCalledWith({
+      from: "2027-02-28",
+      to: "2027-02-28"
+    });
+  });
+
+  it("should_reject_a_date_one_day_beyond_the_clamped_horizon()", async function () {
+    const dependencies = applyHappyPathDependencies({
+      now: vi.fn().mockReturnValue(new Date("2026-08-31T12:00:00.000Z"))
+    });
+
+    await expect(ReservationService.createReservation(buildReservation({
+      dateFrom: "2027-03-01",
+      dateTo: "2027-03-01"
+    }))).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Reservation date is outside the booking horizon"
+    });
+
+    expect(dependencies.AvailabilityService.getAvailability).not.toHaveBeenCalled();
+  });
+
+  it("should_reject_unbounded_customer_notes()", async function () {
+    const input = buildReservation({ notes: "x".repeat(2001) });
+
+    applyHappyPathDependencies();
+
+    await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "notes is too long"
+    });
+  });
+
+  it("should_reject_unbounded_email_and_pickup_point()", async function () {
+    applyHappyPathDependencies();
+
+    await expect(ReservationService.createReservation(buildReservation({
+      email: "a".repeat(250) + "@example.com"
+    }))).rejects.toMatchObject({
+      statusCode: 400,
+      message: "email is too long"
+    });
+
+    await expect(ReservationService.createReservation(buildReservation({
+      pickupPoint: "x".repeat(201)
+    }))).rejects.toMatchObject({
+      statusCode: 400,
+      message: "pickupPoint is too long"
+    });
+  });
+
   it("should_reject_overlapping_reservations_when_capacity_is_too_low()", async function () {
     const input = buildReservation({ padsCount: 4 });
 
@@ -217,7 +339,8 @@ describe("ReservationService", function () {
       },
       AvailabilityService: {
         getAvailability: vi.fn().mockResolvedValue({ available: false, remainingPads: 0 })
-      }
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
     });
 
     await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
@@ -241,7 +364,8 @@ describe("ReservationService", function () {
       },
       StripeService: {
         createCheckoutSession: vi.fn()
-      }
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
     });
 
     await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
@@ -294,7 +418,8 @@ describe("ReservationService", function () {
       },
       MailService: {
         sendReservationNotification: vi.fn().mockRejectedValue(new Error("Mail provider unavailable"))
-      }
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
     });
 
     await expect(ReservationService.createReservation(input)).rejects.toThrow("Mail provider unavailable");
@@ -306,7 +431,8 @@ describe("ReservationService", function () {
     ReservationService.__setDependencies({
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ pickupPoints: [{ name: "Stablowice", enabled: true }] })
-      }
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
     });
 
     await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
@@ -440,17 +566,20 @@ describe("ReservationService", function () {
     });
   });
 
-  it("should_calculate_correct_amount_when_date_range_is_reversed()", async function () {
-    // dateFrom later than dateTo hits the swap branch in countDaysInRange and calculateReservationAmountInMajorUnit.
+  it("should_reject_a_reversed_date_range_before_side_effects()", async function () {
     const input = buildReservation({ dateFrom: "2026-08-12", dateTo: "2026-08-10" });
 
-    applyHappyPathDependencies();
+    const dependencies = applyHappyPathDependencies();
 
-    const result = await ReservationService.createReservation(input);
+    await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "dateTo must be on or after dateFrom"
+    });
 
-    // 3 days × 2 pads × 40 PLN/day = 240 (all weekdays)
-    expect(result.payment.amount).toBeGreaterThan(0);
-    expect(result.payment.sessionId).toBe("cs_test_123");
+    expect(dependencies.AvailabilityService.getAvailability).not.toHaveBeenCalled();
+    expect(dependencies.ReservationRepository.saveReservation).not.toHaveBeenCalled();
+    expect(dependencies.StripeService.createCheckoutSession).not.toHaveBeenCalled();
+    expect(dependencies.MailService.sendReservationNotification).not.toHaveBeenCalled();
   });
 
   it("should_reject_when_remaining_pads_are_lower_than_requested()", async function () {
@@ -462,7 +591,8 @@ describe("ReservationService", function () {
       },
       AvailabilityService: {
         getAvailability: vi.fn().mockResolvedValue({ available: true, remainingPads: 2 })
-      }
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
     });
 
     await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
@@ -915,7 +1045,8 @@ describe("ReservationService", function () {
         getReservationPublicBaseUrl: vi.fn().mockReturnValue("https://www.skucha.co"),
         getReservationCancelTokenSecret: vi.fn().mockReturnValue("unit-test-secret")
       },
-      MailService: { sendReservationNotification: vi.fn().mockResolvedValue({ queued: true }) }
+      MailService: { sendReservationNotification: vi.fn().mockResolvedValue({ queued: true }) },
+      now: vi.fn().mockReturnValue(new Date("2026-08-01T12:00:00.000Z"))
     });
 
     await ReservationService.createReservation(buildReservation({ dateFrom: "2026-08-20", dateTo: "2026-08-21" }));

@@ -35,6 +35,15 @@ describe("ReservationTimeService", function () {
     expect(result.toISOString()).toBe("2026-08-09T12:00:00.000Z");
   });
 
+  it("should_read_the_calendar_date_in_the_requested_timezone()", function () {
+    expect(TimeService.getCalendarDate(new Date("2026-08-31T22:30:00.000Z"), timeZone)).toBe("2026-09-01");
+  });
+
+  it("should_clamp_calendar_month_addition_at_the_end_of_month()", function () {
+    expect(TimeService.addCalendarMonths("2024-02-29", 12)).toBe("2025-02-28");
+    expect(TimeService.addCalendarMonths("2026-08-31", 6)).toBe("2027-02-28");
+  });
+
   it("should_reject_invalid_calendar_and_clock_values()", function () {
     expect(function () { TimeService.parseDateOnlyAsUtc("2026-02-30"); }).toThrowError(
       expect.objectContaining({ code: "InvalidDate" })

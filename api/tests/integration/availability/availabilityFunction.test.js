@@ -19,6 +19,23 @@ describe("availability function", function () {
     expect(context.res.body.available).toBe(true);
   });
 
+  it("should_return_429_before_calling_availability_service", async function () {
+    const getAvailability = vi.fn();
+    handler.__setDependencies({
+      AvailabilityService: { getAvailability },
+      BotProtectionService: {
+        checkRequest: vi.fn().mockResolvedValue({ allowed: false, resetAt: "2099-01-01T00:00:00.000Z" })
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, { query: { from: "2026-08-10", to: "2026-08-12" } });
+
+    expect(context.res.status).toBe(429);
+    expect(context.res.body.code).toBe("TooManyRequests");
+    expect(getAvailability).not.toHaveBeenCalled();
+  });
+
   it("should_parse_query_params_from_url()", async function () {
     const getAvailability = vi.fn().mockResolvedValue({ available: true, remainingPads: 3, days: {} });
 

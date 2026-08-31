@@ -55,6 +55,22 @@ describe("reservation-cancel function", function () {
     expect(context.res.status).toBe(200);
   });
 
+  it("should_return_429_before_cancellation_side_effects", async function () {
+    const cancelReservation = vi.fn();
+    handler.__setDependencies({
+      ReservationService: { cancelReservation },
+      BotProtectionService: {
+        checkRequest: vi.fn().mockResolvedValue({ allowed: false, resetAt: "2099-01-01T00:00:00.000Z" })
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, { body: { reservationId: "res-1", token: "token" } });
+
+    expect(context.res.status).toBe(429);
+    expect(cancelReservation).not.toHaveBeenCalled();
+  });
+
   it("should_return_400_for_invalid_json_body()", async function () {
     const context = createMockContext();
 

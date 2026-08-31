@@ -223,6 +223,7 @@ Validation strategy:
 Current persistence state:
 
 - reservations are stored in the `Reservations` Azure Table
+- explicit email marketing opt-ins are deduplicated by normalized email and stored with consent audit data in the `MarketingContacts` Azure Table
 - Stripe webhook claims are stored in the `StripeEvents` Azure Table
 - the inventory creation lease is stored in the `InventoryLeases` Azure Table
 - reservation idempotency claims and completed responses are stored in the `ReservationIdempotency` Azure Table with a 24-hour retention timestamp

@@ -10,6 +10,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   quality_checks:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -28,6 +31,8 @@ jobs:
           cache-dependency-path: api/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Lint
         run: npm run lint
       - name: Run tests
@@ -76,6 +81,9 @@ jobs:
     needs: [quality_checks, runtime_compatibility]
     runs-on: ubuntu-latest
     name: Build and Deploy Job
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -92,6 +100,7 @@ jobs:
         run: |
           npm ci
           npm run build:api
+          npm run build:site
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
@@ -101,7 +110,7 @@ jobs:
           action: "upload"
           ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
           # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
+          app_location: "site-dist" # Allowlisted static site artifact
           api_location: "api-dist" # Bundled API output path - optional
           output_location: "" # Built app content directory - optional
           skip_app_build: true

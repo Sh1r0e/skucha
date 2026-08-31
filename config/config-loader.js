@@ -10,9 +10,12 @@
       weekend: 45,
       deliveryPerPad: 15
     },
+    botProtection: {
+      turnstileSiteKey: ""
+    },
     pickupPoints: [
-      { name: "Stablowice", address: "ul. Lubomierska 24, Wrocław", enabled: true },
-      { name: "Brochow", address: "Adres zostanie podany po uruchomieniu punktu", enabled: false }
+      { name: "Stabłowice", address: "ul. Lubomierska 24, Wrocław", enabled: true },
+      { name: "Brochów", address: "Adres zostanie podany po uruchomieniu punktu", enabled: false }
     ],
     branding: {
       accent: "#FB5A12",
@@ -24,6 +27,7 @@
     var out = Object.assign({}, base, extra || {});
     out.contact = Object.assign({}, base.contact || {}, (extra && extra.contact) || {});
     out.pricing = Object.assign({}, base.pricing || {}, (extra && extra.pricing) || {});
+    out.botProtection = Object.assign({}, base.botProtection || {}, (extra && extra.botProtection) || {});
     out.branding = Object.assign({}, base.branding || {}, (extra && extra.branding) || {});
     out.pickupPoints = Array.isArray(extra && extra.pickupPoints) ? extra.pickupPoints : base.pickupPoints;
     return out;
@@ -85,7 +89,8 @@
       pickupPoint1Name: p1.name || "Stabłowice",
       pickupPoint1Address: p1.address || "ul. Lubomierska 24, Wrocław",
       pickupPoint2Name: p2.name || "Brochów",
-      pickupPoint2Address: p2.address || "Adres zostanie podany po uruchomieniu punktu"
+      pickupPoint2Address: p2.address || "Adres zostanie podany po uruchomieniu punktu",
+      turnstileSiteKey: (config.botProtection && config.botProtection.turnstileSiteKey) || ""
     });
 
     return true;

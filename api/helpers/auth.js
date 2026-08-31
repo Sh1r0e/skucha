@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { Buffer } = require("buffer");
+const { jsonResponse } = require("./http");
 
 function getHeader(headers, name) {
   if (!headers || !name) {
@@ -53,14 +54,7 @@ function hasRole(request, role) {
 }
 
 function reject(context, status, code, message) {
-  context.res = {
-    status: status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store"
-    },
-    body: { message: message, code: code }
-  };
+  context.res = jsonResponse(status, { message: message, code: code });
   return true;
 }
 

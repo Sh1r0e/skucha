@@ -32,7 +32,7 @@
   .reservation-consent .consent-optional{ color:#6b6862; background:#eceae6; }
   .reservation-consent small{ display:block; margin-top:3px; color:#8a867e; font-size:11px; }
   .reservation-consent.conditional{ border-style:dashed; background:#fff8f2; }
-  .calendar-illustration{ position:absolute; right:0; bottom:0; display:block; width:min(620px, 42vw); height:auto; margin:0; pointer-events:none; }
+  .calendar-illustration{ position:absolute; right:0; bottom:0; display:block; width:min(620px, 42vw); height:auto; margin:0; opacity:0.9; pointer-events:none; }
   .hero-copy{ align-self:stretch; position:relative; z-index:1; }
   .booking-card{ position:relative; z-index:1; }
 
@@ -305,6 +305,7 @@
         </label>
       </div>
 
+      <div id="skucha-turnstile" style="margin-top:14px; min-height:65px;"></div>
       <button type="button" onClick="{{ reserveClick }}" aria-busy="{{ reservationSubmitting }}" style="margin-top:16px; width:100%; display:flex; align-items:center; justify-content:center; gap:9px; border:0; background:var(--accent); color:#fff; font:800 17px/1 var(--font-main); padding:17px; border-radius:var(--r-md); letter-spacing:-0.01em; cursor:pointer;">
         <span style="{{ reservationSpinnerStyle }}" aria-hidden="true"></span><span>{{ reservationButtonLabel }}</span><span style="font-size: 18px;">→</span>
       </button>
@@ -548,7 +549,7 @@
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1024},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FB5A12&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1a1916&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Bricolage Grotesque&quot;,&quot;options&quot;:[&quot;Archivo&quot;,&quot;Space Grotesk&quot;,&quot;Sora&quot;,&quot;Bricolage Grotesque&quot;,&quot;Hanken Grotesk&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;labelFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Space Mono&quot;,&quot;options&quot;:[&quot;Space Mono&quot;,&quot;JetBrains Mono&quot;,&quot;IBM Plex Mono&quot;,&quot;DM Mono&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;corners&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Zaokrąglone&quot;,&quot;options&quot;:[&quot;Ostre&quot;,&quot;Zaokrąglone&quot;,&quot;Mocno zaokrąglone&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;logo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Wariant 2&quot;,&quot;options&quot;:[&quot;Wariant 1&quot;,&quot;Wariant 2&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;priceWeekday&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;priceWeekend&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;deliveryFee&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;whatsappNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;48600123456&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1024},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#FB5A12&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;ink&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1a1916&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;displayFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Bricolage Grotesque&quot;,&quot;options&quot;:[&quot;Archivo&quot;,&quot;Space Grotesk&quot;,&quot;Sora&quot;,&quot;Bricolage Grotesque&quot;,&quot;Hanken Grotesk&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;labelFont&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Space Mono&quot;,&quot;options&quot;:[&quot;Space Mono&quot;,&quot;JetBrains Mono&quot;,&quot;IBM Plex Mono&quot;,&quot;DM Mono&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;corners&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Zaokrąglone&quot;,&quot;options&quot;:[&quot;Ostre&quot;,&quot;Zaokrąglone&quot;,&quot;Mocno zaokrąglone&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;logo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Wariant 2&quot;,&quot;options&quot;:[&quot;Wariant 1&quot;,&quot;Wariant 2&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;priceWeekday&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:40,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;priceWeekend&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:45,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;deliveryFee&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:15,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:0},&quot;whatsappNumber&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;48600123456&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;turnstileSiteKey&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
 class Component extends DCLogic {
   state = (() => {
     const now = new Date();
@@ -582,7 +583,8 @@ class Component extends DCLogic {
       marketingEmail: false,
       reservationStatus: '',
       reservationStatusColor: '#6b6862',
-      reservationSubmitting: false
+      reservationSubmitting: false,
+      turnstileToken: ''
     };
   })();
 
@@ -690,6 +692,7 @@ class Component extends DCLogic {
   componentDidMount(){
     this.applyTheme();
     this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
+    this.renderTurnstile();
   }
 
   componentDidUpdate(prevProps, prevState){
@@ -697,6 +700,60 @@ class Component extends DCLogic {
     if (prevState && (prevState.calYear !== this.state.calYear || prevState.calMonth !== this.state.calMonth)) {
       this.loadMonthAvailability(this.state.calYear, this.state.calMonth);
     }
+    if (prevProps && prevProps.turnstileSiteKey !== this.props.turnstileSiteKey) {
+      this.renderTurnstile();
+    }
+  }
+
+  componentWillUnmount(){
+    if (this._turnstileWidgetId !== undefined && window.turnstile) {
+      window.turnstile.remove(this._turnstileWidgetId);
+    }
+  }
+
+  loadTurnstile(){
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    return new Promise((resolve, reject) => {
+      let script = document.querySelector('script[data-skucha-turnstile]');
+      if (!script) {
+        script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.defer = true;
+        script.setAttribute('data-skucha-turnstile', 'true');
+        document.head.appendChild(script);
+      }
+      script.addEventListener('load', () => resolve(window.turnstile), { once: true });
+      script.addEventListener('error', () => reject(new Error('Turnstile failed to load')), { once: true });
+    });
+  }
+
+  renderTurnstile(){
+    const siteKey = String(this.props.turnstileSiteKey || '').trim();
+    if (!siteKey || this._turnstileWidgetId !== undefined) return;
+    const container = document.getElementById('skucha-turnstile');
+    if (!container) return;
+
+    this.loadTurnstile().then((turnstile) => {
+      if (!turnstile || this._turnstileWidgetId !== undefined) return;
+      this._turnstileWidgetId = turnstile.render(container, {
+        sitekey: siteKey,
+        action: 'reservation',
+        theme: 'light',
+        size: 'flexible',
+        callback: (token) => this.setState({ turnstileToken: token }),
+        'expired-callback': () => this.setState({ turnstileToken: '' }),
+        'error-callback': () => this.setState({ turnstileToken: '' })
+      });
+    }).catch(() => {
+      this.setState({ reservationStatus: 'Nie udało się załadować zabezpieczenia formularza.', reservationStatusColor: '#b42318' });
+    });
+  }
+
+  resetTurnstile(){
+    if (this._turnstileWidgetId !== undefined && window.turnstile) {
+      window.turnstile.reset(this._turnstileWidgetId);
+    }
+    this.setState({ turnstileToken: '' });
   }
 
   applyTheme(){
@@ -773,6 +830,11 @@ class Component extends DCLogic {
     const email = this.state.email.trim();
     const phone = this.phoneValue();
 
+    if (this.props.turnstileSiteKey && !this.state.turnstileToken) {
+      this.setState({ reservationStatus: 'Potwierdź, że nie jesteś botem.', reservationStatusColor: '#b54708' });
+      return;
+    }
+
     if (!firstName || !lastName || !email || !phone) {
       this.setState({ reservationStatus: 'Uzupełnij imię, nazwisko, email i telefon.', reservationStatusColor: '#b54708' });
       return;
@@ -831,7 +893,8 @@ class Component extends DCLogic {
       acceptTerms: this.state.acceptTerms,
       acceptPrivacy: this.state.acceptPrivacy,
       marketingEmail: this.state.marketingEmail,
-      earlyStartRequested: this.earlyStartRequired() && this.state.earlyStartRequested
+      earlyStartRequested: this.earlyStartRequired() && this.state.earlyStartRequested,
+      turnstileToken: this.state.turnstileToken
     };
 
     try {
@@ -848,6 +911,7 @@ class Component extends DCLogic {
           + ((result && result.code) ? ', ' + result.code : '')
           + ((result && result.requestId) ? ', id: ' + result.requestId : '')
           + ']';
+        this.resetTurnstile();
         this.setState({ reservationStatus: message + suffix, reservationStatusColor: '#b42318', reservationSubmitting: false, idempotencyKey: response.status >= 400 && response.status < 500 ? '' : idempotencyKey });
         return;
       }
@@ -863,6 +927,7 @@ class Component extends DCLogic {
       this.setState({ reservationStatus: 'Rezerwacja przyjęta. Otwieram WhatsApp.', reservationStatusColor: '#1f8a5b', reservationSubmitting: false });
       window.open(this.buildWaLink(), '_blank', 'noopener');
     } catch (error) {
+      this.resetTurnstile();
       this.setState({ reservationStatus: 'Błąd połączenia z API.', reservationStatusColor: '#b42318', reservationSubmitting: false });
     }
   }

@@ -10,6 +10,12 @@ const workflowPath = path.resolve(
   "workflows",
   "azure-static-web-apps-witty-bush-0164ebc10.yml"
 );
+const {
+  buildSite,
+  outputRoot,
+  publicDirectories,
+  publicFiles
+} = require("../../scripts/build-site");
 const staticWebAppConfigPath = path.resolve(__dirname, "../../..", "staticwebapp.config.json");
 const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
 const adminHousekeepingConfigPath = path.resolve(__dirname, "../../admin/housekeeping/function.json");
@@ -30,6 +36,68 @@ describe("deployment workflow", function () {
 
     expect(uploadJob).toMatch(/uses: Azure\/static-web-apps-deploy@v1/);
     expect(uploadJob).toMatch(/^\s+production_branch: "main"\s*$/m);
+    expect(workflow).toMatch(/^permissions:\n\x20{2}contents: read\s*$/m);
+    expect(workflow).not.toMatch(/^\x20{2}pull-requests: write\s*$/m);
+    expect(uploadJob).toMatch(/^\x20{4}permissions:\n\x20{6}contents: read\n\x20{6}pull-requests: write\s*$/m);
+    expect(uploadJob).toMatch(/npm run build:site/);
+    expect(uploadJob).toMatch(/app_location: "site-dist"/);
+  });
+
+  it("should_build_only_the_allowlisted_public_site_artifact()", function () {
+    expect(publicDirectories).not.toContain("config");
+    expect(publicFiles.filter(function (file) {
+      return file.startsWith("config/");
+    })).toEqual(["config/config-loader.js", "config/config.json"]);
+
+    buildSite();
+
+    const files = [];
+    function collectFiles(directory) {
+      fs.readdirSync(directory, { withFileTypes: true }).forEach(function (entry) {
+        const relativePath = path.relative(outputRoot, path.join(directory, entry.name)).replace(/\\/g, "/");
+        if (entry.isDirectory()) {
+          collectFiles(path.join(directory, entry.name));
+        } else {
+          files.push(relativePath);
+        }
+      });
+    }
+    collectFiles(outputRoot);
+
+    [
+      "index.html",
+      "skucha.html",
+      "skucha-payment-success.html",
+      "skucha-payment-cancel.html",
+      "reservation-cancel.html",
+      "rental-terms.html",
+      "privacy-policy.html",
+      "rental-terms-v1.0.pdf",
+      "privacy-policy-v1.0.pdf",
+      "admin/reservations.html",
+      "config/config.json",
+      "config/config-loader.js",
+      "staticwebapp.config.json",
+      "images/crash-pad-circuit.webp"
+    ].forEach(function (requiredFile) {
+      expect(files).toContain(requiredFile);
+    });
+
+    [
+      "architecture.md",
+      "README.md",
+      "security-audit.md",
+      "production-readiness.md",
+      ".github",
+      "api",
+      "coverage",
+      "changes",
+      "changes-to-htmls.html"
+    ].forEach(function (forbiddenPath) {
+      expect(files.some(function (file) {
+        return file === forbiddenPath || file.startsWith(forbiddenPath + "/");
+      })).toBe(false);
+    });
   });
 
   it("should leave admin API authorization to the Function handlers", function () {
@@ -53,5 +121,25 @@ describe("deployment workflow", function () {
 
     expect(reservationsTrigger.route).toBe("backoffice/reservations");
     expect(housekeepingTrigger.route).toBe("backoffice/housekeeping");
+  });
+
+  it("should_apply_global_browser_security_headers_and_protect_payment_pages", function () {
+    const staticWebAppConfig = JSON.parse(fs.readFileSync(staticWebAppConfigPath, "utf8"));
+    const headers = staticWebAppConfig.globalHeaders;
+
+    expect(headers["Content-Security-Policy"]).toContain("frame-ancestors 'none'");
+    expect(headers["Strict-Transport-Security"]).toContain("max-age=31536000");
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+    expect(headers["X-Frame-Options"]).toBe("DENY");
+    expect(headers["Permissions-Policy"]).toContain("camera=()");
+
+    ["/skucha-payment-success.html", "/skucha-payment-cancel.html"].forEach(function (routePath) {
+      const route = staticWebAppConfig.routes.find(function (candidate) {
+        return candidate.route === routePath;
+      });
+
+      expect(route.headers["Cache-Control"]).toBe("no-store");
+      expect(route.headers["Referrer-Policy"]).toBe("no-referrer");
+    });
   });
 });

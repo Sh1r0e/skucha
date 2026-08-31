@@ -1,13 +1,10 @@
 const AdminReservationService = require("../../services/AdminReservationService");
 const { getRequest, requireAdmin } = require("../../helpers/auth");
 const { rejectDuringMaintenance } = require("../../helpers/maintenance");
+const { jsonResponse, rejectNonJsonRequest, rejectOversizedRequest } = require("../../helpers/http");
 
 function response(context, status, body) {
-  context.res = {
-    status: status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-    body: body
-  };
+  context.res = jsonResponse(status, body);
 }
 
 function parseBody(request) {
@@ -58,6 +55,13 @@ function createAdminReservationsHandler(customDependencies) {
 
       if (method !== "post") {
         response(context, 405, { message: "Method not allowed", code: "MethodNotAllowed" });
+        return;
+      }
+
+      if (rejectNonJsonRequest(context, request)) {
+        return;
+      }
+      if (rejectOversizedRequest(context, request)) {
         return;
       }
 

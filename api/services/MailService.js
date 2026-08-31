@@ -2,12 +2,17 @@ const { EmailClient } = require("@azure/communication-email");
 const fs = require("fs");
 const path = require("path");
 const ConfigurationService = require("./ConfigurationService");
+const TimeService = require("./ReservationTimeService");
 
 const defaultDependencies = {
   EmailClient,
   ConfigurationService,
+  TimeService,
   readFileSync: fs.readFileSync,
-  legalDirectory: path.join(__dirname, "..", "legal")
+  legalDirectory: path.join(__dirname, "..", "legal"),
+  now: function now() {
+    return new Date();
+  }
 };
 
 function normalizeMailMode(value) {
@@ -51,40 +56,40 @@ function buildReservationDetails(reservation) {
   const details = normalizeReservation(reservation);
 
   return [
-    "Szczegoly rezerwacji:",
+    "Szczegóły rezerwacji:",
     "- ID: " + details.id,
     "- Status rezerwacji: " + details.status,
-    "- Imie i nazwisko: " + details.fullName,
+    "- Imię i nazwisko: " + details.fullName,
     "- Email: " + details.email,
     "- Telefon: " + details.phone,
     "- Termin: " + details.dateFrom + " - " + details.dateTo,
-    "- Liczba padow: " + String(details.padsCount),
+    "- Liczba padów: " + String(details.padsCount),
     "- Punkt odbioru: " + details.pickupPoint,
     "- Uwagi: " + details.notes,
     "- Kwota: " + String(details.amount) + " PLN",
-    "- Kaucja zwrotna: " + formatMoney(details.padsCount === "-" ? 0 : Number(details.padsCount) * 200) + " gotowka przy odbiorze"
+    "- Kaucja zwrotna: " + formatMoney(details.padsCount === "-" ? 0 : Number(details.padsCount) * 200) + " gotówka przy odbiorze"
   ];
 }
 
 function buildPaymentDetails(reservation, options) {
   const details = normalizeReservation(reservation);
   const lines = [
-    "Szczegoly platnosci:",
-    "- Status platnosci: " + details.paymentStatus,
+    "Szczegóły płatności:",
+    "- Status płatności: " + details.paymentStatus,
     "- Kwota: " + String(details.amount) + " PLN"
   ];
 
   if (details.checkoutUrl && (!options || options.includeCheckoutUrl !== false)) {
-    lines.push("- Link do platnosci: " + details.checkoutUrl);
+    lines.push("- Link do płatności: " + details.checkoutUrl);
   }
 
   return lines;
 }
 
-function buildCancellationDetails(reservation) {
+function buildCancellationDetails(reservation, options) {
   const details = normalizeReservation(reservation);
 
-  if (!details.cancelUrl) {
+  if (!details.cancelUrl || !options || options.includeCancellation !== true) {
     return [];
   }
 
@@ -95,12 +100,12 @@ function buildCancellationDetails(reservation) {
   ];
 }
 
-function buildReservationEmail(reservation) {
+function buildReservationEmail(reservation, options) {
   const details = normalizeReservation(reservation);
   const lines = [
-    "Rezerwacja w Skucha zostala utworzona.",
+    "Rezerwacja w Skucha została utworzona.",
     "",
-    "Aby zakonczyc rezerwacje, dokoncz platnosc przez Stripe.",
+    "Aby zakończyć rezerwację, dokończ płatność przez Stripe.",
     "",
     ...buildReservationDetails(details),
     "",
@@ -112,14 +117,14 @@ function buildReservationEmail(reservation) {
     lines.push("", "Link do checkoutu Stripe:", details.checkoutUrl);
   }
 
-  const cancellationDetails = buildCancellationDetails(details);
+  const cancellationDetails = buildCancellationDetails(details, options);
 
   if (cancellationDetails.length) {
     lines.push("", ...cancellationDetails);
     lines.push("");
   }
 
-  lines.push("Wiadomosc automatyczna z adresu rental@skucha.co.");
+  lines.push("Wiadomość automatyczna z adresu rental@skucha.co.");
 
   return lines.join("\n");
 }
@@ -134,13 +139,13 @@ function buildPaymentEmail(reservation, title, introduction, options) {
     "",
     ...buildPaymentDetails(reservation, options)
   ];
-  const cancellationDetails = buildCancellationDetails(reservation);
+  const cancellationDetails = buildCancellationDetails(reservation, options);
 
   if (cancellationDetails.length) {
     lines.push("", ...cancellationDetails);
   }
 
-  lines.push("", "Wiadomosc automatyczna z adresu rental@skucha.co.");
+  lines.push("", "Wiadomość automatyczna z adresu rental@skucha.co.");
   return lines.join("\n");
 }
 
@@ -178,7 +183,7 @@ function formatEmailPeriod(details) {
   return formatEmailDate(details.dateFrom) + " → " + formatEmailDate(details.dateTo) + " · " + days + " " + word;
 }
 
-function buildEmailSummaryHtml(details) {
+function buildEmailSummaryHtml(details, options) {
   const pads = Number(details.padsCount) || 0;
   const deposit = pads * 200;
   const equipment = pads > 0 ? "Black Diamond Circuit 2.0 × " + pads : "-";
@@ -191,8 +196,7 @@ function buildEmailSummaryHtml(details) {
     ["Sprzęt", equipment, ""],
     ["Okres najmu", formatEmailPeriod(details), ""],
     ["Odbiór i zwrot", pickup, ""],
-    ["Czynsz", amount, ""],
-    ["Do zapłaty teraz", amount, "background:#fafbfc;"],
+    [(options && options.paymentLabel) || "Do zapłaty teraz", amount, "background:#fafbfc;"],
     ["Kaucja zwrotna", depositLabel, "background:#fff8e8;color:#7b5922;"]
   ];
 
@@ -209,23 +213,38 @@ function buildEmailKnowledgeHtml(details) {
   const pads = Number(details.padsCount) || 0;
   const deposit = pads > 0 ? formatMoney(pads * 200) : "kaucja zwrotna";
   const items = [
-    ["△", "Bouldering jest niebezpieczny", "Crash pad zmniejsza, ale nie eliminuje ryzyka urazu. Układaj matę płasko pod strefą lądowania, bez szczelin między matami, na terenie oczyszczonym z kamieni. Wspinaj się z asekuracją drugiej osoby.", "background:#fff8e8;border-color:#eadbb8;color:#b77920;"],
-    ["▣", "Weź dokument tożsamości", "Przy odbiorze spisujemy dane z dowodu lub paszportu. Nie robimy kopii ani zdjęcia i nie zatrzymujemy dokumentu w zastaw. Musisz mieć ukończone 18 lat.", ""],
-    ["$", "Kaucja " + deposit + " gotówką", "Zwracamy ją w całości od razu po oddaniu padów. Potrącamy tylko udokumentowany koszt naprawy albo brakujące elementy - zawsze z pisemnym uzasadnieniem.", ""],
-    ["✓", "Normalne zużycie nic nie kosztuje", "Przetarta pokrowiec, ubita pianka, magnezja i ziemia - to jest w cenie. Płacisz tylko za realne uszkodzenie, a za zgubienie lub zniszczenie odpowiadasz zgodnie z regulaminem.", ""],
-    ["◷", "Oddajesz w umówionym terminie", "Czysty i suchy, w miejscu odbioru. Za każdą rozpoczętą dobę zwłoki naliczamy czynsz. Nie odstępuj padów innym osobom i nie zostawiaj ich bez nadzoru.", ""]
+    ["!", "Bouldering jest niebezpieczny", "Crash pad zmniejsza, ale nie eliminuje ryzyka urazu. Układaj matę płasko pod strefą lądowania, bez szczelin między matami, na terenie oczyszczonym z kamieni. Wspinaj się z asekuracją drugiej osoby.", "background:#fff8e8;border-color:#eadbb8;color:#b77920;"],
+    ["ID", "Weź dokument tożsamości", "Przy odbiorze spisujemy dane z dowodu lub paszportu. Nie robimy kopii ani zdjęcia i nie zatrzymujemy dokumentu w zastaw. Musisz mieć ukończone 18 lat.", ""],
+    ["PLN", "Kaucja " + deposit + " gotówką", "Zwracamy ją w całości od razu po oddaniu padów. Potrącamy tylko udokumentowany koszt naprawy albo brakujące elementy - zawsze z pisemnym uzasadnieniem.", ""],
+    ["OK", "Normalne zużycie nic nie kosztuje", "Przetarty pokrowiec, ubita pianka, magnezja i ziemia - to jest w cenie. Płacisz tylko za realne uszkodzenie, a za zgubienie lub zniszczenie odpowiadasz zgodnie z regulaminem.", ""],
+    ["24H", "Oddajesz w umówionym terminie", "Czysty i suchy, w miejscu odbioru. Za każdą rozpoczętą dobę zwłoki naliczamy opłatę zgodnie z regulaminem. Nie odstępuj padów innym osobom i nie zostawiaj ich bez nadzoru.", ""]
   ];
 
   return items.map(function (item) {
     return '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:8px;border:1px solid #e7e5e1;border-radius:13px;background:#ffffff;">'
-      + '<tr><td style="width:38px;padding:13px 0 13px 14px;vertical-align:top;font:20px/1.1 monospace;' + item[3] + '">' + item[0] + '</td>'
+      + '<tr><td style="width:46px;padding:13px 0 13px 14px;vertical-align:top;' + item[3] + '"><span style="display:inline-block;min-width:28px;padding:5px 3px;border:1px solid #d7d3cc;border-radius:7px;background:#ffffff;color:#1a1916;font:700 10px/1 monospace;text-align:center;">' + item[0] + '</span></td>'
       + '<td style="padding:13px 14px 13px 0;' + item[3] + '"><strong style="display:block;color:#1a1916;font-size:15px;line-height:1.3;">' + escapeHtml(item[1]) + '</strong>'
       + '<span style="display:block;margin-top:3px;color:#6b6862;font-size:14px;line-height:1.45;">' + escapeHtml(item[2]) + '</span></td></tr></table>';
   }).join("");
 }
 
-function buildPaymentEmailHtml(reservation, title, introduction) {
+function buildEmailActionsHtml(details, options) {
+  const actions = [];
+
+  if (options && options.includeCheckoutUrl && details.checkoutUrl) {
+    actions.push('<a href="' + escapeHtml(details.checkoutUrl) + '" style="display:inline-block;margin:0 8px 8px 0;padding:13px 18px;border-radius:10px;background:#fb5a12;color:#ffffff;font-size:15px;font-weight:700;line-height:1.2;text-decoration:none;">Przejdź do płatności</a>');
+  }
+  if (options && options.includeCancellation && details.cancelUrl) {
+    actions.push('<a href="' + escapeHtml(details.cancelUrl) + '" style="display:inline-block;margin:0 8px 8px 0;padding:12px 17px;border:1px solid #d7d3cc;border-radius:10px;background:#ffffff;color:#1a1916;font-size:15px;font-weight:700;line-height:1.2;text-decoration:none;">' + escapeHtml(options.cancellationLabel || "Anuluj rezerwację") + '</a>');
+  }
+  actions.push('<a href="mailto:rental@skucha.co" style="display:inline-block;margin:0 0 8px;padding:12px 17px;border:1px solid #d7d3cc;border-radius:10px;background:#ffffff;color:#1a1916;font-size:15px;font-weight:700;line-height:1.2;text-decoration:none;">Skontaktuj się z nami</a>');
+
+  return '<div style="margin-top:22px;">' + actions.join("") + '</div>';
+}
+
+function buildPaymentEmailHtml(reservation, title, introduction, options) {
   const details = normalizeReservation(reservation);
+  const settings = options || {};
   return '<!doctype html><html lang="pl"><body style="margin:0;padding:24px 12px;background:#f5f4f1;color:#1a1916;font-family:Arial,sans-serif;">'
     + '<div style="max-width:680px;margin:0 auto;background:#ffffff;border:1px solid #e7e5e1;border-radius:18px;overflow:hidden;">'
     + '<div style="padding:24px 26px;border-bottom:1px solid #e7e5e1;"><div style="font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#fb5a12;">SKUCHA · Stripe checkout</div>'
@@ -233,9 +252,12 @@ function buildPaymentEmailHtml(reservation, title, introduction) {
     + '<p style="margin:12px 0 0;color:#6b6862;font-size:16px;line-height:1.5;">' + escapeHtml(introduction) + '</p>'
     + '<div style="margin-top:14px;color:#9a968e;font:10px/1.2 monospace;letter-spacing:.06em;text-transform:uppercase;">ID rezerwacji <strong style="margin-left:5px;color:#1a1916;font-size:11px;letter-spacing:0;">' + escapeHtml(details.id) + '</strong></div></div>'
     + '<div style="padding:24px 26px;"><div style="font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Twoja rezerwacja</div>'
-    + '<div style="margin-top:12px;">' + buildEmailSummaryHtml(details) + '</div>'
+    + '<div style="margin-top:12px;">' + buildEmailSummaryHtml(details, settings) + '</div>'
+    + buildEmailActionsHtml(details, settings)
+    + (settings.cancellationClosedMessage ? '<p style="margin:8px 0 0;color:#6b6862;font-size:13px;line-height:1.5;">' + escapeHtml(settings.cancellationClosedMessage) + '</p>' : '')
     + '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Co musisz wiedzieć</div>'
     + buildEmailKnowledgeHtml(details)
+    + (settings.attachmentNote ? '<p style="margin:18px 0 0;color:#6b6862;font-size:12px;line-height:1.5;">' + escapeHtml(settings.attachmentNote) + '</p>' : '')
     + '<p style="margin:18px 0 0;color:#6b6862;font:11px/1.5 monospace;">Wiadomość automatyczna z adresu rental@skucha.co.</p></div></div></body></html>';
 }
 
@@ -247,7 +269,7 @@ function buildCancellationEmail(reservation) {
     "",
     ...buildReservationDetails(details),
     "",
-    "Wiadomosc automatyczna z adresu rental@skucha.co."
+    "Wiadomość automatyczna z adresu rental@skucha.co."
   ].join("\n");
 }
 
@@ -280,6 +302,30 @@ function createMailService(customDependencies) {
   };
 
   let client = null;
+
+  function canShowCancellationAction(reservation) {
+    const details = normalizeReservation(reservation);
+    if (!details.cancelUrl || !details.dateFrom) {
+      return false;
+    }
+
+    const cutoffHours = typeof dependencies.ConfigurationService.getReservationCancellationCutoffHours === "function"
+      ? dependencies.ConfigurationService.getReservationCancellationCutoffHours()
+      : 24;
+    const timezone = typeof dependencies.ConfigurationService.getReservationTimezone === "function"
+      ? dependencies.ConfigurationService.getReservationTimezone()
+      : "Europe/Warsaw";
+    try {
+      return dependencies.TimeService.isCancellationAllowed(
+        details.dateFrom,
+        cutoffHours,
+        dependencies.now(),
+        timezone
+      );
+    } catch (_error) {
+      return false;
+    }
+  }
 
   function getClient() {
     if (client) {
@@ -354,62 +400,85 @@ function createMailService(customDependencies) {
   }
 
   async function sendReservationNotification(reservation) {
-    const bodyText = buildReservationEmail(reservation || {});
+    const includeCancellation = canShowCancellationAction(reservation || {});
+    const bodyText = buildReservationEmail(reservation || {}, { includeCancellation });
     const bodyHtml = buildPaymentEmailHtml(
       reservation || {},
       "Rezerwacja utworzona",
-      "Aby zakończyć rezerwację, dokończ płatność przez Stripe."
+      "Aby zakończyć rezerwację, dokończ płatność przez Stripe.",
+      {
+        includeCheckoutUrl: true,
+        includeCancellation,
+        cancellationLabel: "Anuluj rezerwację"
+      }
     );
 
     return sendMessage({
       to: (reservation && reservation.email) || process.env.RESERVATION_NOTIFY_EMAIL || "rental@skucha.co",
       toName: (reservation && reservation.fullName) || "Klient",
-      subject: "Skucha - rezerwacja utworzona - oczekiwanie na platnosc",
+      subject: "Skucha - rezerwacja utworzona - oczekiwanie na płatność",
       bodyText: bodyText,
       bodyHtml: bodyHtml
     });
   }
 
   async function sendPaymentPendingNotification(reservation) {
+    const includeCancellation = canShowCancellationAction(reservation || {});
     const bodyText = buildPaymentEmail(
       reservation || {},
-      "Platnosc Skucha oczekuje na potwierdzenie.",
-      "Checkout zostal zakonczony, ale Stripe nie potwierdzil jeszcze platnosci. Otrzymasz kolejna wiadomosc po zmianie statusu."
+      "Płatność Skucha oczekuje na potwierdzenie.",
+      "Checkout został zakończony, ale Stripe nie potwierdził jeszcze płatności. Otrzymasz kolejną wiadomość po zmianie statusu.",
+      { includeCancellation }
     );
     const bodyHtml = buildPaymentEmailHtml(
       reservation || {},
       "Płatność oczekuje na potwierdzenie",
-      "Checkout został zakończony, ale Stripe nie potwierdził jeszcze płatności. Otrzymasz kolejną wiadomość po zmianie statusu."
+      "Checkout został zakończony, ale Stripe nie potwierdził jeszcze płatności. Otrzymasz kolejną wiadomość po zmianie statusu.",
+      {
+        includeCancellation,
+        cancellationLabel: "Anuluj rezerwację",
+        paymentLabel: "Kwota płatności"
+      }
     );
 
     return sendMessage({
       to: (reservation && (reservation.email || reservation.customerEmail)) || "",
       toName: (reservation && (reservation.fullName || reservation.customerName)) || "Klient",
-      subject: "Skucha - platnosc oczekuje na potwierdzenie",
+      subject: "Skucha - płatność oczekuje na potwierdzenie",
       bodyText: bodyText,
       bodyHtml: bodyHtml
     });
   }
 
   async function sendPaymentConfirmationNotification(reservation) {
+    const includeCancellation = canShowCancellationAction(reservation || {});
     const bodyText = buildPaymentEmail(
       reservation || {},
-      "Platnosc potwierdzona - rezerwacja w Skucha jest potwierdzona.",
-      "Dziekujemy za platnosc. Ponizej znajdziesz komplet szczegolow rezerwacji i platnosci.",
-      { includeCheckoutUrl: false }
+      "Płatność potwierdzona - rezerwacja w Skucha jest potwierdzona.",
+      "Dziękujemy za płatność. Poniżej znajdziesz komplet szczegółów rezerwacji i płatności.",
+      { includeCheckoutUrl: false, includeCancellation }
     );
     const bodyHtml = buildPaymentEmailHtml(
       reservation || {},
       "Płatność potwierdzona",
-      "Dziękujemy za płatność. Poniżej znajdziesz komplet szczegółów rezerwacji i płatności."
+      "Dziękujemy za płatność. Twoja rezerwacja jest potwierdzona.",
+      {
+        includeCancellation,
+        cancellationLabel: "Anuluj rezerwację i poproś o zwrot",
+        paymentLabel: "Zapłacono",
+        cancellationClosedMessage: includeCancellation
+          ? "Bezpłatne anulowanie ze zwrotem jest dostępne do 24 godzin przed rozpoczęciem najmu."
+          : "Termin bezpłatnego anulowania ze zwrotem minął. W razie pytań skontaktuj się z nami.",
+        attachmentNote: "W załącznikach znajdziesz Regulamin SKUCHA oraz Politykę prywatności w wersji zaakceptowanej przy rezerwacji."
+      }
     );
 
     return sendMessage({
       to: (reservation && (reservation.email || reservation.customerEmail)) || "",
       toName: (reservation && (reservation.fullName || reservation.customerName)) || "Klient",
-      subject: "Skucha - platnosc potwierdzona",
-      bodyText: bodyText + "\n\nW zalacznikach: Regulamin SKUCHA oraz Polityka prywatnosci w wersji zaakceptowanej przy rezerwacji.",
-      bodyHtml: bodyHtml + '<p style="margin:18px 0 0;color:#6b6862;font:12px/1.5 Arial,sans-serif;">W załącznikach: Regulamin SKUCHA oraz Polityka prywatności w wersji zaakceptowanej przy rezerwacji.</p>',
+      subject: "Skucha - płatność potwierdzona",
+      bodyText: bodyText + "\n\nW załącznikach: Regulamin SKUCHA oraz Polityka prywatności w wersji zaakceptowanej przy rezerwacji.",
+      bodyHtml: bodyHtml,
       attachments: loadLegalAttachments(dependencies)
     });
   }
@@ -417,19 +486,20 @@ function createMailService(customDependencies) {
   async function sendPaymentExpiredNotification(reservation) {
     const bodyText = buildPaymentEmail(
       reservation || {},
-      "Sesja platnosci Skucha wygasla.",
-      "Sesja checkoutu Stripe wygasla i platnosc nie zostala potwierdzona. Skontaktuj sie z nami, aby ustalic dalsze kroki."
+      "Sesja płatności Skucha wygasła.",
+      "Sesja checkoutu Stripe wygasła i płatność nie została potwierdzona. Skontaktuj się z nami, aby ustalić dalsze kroki."
     );
     const bodyHtml = buildPaymentEmailHtml(
       reservation || {},
       "Sesja płatności wygasła",
-      "Sesja checkoutu Stripe wygasła i płatność nie została potwierdzona. Skontaktuj się z nami, aby ustalić dalsze kroki."
+      "Sesja checkoutu Stripe wygasła i płatność nie została potwierdzona. Skontaktuj się z nami, aby ustalić dalsze kroki.",
+      { paymentLabel: "Kwota płatności" }
     );
 
     return sendMessage({
       to: (reservation && (reservation.email || reservation.customerEmail)) || "",
       toName: (reservation && (reservation.fullName || reservation.customerName)) || "Klient",
-      subject: "Skucha - sesja platnosci wygasla",
+      subject: "Skucha - sesja płatności wygasła",
       bodyText: bodyText,
       bodyHtml: bodyHtml
     });

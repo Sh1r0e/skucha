@@ -11,6 +11,7 @@ const Lifecycle = require("./ReservationLifecycleService");
 const TimeService = require("./ReservationTimeService");
 const InventoryLeaseRepository = require("../repositories/InventoryLeaseRepository");
 const ReservationIdempotencyRepository = require("../repositories/ReservationIdempotencyRepository");
+const MarketingContactRepository = require("../repositories/MarketingContactRepository");
 
 const defaultDependencies = {
   AvailabilityService,
@@ -21,6 +22,7 @@ const defaultDependencies = {
   ReservationRepository,
   InventoryLeaseRepository,
   ReservationIdempotencyRepository,
+  MarketingContactRepository,
   TimeService,
   now: function now() {
     return new Date();
@@ -28,6 +30,14 @@ const defaultDependencies = {
 };
 
 const RESERVATION_STATUS = Lifecycle.RESERVATION_STATUS;
+const MAX_RESERVATION_DAYS = 366;
+const DEFAULT_RESERVATION_HORIZON_MONTHS = 6;
+const RESERVATION_TIMEZONE = "Europe/Warsaw";
+const MAX_EMAIL_LENGTH = 254;
+const MAX_NOTES_LENGTH = 2000;
+const MAX_PICKUP_POINT_LENGTH = 200;
+const MAX_RESERVATION_ID_LENGTH = 128;
+const MAX_CANCELLATION_TOKEN_LENGTH = 2048;
 const LEGAL_DOCUMENTS = {
   termsVersion: "1.0",
   privacyVersion: "1.0",
@@ -138,6 +148,10 @@ function validateReservation(reservation, config, now) {
     throw badRequest("Valid email is required");
   }
 
+  if (reservation.email.length > MAX_EMAIL_LENGTH) {
+    throw badRequest("email is too long");
+  }
+
   if (!reservation.phone) {
     throw badRequest("phone is required");
   }
@@ -159,6 +173,16 @@ function validateReservation(reservation, config, now) {
     throw badRequest("dateFrom and dateTo must be in YYYY-MM-DD format");
   }
 
+  const fromDate = parseIsoDate(reservation.dateFrom);
+  const toDate = parseIsoDate(reservation.dateTo);
+  if (fromDate.getTime() > toDate.getTime()) {
+    throw badRequest("dateTo must be on or after dateFrom");
+  }
+
+  if (countDaysInRange(reservation.dateFrom, reservation.dateTo) > MAX_RESERVATION_DAYS) {
+    throw badRequest("Reservation date range is too long");
+  }
+
   if (!Number.isInteger(reservation.padsCount) || reservation.padsCount < 1) {
     throw badRequest("padsCount must be a positive integer");
   }
@@ -171,6 +195,14 @@ function validateReservation(reservation, config, now) {
     throw badRequest("deliveryMethod must be pickup or delivery");
   }
 
+  if (reservation.notes.length > MAX_NOTES_LENGTH) {
+    throw badRequest("notes is too long");
+  }
+
+  if (reservation.pickupPoint.length > MAX_PICKUP_POINT_LENGTH) {
+    throw badRequest("pickupPoint is too long");
+  }
+
   if (!reservation.acceptTerms) {
     throw badRequest("acceptTerms is required");
   }
@@ -179,8 +211,25 @@ function validateReservation(reservation, config, now) {
     throw badRequest("acceptPrivacy is required");
   }
 
-  const startDate = parseIsoDate(reservation.dateFrom);
-  const today = parseIsoDate(new Date(now || new Date()).toISOString().slice(0, 10));
+  const todayValue = TimeService.getCalendarDate(now || new Date(), RESERVATION_TIMEZONE);
+  const today = parseIsoDate(todayValue);
+  const startDate = fromDate;
+  const horizonMonths = Number(config.availability && config.availability.horizonMonths);
+  const allowedThrough = TimeService.addCalendarMonths(
+    todayValue,
+    Number.isInteger(horizonMonths) && horizonMonths >= 0
+      ? horizonMonths
+      : DEFAULT_RESERVATION_HORIZON_MONTHS
+  );
+
+  if (startDate.getTime() < today.getTime()) {
+    throw badRequest("dateFrom cannot be in the past");
+  }
+
+  if (toDate.getTime() > parseIsoDate(allowedThrough).getTime()) {
+    throw badRequest("Reservation date is outside the booking horizon");
+  }
+
   const earlyStartDeadline = new Date(today);
   earlyStartDeadline.setUTCDate(earlyStartDeadline.getUTCDate() + 14);
 
@@ -214,18 +263,10 @@ function parseIsoDate(value) {
 function countDaysInRange(fromDate, toDateValue) {
   const from = parseIsoDate(fromDate);
   const to = parseIsoDate(toDateValue);
-  let start = from;
-  let end = to;
-
-  if (start.getTime() > end.getTime()) {
-    start = to;
-    end = from;
-  }
-
-  const cursor = new Date(start);
+  const cursor = new Date(from);
   let days = 0;
 
-  while (cursor.getTime() <= end.getTime()) {
+  while (cursor.getTime() <= to.getTime()) {
     days += 1;
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -238,18 +279,11 @@ function calculateReservationAmountInMajorUnit(reservation, pricing) {
   const weekendRate = Number((pricing && pricing.weekend) || 0);
   const from = parseIsoDate(reservation.dateFrom);
   const to = parseIsoDate(reservation.dateTo);
-  let start = from;
-  let end = to;
-
-  if (start.getTime() > end.getTime()) {
-    start = to;
-    end = from;
-  }
 
   let totalForSinglePad = 0;
-  const cursor = new Date(start);
+  const cursor = new Date(from);
 
-  while (cursor.getTime() <= end.getTime()) {
+  while (cursor.getTime() <= to.getTime()) {
     const day = cursor.getDay();
     totalForSinglePad += day === 0 || day === 6 ? weekendRate : weekdayRate;
     cursor.setDate(cursor.getDate() + 1);
@@ -511,6 +545,18 @@ function createReservationService(customDependencies) {
       });
     });
 
+    if (reservation.marketingEmail) {
+      await dependencies.MarketingContactRepository.upsertContact({
+        email: reservation.email,
+        firstName: reservation.firstName,
+        lastName: reservation.lastName,
+        reservationId: savedReservation.id,
+        consentRecordedAt: consentRecordedAt,
+        consentIp: requestOptions.clientIp,
+        consentUserAgent: requestOptions.userAgent
+      });
+    }
+
     const currency = String((config.pricing && config.pricing.currency) || "PLN").toLowerCase();
     const amountInMajorUnit = calculateReservationAmountInMajorUnit(reservation, config.pricing);
     const amountInMinorUnit = Math.round(amountInMajorUnit * 100);
@@ -595,10 +641,6 @@ function createReservationService(customDependencies) {
         amountInMinorUnit: amountInMinorUnit,
         currency: currency.toUpperCase()
       },
-      cancellation: {
-        url: cancellationUrl,
-        expiresAt: cancellationToken.expiresAt
-      },
       mail: mailResult
     };
   }
@@ -613,6 +655,15 @@ function createReservationService(customDependencies) {
 
     if (!token) {
       throw badRequest("token is required");
+    }
+
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(reservationId)
+      || reservationId.length > MAX_RESERVATION_ID_LENGTH) {
+      throw badRequest("reservationId format is invalid");
+    }
+
+    if (token.length > MAX_CANCELLATION_TOKEN_LENGTH) {
+      throw badRequest("token is too long");
     }
 
     const reservation = await dependencies.ReservationRepository.getReservation(reservationId);

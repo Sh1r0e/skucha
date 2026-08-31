@@ -47,6 +47,8 @@ function buildCompletedSession(overrides) {
   return {
     id: "cs_test_123",
     payment_status: "paid",
+    amount_total: 12000,
+    currency: "pln",
     client_reference_id: "res-1",
     metadata: { reservationId: "res-1" },
     url: "https://checkout.stripe.com/c/pay/cs_test_123",
@@ -150,6 +152,57 @@ describe("stripe-webhook function", function () {
     );
   });
 
+  it("should_reject_conflicting_reservation_identifiers_without_mutation()", async function () {
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt-contract-id",
+          data: { object: buildCompletedSession({ metadata: { reservationId: "res-other" } }) }
+        })
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, { headers: { "stripe-signature": "t=1,v1=abc" }, rawBody: "{}" });
+
+    expect(context.res.status).toBe(500);
+    expect(context.res.body.code).toBe("PaymentContractMismatch");
+    expect(deps.ReservationRepository.getReservation).not.toHaveBeenCalled();
+    expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentConfirmationNotification).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["wrong session", { id: "cs_other" }],
+    ["wrong amount", { amount_total: 12001 }],
+    ["wrong currency", { currency: "eur" }],
+    ["missing amount", { amount_total: undefined }],
+    ["missing currency", { currency: undefined }]
+  ])("should_reject_%s_without_mutation_or_email()", async function (_caseName, overrides) {
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt-contract-mismatch",
+          data: { object: buildCompletedSession(overrides) }
+        })
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, { headers: { "stripe-signature": "t=1,v1=abc" }, rawBody: "{}" });
+
+    expect(context.res.status).toBe(500);
+    expect(context.res.body.code).toBe("PaymentContractMismatch");
+    expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
+    expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentConfirmationNotification).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentPendingNotification).not.toHaveBeenCalled();
+  });
+
   it("should_accept_stripe_signature_header_with_original_casing()", async function () {
     const session = buildCompletedSession();
     const context = createMockContext();
@@ -231,6 +284,28 @@ describe("stripe-webhook function", function () {
     expect(deps.MailService.sendPaymentExpiredNotification).toHaveBeenCalledWith(
       expect.objectContaining({ paymentStatus: "Expired" })
     );
+  });
+
+  it("should_reject_an_expired_event_for_a_different_session_without_mutation()", async function () {
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.expired",
+          id: "evt-expired-mismatch",
+          data: { object: buildCompletedSession({ id: "cs_other" }) }
+        })
+      }
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, { headers: { "stripe-signature": "t=1,v1=abc" }, rawBody: "{}" });
+
+    expect(context.res.status).toBe(500);
+    expect(context.res.body.code).toBe("PaymentContractMismatch");
+    expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
+    expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentExpiredNotification).not.toHaveBeenCalled();
   });
 
   it("should_return_200_for_unhandled_event_types_without_updating_storage()", async function () {

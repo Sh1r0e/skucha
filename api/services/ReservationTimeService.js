@@ -97,6 +97,42 @@ function parseDateOnlyAsUtc(value) {
   return new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
 }
 
+function getCalendarDate(now, timeZone) {
+  const currentTime = now instanceof Date ? now : new Date(now);
+
+  if (Number.isNaN(currentTime.getTime())) {
+    throw invalidDate("Current time is invalid");
+  }
+
+  const values = {};
+  formatterFor(timeZone).formatToParts(currentTime).forEach(function (part) {
+    if (["year", "month", "day"].includes(part.type)) {
+      values[part.type] = part.value;
+    }
+  });
+
+  return values.year + "-" + values.month + "-" + values.day;
+}
+
+function addCalendarMonths(value, months) {
+  const parts = dateParts(value);
+  const monthCount = Number(months);
+
+  if (!Number.isInteger(monthCount)) {
+    throw invalidDate("Calendar month count is invalid");
+  }
+
+  const targetMonth = parts.month - 1 + monthCount;
+  const targetYear = parts.year + Math.floor(targetMonth / 12);
+  const normalizedMonth = ((targetMonth % 12) + 12) % 12;
+  const lastDay = new Date(Date.UTC(targetYear, normalizedMonth + 1, 0)).getUTCDate();
+  const targetDay = Math.min(parts.day, lastDay);
+
+  return String(targetYear).padStart(4, "0")
+    + "-" + String(normalizedMonth + 1).padStart(2, "0")
+    + "-" + String(targetDay).padStart(2, "0");
+}
+
 function getCancellationDeadline(value, cutoffHours, timeZone) {
   const rentalStart = parseDateOnlyAtStart(value, timeZone);
   return new Date(rentalStart.getTime() - (Number(cutoffHours) * 60 * 60 * 1000));
@@ -123,7 +159,9 @@ function getPendingExpiration(createdAt, expiryHours) {
 }
 
 module.exports = {
+  addCalendarMonths,
   getCancellationDeadline,
+  getCalendarDate,
   getPendingExpiration,
   getTimeZoneOffsetMs,
   isCancellationAllowed,
