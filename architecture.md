@@ -188,7 +188,7 @@ Reservation lifecycle:
    - first name
    - last name
    - email
-   - phone
+  - phone country prefix and 9-digit national number
 2. Frontend requires acknowledgement of the versioned rental terms and privacy notice. If the rental starts within 14 days, it also requires the early-start request.
 3. Frontend sends `POST /api/reservation` with an `Idempotency-Key`.
 4. In production, `ReservationIdempotencyRepository` claims the key and rejects mismatched or concurrent reuse.
@@ -201,7 +201,7 @@ Validation strategy:
 
 - frontend sanitizes and constrains user input (name chars, phone chars/length, email length)
 - backend enforces canonical validation regardless of frontend behavior
-- phone must match `^\\+?[0-9]{9,15}$`
+- phone prefix must match `^\\+[0-9]{1,3}$`; the national number must contain exactly 9 digits, and the backend composes the canonical stored value
 - names must be 2-60 chars and match `^[A-Za-zÀ-ž\\-\\s']+$`
 - dates must be `YYYY-MM-DD`
 - pads count must be integer in safe range (currently 1-8)

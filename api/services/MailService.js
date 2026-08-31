@@ -227,6 +227,27 @@ function buildEmailSummaryHtml(details, options) {
     + "</table>";
 }
 
+function buildStaffDetailsHtml(details) {
+  const rows = [
+    ["Klient", details.fullName],
+    ["Email", details.email],
+    ["Telefon", details.phone],
+    ["Status rezerwacji", details.status],
+    ["Status płatności", details.paymentStatus],
+    ["Stripe Session ID", details.paymentSessionId],
+    ["Stripe Payment Intent", details.paymentIntentId || "-"],
+    ["Uwagi", details.notes]
+  ];
+
+  return '<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:12px;border:1px solid #e7e5e1;border-radius:13px;border-collapse:separate;overflow:hidden;background:#ffffff;">'
+    + rows.map(function (row) {
+      return '<tr><td style="padding:10px 14px;border-bottom:1px solid #e7e5e1;color:#9a968e;font-size:14px;line-height:1.35;">'
+        + escapeHtml(row[0]) + '</td><td style="padding:10px 14px;border-bottom:1px solid #e7e5e1;color:#1a1916;font:700 13px/1.35 monospace;text-align:right;word-break:break-word;">'
+        + escapeHtml(row[1]) + '</td></tr>';
+    }).join("")
+    + "</table>";
+}
+
 function buildEmailKnowledgeHtml(details) {
   const pads = Number(details.padsCount) || 0;
   const deposit = pads > 0 ? formatMoney(pads * 200) : "kaucja zwrotna";
@@ -249,6 +270,9 @@ function buildEmailKnowledgeHtml(details) {
 function buildEmailActionsHtml(details, options) {
   const actions = [];
 
+  if (options && options.adminUrl) {
+    actions.push('<a href="' + escapeHtml(options.adminUrl) + '" style="display:inline-block;margin:0 8px 8px 0;padding:13px 18px;border-radius:10px;background:#fb5a12;color:#ffffff;font-size:15px;font-weight:700;line-height:1.2;text-decoration:none;">Otwórz panel rezerwacji</a>');
+  }
   if (options && options.includeCheckoutUrl && details.checkoutUrl) {
     actions.push('<a href="' + escapeHtml(details.checkoutUrl) + '" style="display:inline-block;margin:0 8px 8px 0;padding:13px 18px;border-radius:10px;background:#fb5a12;color:#ffffff;font-size:15px;font-weight:700;line-height:1.2;text-decoration:none;">Przejdź do płatności</a>');
   }
@@ -272,6 +296,7 @@ function buildPaymentEmailHtml(reservation, title, introduction, options) {
     + '<div style="margin-top:14px;color:#9a968e;font:10px/1.2 monospace;letter-spacing:.06em;text-transform:uppercase;">ID rezerwacji <strong style="margin-left:5px;color:#1a1916;font-size:11px;letter-spacing:0;">' + escapeHtml(details.id) + '</strong></div></div>'
     + '<div style="padding:24px 26px;"><div style="font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Twoja rezerwacja</div>'
     + '<div style="margin-top:12px;">' + buildEmailSummaryHtml(details, settings) + '</div>'
+    + (settings.includeStaffDetails ? '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Dane operacyjne</div>' + buildStaffDetailsHtml(details) : '')
     + (settings.cancellationClosedMessage ? '<p style="margin:8px 0 0;color:#6b6862;font-size:13px;line-height:1.5;">' + escapeHtml(settings.cancellationClosedMessage) + '</p>' : '')
     + (settings.includeKnowledge === false ? '' : '<div style="margin-top:26px;font:700 11px/1.2 monospace;letter-spacing:.08em;text-transform:uppercase;color:#6b6862;">Co musisz wiedzieć</div>' + buildEmailKnowledgeHtml(details))
     + (settings.attachmentNote ? '<p style="margin:18px 0 0;color:#6b6862;font-size:12px;line-height:1.5;">' + escapeHtml(settings.attachmentNote) + '</p>' : '')
@@ -369,12 +394,14 @@ function createMailService(customDependencies) {
 
   async function sendMessage(message) {
     const mode = normalizeMailMode();
+    const recipientAddresses = Array.isArray(message.to) ? message.to : [message.to];
+    const recipientLabel = recipientAddresses.join(",");
 
     if (mode !== "acs-email") {
       return {
         queued: true,
         mode: mode,
-        recipient: message.to,
+        recipient: recipientLabel,
         operationId: "log-only"
       };
     }
@@ -403,12 +430,12 @@ function createMailService(customDependencies) {
       senderAddress: senderAddress,
       content: content,
       recipients: {
-        to: [
-          {
-            address: message.to,
-            displayName: message.toName || message.to
-          }
-        ]
+        to: recipientAddresses.map(function (address) {
+          return {
+            address: address,
+            displayName: message.toName || address
+          };
+        })
       }
     };
 
@@ -423,7 +450,7 @@ function createMailService(customDependencies) {
     return {
       queued: true,
       mode: mode,
-      recipient: message.to,
+      recipient: recipientLabel,
       operationId: response && response.id ? response.id : ""
     };
   }
@@ -504,7 +531,7 @@ function createMailService(customDependencies) {
       }
     );
 
-    return sendMessage({
+    const customerResult = await sendMessage({
       to: (reservation && (reservation.email || reservation.customerEmail)) || "",
       toName: (reservation && (reservation.fullName || reservation.customerName)) || "Klient",
       subject: "Skucha - płatność potwierdzona",
@@ -513,6 +540,43 @@ function createMailService(customDependencies) {
       htmlOnly: true,
       attachments: loadLegalAttachments(dependencies)
     });
+
+    const details = normalizeReservation(reservation || {});
+    const staffRecipients = typeof dependencies.ConfigurationService.getPaidReservationNotificationRecipients === "function"
+      ? dependencies.ConfigurationService.getPaidReservationNotificationRecipients()
+      : ["kubagrech@gmail.com", "kacperbednarz@icloud.com"];
+    const publicBaseUrl = typeof dependencies.ConfigurationService.getReservationPublicBaseUrl === "function"
+      ? dependencies.ConfigurationService.getReservationPublicBaseUrl()
+      : "https://www.skucha.co";
+    const staffResult = await sendMessage({
+      to: staffRecipients,
+      toName: "SKUCHA - obsługa rezerwacji",
+      subject: "SKUCHA - opłacona rezerwacja " + details.id,
+      bodyText: buildPaymentEmail(
+        reservation || {},
+        "Nowa opłacona rezerwacja.",
+        "Płatność została potwierdzona. Rezerwacja jest gotowa do obsługi w panelu administracyjnym.",
+        { includeCheckoutUrl: false }
+      ) + "\n- Stripe Session ID: " + details.paymentSessionId
+        + "\n- Stripe Payment Intent: " + (details.paymentIntentId || "-"),
+      bodyHtml: buildPaymentEmailHtml(
+        reservation || {},
+        "Nowa opłacona rezerwacja",
+        "Płatność została potwierdzona. Rezerwacja jest gotowa do obsługi w panelu administracyjnym.",
+        {
+          paymentLabel: "Zapłacono",
+          includeKnowledge: false,
+          includeStaffDetails: true,
+          adminUrl: String(publicBaseUrl || "https://www.skucha.co").replace(/\/$/, "") + "/admin/reservations.html",
+          sentAt: dependencies.now()
+        }
+      )
+    });
+
+    return {
+      ...customerResult,
+      staffNotification: staffResult
+    };
   }
 
   async function sendPaymentExpiredNotification(reservation) {

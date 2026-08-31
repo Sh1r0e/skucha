@@ -52,7 +52,7 @@ Signing in with Microsoft Entra ID grants the built-in `authenticated` role; sta
 ## Checkout and Email Lifecycle
 
 1. `POST /api/reservation` validates the required legal acknowledgements, claims the production `Idempotency-Key`, acquires the inventory lease, re-checks availability, saves a `Pending` reservation with consent evidence, creates a Stripe Checkout session, stores payment/cancellation data, and sends the checkout-start email.
-2. `checkout.session.completed` is durably deduplicated. A paid `Pending` reservation becomes `Confirmed`; late events never resurrect `Cancelled`, `Expired`, `InProgress`, or `Completed` reservations.
+2. `checkout.session.completed` is durably deduplicated. A paid `Pending` reservation becomes `Confirmed`; the customer receives confirmation and staff receive a separate operational alert. Late events never resurrect `Cancelled`, `Expired`, `InProgress`, or `Completed` reservations.
 3. The payment-success page polls the reservation endpoint. If webhook delivery is delayed, the API retrieves the matching Checkout session and conditionally reconciles a paid `Pending` reservation after validating its reservation ID, session ID, amount, currency, and mode.
 4. `checkout.session.expired` conditionally changes unpaid `Pending` reservations to `Expired` and releases inventory.
 5. The emailed cancellation link opens a confirmation page. Only its explicit `POST /api/reservation/cancel` request can mutate state. Cancellation is allowed through 24 hours before rental start in `Europe/Warsaw`; paid refunds use Stripe idempotency and `CancellationPending` recovery.
@@ -192,6 +192,7 @@ Azure Communication Service email settings:
 - `MAIL_MODE` - set to `acs-email` to send real emails (`log-only` keeps local placeholder behavior)
 - `ACS_CONNECTION_STRING` - connection string for ACS Email resource
 - `ACS_SENDER_ADDRESS` - sender address (for example `rental@skucha.co`)
+- `PAID_RESERVATION_NOTIFY_EMAILS` - comma-separated staff recipients for paid-reservation alerts (defaults to `kubagrech@gmail.com,kacperbednarz@icloud.com`)
 
 ### Maintenance Mode
 

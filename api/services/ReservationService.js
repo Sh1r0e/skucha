@@ -155,18 +155,15 @@ function validateReservation(reservation, config, now) {
     throw badRequest("email is too long");
   }
 
-  if (!reservation.phone) {
-    throw badRequest("phone is required");
+  if (!/^\+\d{1,3}$/.test(reservation.phonePrefix)) {
+    throw badRequest("phonePrefix format is invalid");
   }
 
-  var normalizedPhone = reservation.phone.replace(/[^\d+]/g, "");
-  if (normalizedPhone.charAt(0) !== "+") {
-    normalizedPhone = "+48" + normalizedPhone;
+  if (!/^\d{9}$/.test(reservation.phoneNumber)) {
+    throw badRequest("phoneNumber must contain exactly 9 digits");
   }
-  if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
-    throw badRequest("phone format is invalid");
-  }
-  reservation.phone = normalizedPhone;
+
+  reservation.phone = reservation.phonePrefix + reservation.phoneNumber;
 
   if (!reservation.dateFrom || !reservation.dateTo) {
     throw badRequest("dateFrom and dateTo are required");

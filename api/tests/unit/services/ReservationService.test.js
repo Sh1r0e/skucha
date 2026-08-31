@@ -475,17 +475,21 @@ describe("ReservationService", function () {
   });
 
   it("should_reject_invalid_phone_format()", async function () {
-    const input = buildReservation({ phone: "123" });
+    const input = buildReservation({ phoneNumber: "123" });
     applyHappyPathDependencies();
 
     await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
       statusCode: 400,
-      message: "phone format is invalid"
+      message: "phoneNumber must contain exactly 9 digits"
     });
   });
 
-  it("should_add_polish_country_code_when_phone_has_no_prefix()", async function () {
-    const input = buildReservation({ phone: "500 600 700" });
+  it("should_build_phone_from_validated_prefix_and_national_number()", async function () {
+    const input = buildReservation({
+      phone: "+48111111111",
+      phonePrefix: "+48",
+      phoneNumber: "500600700"
+    });
     const dependencies = applyHappyPathDependencies();
 
     await ReservationService.createReservation(input);
@@ -493,6 +497,16 @@ describe("ReservationService", function () {
     expect(dependencies.ReservationRepository.saveReservation).toHaveBeenCalledWith(
       expect.objectContaining({ phone: "+48500600700" })
     );
+  });
+
+  it("should_reject_phone_number_longer_than_nine_digits()", async function () {
+    const input = buildReservation({ phoneNumber: "5006007001" });
+    applyHappyPathDependencies();
+
+    await expect(ReservationService.createReservation(input)).rejects.toMatchObject({
+      statusCode: 400,
+      message: "phoneNumber must contain exactly 9 digits"
+    });
   });
 
   it("should_reject_invalid_delivery_method()", async function () {

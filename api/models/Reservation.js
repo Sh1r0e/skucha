@@ -20,6 +20,8 @@ class Reservation {
     this.fullName = (this.firstName + " " + this.lastName).trim();
     this.email = String(source.email || "").trim().toLowerCase();
     this.phone = String(source.phone || "").replace(/\s+/g, "").trim();
+    this.phonePrefix = String(source.phonePrefix || "").trim();
+    this.phoneNumber = String(source.phoneNumber || "").trim();
     this.dateFrom = String(source.dateFrom || "").trim();
     this.dateTo = String(source.dateTo || "").trim();
     this.padsCount = normalizePadsCount(source.padsCount);

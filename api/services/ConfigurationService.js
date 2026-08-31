@@ -28,6 +28,15 @@ function getAcsSenderAddress() {
   return process.env.ACS_SENDER_ADDRESS || "rental@skucha.co";
 }
 
+function getPaidReservationNotificationRecipients() {
+  return String(
+    process.env.PAID_RESERVATION_NOTIFY_EMAILS
+      || "kubagrech@gmail.com,kacperbednarz@icloud.com"
+  ).split(",").map(function (address) {
+    return address.trim();
+  }).filter(Boolean);
+}
+
 function getReservationPublicBaseUrl() {
   return process.env.RESERVATION_PUBLIC_BASE_URL || "https://www.skucha.co";
 }
@@ -235,6 +244,7 @@ module.exports = {
   getStripeWebhookSecret,
   getAcsConnectionString,
   getAcsSenderAddress,
+  getPaidReservationNotificationRecipients,
   getReservationPublicBaseUrl,
   getReservationCancelTokenSecret,
   getReservationCancelTokenTtlHours,

@@ -32,6 +32,18 @@
   .reservation-consent .consent-optional{ color:#6b6862; background:#eceae6; }
   .reservation-consent small{ display:block; margin-top:3px; color:#8a867e; font-size:11px; }
   .reservation-consent.conditional{ border-style:dashed; background:#fff8f2; }
+  .reservation-phone-control{ display:grid; grid-template-columns:112px minmax(0,1fr); margin-top:5px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; overflow:hidden; }
+  .reservation-phone-control:focus-within{ border-color:var(--ink); box-shadow:0 0 0 2px rgba(26,25,22,.08); }
+  .reservation-phone-control select,.reservation-phone-control input{ min-width:0; border:0; outline:0; background:#fff; color:var(--ink); font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; }
+  .reservation-phone-country{ display:flex; align-items:center; min-width:0; border-right:1px solid #e2e0db; }
+  .reservation-phone-country select{ flex:1; padding-left:7px; cursor:pointer; }
+  .reservation-phone-flag{ position:relative; display:block; width:28px; height:18px; margin-left:10px; flex:none; overflow:hidden; border:1px solid rgba(26,25,22,.18); border-radius:2px; box-shadow:0 1px 2px rgba(26,25,22,.08); }
+  .reservation-phone-flag[data-country="pl"]{ background:linear-gradient(#fff 0 50%,#dc143c 50%); }
+  .reservation-phone-flag[data-country="de"]{ background:linear-gradient(#000 0 33.33%,#dd0000 33.33% 66.66%,#ffce00 66.66%); }
+  .reservation-phone-flag[data-country="cz"]{ background:linear-gradient(#fff 0 50%,#d7141a 50%); }
+  .reservation-phone-flag[data-country="cz"]::before{ content:""; position:absolute; inset:0; width:55%; background:#11457e; clip-path:polygon(0 0,100% 50%,0 100%); }
+  .reservation-phone-flag[data-country="sk"]{ background:linear-gradient(#fff 0 33.33%,#0b4ea2 33.33% 66.66%,#ee1c25 66.66%); }
+  .reservation-phone-flag[data-country="gb"]{ background:linear-gradient(27deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(-27deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(90deg,transparent 36%,#fff 36% 64%,transparent 64%),linear-gradient(transparent 31%,#fff 31% 69%,transparent 69%),linear-gradient(90deg,transparent 43%,#c8102e 43% 57%,transparent 57%),linear-gradient(transparent 40%,#c8102e 40% 60%,transparent 60%),#012169; }
   .calendar-illustration{ position:absolute; right:0; bottom:0; display:block; width:min(620px, 42vw); height:auto; margin:0; opacity:0.9; pointer-events:none; }
   .hero-copy{ align-self:stretch; position:relative; z-index:1; }
   .booking-card{ position:relative; z-index:1; }
@@ -272,16 +284,22 @@
           <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Email</span>
           <input type="email" value="{{ email }}" onInput="{{ setEmail }}" placeholder="jan@email.com" maxlength="120" autocomplete="email" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
         </label>
-        <div style="display:grid; grid-template-columns:72px 1fr; gap:8px;">
-          <label style="display:block;">
-            <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Kierunkowy</span>
-            <input type="tel" value="{{ phonePrefix }}" onInput="{{ setPhonePrefix }}" placeholder="+48" maxlength="4" inputmode="tel" autocomplete="tel-country-code" aria-label="Kierunkowy telefonu" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 8px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
-          </label>
-          <label style="display:block;">
-            <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
-            <input type="tel" value="{{ phoneNumber }}" onInput="{{ setPhoneNumber }}" placeholder="500 600 700" maxlength="15" inputmode="tel" autocomplete="tel-national" aria-label="Numer telefonu" style="width:100%; margin-top:5px; font-family:var(--font-main); font-size:13px; font-weight:500; padding:10px 12px; border:1px solid #e2e0db; border-radius:var(--r-sm); background:#fff; color:var(--ink);">
-          </label>
-        </div>
+        <label style="display:block;">
+          <span style="font-family:var(--font-mono); font-size:10px; color:#9a968e; text-transform:uppercase; letter-spacing:0.05em;">Telefon</span>
+          <span class="reservation-phone-control">
+            <span class="reservation-phone-country">
+              <span class="reservation-phone-flag" data-country="{{ phoneCountry }}" aria-hidden="true"></span>
+              <select value="{{ phonePrefix }}" onChange="{{ setPhonePrefix }}" autocomplete="tel-country-code" aria-label="Kod kraju">
+                <option value="+48">+48</option>
+                <option value="+49">+49</option>
+                <option value="+420">+420</option>
+                <option value="+421">+421</option>
+                <option value="+44">+44</option>
+              </select>
+            </span>
+            <input type="tel" value="{{ phoneNumber }}" onInput="{{ setPhoneNumber }}" placeholder="500600700" maxlength="9" minlength="9" pattern="[0-9]{9}" inputmode="numeric" autocomplete="tel-national" aria-label="Dziewięciocyfrowy numer telefonu">
+          </span>
+        </label>
       </div>
 
       <div class="reservation-legal" aria-label="Zgody i oświadczenia">
@@ -824,23 +842,12 @@ class Component extends DCLogic {
     return String(value || '').replace(/[^A-Za-zÀ-ž\-\s']/g, '').slice(0, 60);
   }
 
-  sanitizePhonePrefix(value){
-    const cleaned = String(value || '').replace(/[^0-9+]/g, '');
-    const firstPlus = cleaned.indexOf('+');
-    const normalized = firstPlus > 0
-      ? cleaned.replace(/\+/g, '')
-      : (firstPlus === 0 ? '+' + cleaned.slice(1).replace(/\+/g, '') : cleaned);
-    return normalized.slice(0, 4);
-  }
-
   sanitizePhoneNumber(value){
-    return String(value || '').replace(/\D/g, '').slice(0, 15);
+    return String(value || '').replace(/\D/g, '').slice(0, 9);
   }
 
   phoneValue(){
-    const enteredPrefix = this.state.phonePrefix.trim();
-    const prefix = /^\+\d{1,3}$/.test(enteredPrefix) ? enteredPrefix : '+48';
-    return prefix + this.state.phoneNumber;
+    return this.state.phonePrefix + this.state.phoneNumber;
   }
 
   async reserveClick(e){
@@ -882,8 +889,8 @@ class Component extends DCLogic {
     }
 
     const normalizedPhone = phone.replace(/\s+/g, '');
-    if (!/^\+?[0-9]{9,15}$/.test(normalizedPhone)) {
-      this.setState({ reservationStatus: 'Podaj poprawny numer telefonu (9-15 cyfr).', reservationStatusColor: '#b54708' });
+    if (!/^\+\d{1,3}\d{9}$/.test(normalizedPhone) || this.state.phoneNumber.length !== 9) {
+      this.setState({ reservationStatus: 'Podaj dokładnie 9 cyfr numeru telefonu.', reservationStatusColor: '#b54708' });
       return;
     }
 
@@ -905,6 +912,8 @@ class Component extends DCLogic {
       fullName: firstName + ' ' + lastName,
       email: email,
       phone: normalizedPhone,
+      phonePrefix: this.state.phonePrefix,
+      phoneNumber: this.state.phoneNumber,
       dateFrom: this.state.od,
       dateTo: this.state.dod || this.state.od,
       padsCount: this.state.pads,
@@ -1082,6 +1091,7 @@ class Component extends DCLogic {
     const notifyBtnStyle = notifyValid
       ? notifyBtnBase + "background:var(--ink); color:#fff;"
       : notifyBtnBase + "background:#f3f1ee; color:#b0aca4; cursor:not-allowed;";
+    const phoneCountry = ({ '+48':'pl', '+49':'de', '+420':'cz', '+421':'sk', '+44':'gb' })[this.state.phonePrefix] || 'pl';
 
     return {
       od: this.state.od, dod: this.state.dod, pads: this.state.pads,
@@ -1107,11 +1117,12 @@ class Component extends DCLogic {
       lastName: this.state.lastName,
       email: this.state.email,
       phonePrefix: this.state.phonePrefix,
+      phoneCountry,
       phoneNumber: this.state.phoneNumber,
       setFirstName: (e) => this.setState({ firstName: this.sanitizeName(e.target.value) }),
       setLastName: (e) => this.setState({ lastName: this.sanitizeName(e.target.value) }),
       setEmail: (e) => this.setState({ email: String(e.target.value || '').trim().toLowerCase().slice(0, 120) }),
-      setPhonePrefix: (e) => this.setState({ phonePrefix: this.sanitizePhonePrefix(e.target.value) }),
+      setPhonePrefix: (e) => this.setState({ phonePrefix: e.target.value }),
       setPhoneNumber: (e) => this.setState({ phoneNumber: this.sanitizePhoneNumber(e.target.value) }),
       acceptTerms: this.state.acceptTerms,
       acceptPrivacy: this.state.acceptPrivacy,

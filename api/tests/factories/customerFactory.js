@@ -5,6 +5,8 @@ function createCustomer(overrides) {
     fullName: "Jan Kowalski",
     email: "jan.kowalski@example.com",
     phone: "+48500500500",
+    phonePrefix: "+48",
+    phoneNumber: "500500500",
     ...overrides
   };
 }

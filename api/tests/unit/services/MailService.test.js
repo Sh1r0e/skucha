@@ -155,7 +155,9 @@ describe("MailService", function () {
     });
 
     const message = beginSend.mock.calls[0][0];
+    const staffMessage = beginSend.mock.calls[1][0];
 
+    expect(beginSend).toHaveBeenCalledTimes(2);
     expect(message.content.subject).toBe("Skucha - płatność potwierdzona");
     expect(message.content.plainText).toBeUndefined();
     expect(message.content.html).toContain("Twoja rezerwacja");
@@ -189,6 +191,17 @@ describe("MailService", function () {
     ]);
     expect(message.attachments[0].contentType).toBe("application/pdf");
     expect(message.attachments[0].contentInBase64.length).toBeGreaterThan(100);
+    expect(staffMessage.recipients.to.map(function (recipient) { return recipient.address; })).toEqual([
+      "kubagrech@gmail.com",
+      "kacperbednarz@icloud.com"
+    ]);
+    expect(staffMessage.content.subject).toBe("SKUCHA - opłacona rezerwacja res-1");
+    expect(staffMessage.content.html).toContain("Dane operacyjne");
+    expect(staffMessage.content.html).toContain("jan@example.com");
+    expect(staffMessage.content.html).toContain("+48500500500");
+    expect(staffMessage.content.html).toContain("cs_test_123");
+    expect(staffMessage.content.html).toContain("Otwórz panel rezerwacji");
+    expect(staffMessage.attachments).toBeUndefined();
   });
 
   it("should_send_expired_checkout_notification_with_acs_when_enabled()", async function () {
@@ -372,7 +385,7 @@ describe("MailService", function () {
     await MailService.sendPaymentConfirmationNotification({ email: "jan@example.com" });
     await MailService.sendPaymentExpiredNotification({ email: "jan@example.com" });
 
-    expect(beginSend).toHaveBeenCalledTimes(2);
+    expect(beginSend).toHaveBeenCalledTimes(3);
   });
 
   it("should_render_html_for_single_day_and_long_period_in_pln()", async function () {
