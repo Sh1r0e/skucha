@@ -81,7 +81,10 @@ describe("deployment workflow", function () {
 
     [
       "index.html",
+      "robots.txt",
+      "sitemap.xml",
       "skucha.html",
+      "shop.html",
       "skucha-payment-success.html",
       "skucha-payment-cancel.html",
       "reservation-cancel.html",
@@ -90,9 +93,12 @@ describe("deployment workflow", function () {
       "rental-terms-v1.0.pdf",
       "privacy-policy-v1.0.pdf",
       "admin/reservations.html",
+      "admin/products.html",
       "config/config.json",
       "config/config-loader.js",
       "staticwebapp.config.json",
+      "shop.css",
+      "shop.js",
       "react-runtime.js",
       "skucha-logic.js",
       "skucha-print-logic.js",
@@ -134,6 +140,30 @@ describe("deployment workflow", function () {
       fs.readFileSync(path.join(outputRoot, "config", "config.json"), "utf8")
     );
     expect(productionConfig.botProtection.turnstileSiteKey).not.toBe("");
+  });
+
+  it("should_publish_crawlable_metadata_for_the_rental_page", function () {
+    buildSite({ deploymentEnvironment: "production" });
+
+    const rentalPage = fs.readFileSync(path.join(outputRoot, "skucha.html"), "utf8");
+    const description = rentalPage.match(/<meta name="description" content="([^"]+)">/);
+    const structuredDataMatch = rentalPage.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/);
+    const robots = fs.readFileSync(path.join(outputRoot, "robots.txt"), "utf8");
+    const sitemap = fs.readFileSync(path.join(outputRoot, "sitemap.xml"), "utf8");
+
+    expect(description).not.toBeNull();
+    expect(description[1]).toBe("Wypożyczalnia crash padów do boulderingu we Wrocławiu. 40 zł za pad na dzień. Rezerwacja online, odbiór w Stabłowicach lub na Brochowie.");
+    expect(description[1].length).toBeLessThanOrEqual(160);
+    expect(rentalPage).toContain('<meta name="robots" content="index, follow">');
+    expect(rentalPage).toContain('<link rel="canonical" href="https://www.skucha.co/skucha.html">');
+    expect(structuredDataMatch).not.toBeNull();
+    expect(JSON.parse(structuredDataMatch[1])).toMatchObject({
+      "@type": "LocalBusiness",
+      priceRange: "40 PLN / dzień",
+      url: "https://www.skucha.co/skucha.html"
+    });
+    expect(robots).toContain("Sitemap: https://www.skucha.co/sitemap.xml");
+    expect(sitemap).toContain("https://www.skucha.co/skucha.html");
   });
 
   it("should_show_payment_loading_and_human_readable_refund_outcomes", function () {

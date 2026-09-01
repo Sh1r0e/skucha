@@ -11,7 +11,10 @@ const outputRoot = path.join(workspaceRoot, "site-dist");
 
 const publicFiles = [
   "index.html",
+  "robots.txt",
+  "sitemap.xml",
   "skucha.html",
+  "shop.html",
   "skucha-print.html",
   "skucha-payment-cancel.html",
   "skucha-payment-success.html",
@@ -22,10 +25,13 @@ const publicFiles = [
   "privacy-policy-v1.0.pdf",
   "rental-terms-v1.0.pdf",
   "admin/reservations.html",
+  "admin/products.html",
   "config/config-loader.js",
   "config/config.json",
   "maintenance-gate.js",
   "script.js",
+  "shop.js",
+  "shop.css",
   "styles.css",
   "support.js",
   "staticwebapp.config.json"
