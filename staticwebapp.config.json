@@ -1,6 +1,16 @@
 {
   "routes": [
     {
+      "route": "/",
+      "redirect": "/skucha.html",
+      "statusCode": 301
+    },
+    {
+      "route": "/index.html",
+      "redirect": "/skucha.html",
+      "statusCode": 301
+    },
+    {
       "route": "/admin*",
       "allowedRoles": ["admin"],
       "headers": { "Cache-Control": "no-store" }

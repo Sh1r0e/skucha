@@ -120,6 +120,20 @@ describe("deployment workflow", function () {
     });
   });
 
+  it("should_redirect_entry_urls_to_the_canonical_rental_page", function () {
+    const staticWebAppConfig = JSON.parse(fs.readFileSync(staticWebAppConfigPath, "utf8"));
+
+    ["/", "/index.html"].forEach(function (entryRoute) {
+      const route = staticWebAppConfig.routes.find(function (candidate) {
+        return candidate.route === entryRoute;
+      });
+
+      expect(route).toBeDefined();
+      expect(route.redirect).toBe("/skucha.html");
+      expect(route.statusCode).toBe(301);
+    });
+  });
+
   it("should_disable_turnstile_only_in_the_preview_site_artifact", function () {
     const sourceConfigBefore = fs.readFileSync(sourceSiteConfigPath, "utf8");
 
