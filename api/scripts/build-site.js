@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const crypto = require("crypto");
 const esbuild = require("esbuild");
 
 const apiRoot = path.resolve(__dirname, "..");
@@ -228,9 +229,11 @@ function extractInlineScripts() {
         return full;
       }
       scriptIndex += 1;
+      const bodySource = body.trim() + "\n";
+      const bodyHash = crypto.createHash("sha256").update(bodySource, "utf8").digest("hex").slice(0, 12);
       const fileName = relativePath.replace(/[\\/.]+/g, "-").replace(/-html$/, "")
-        + "-inline-" + scriptIndex + ".js";
-      fs.writeFileSync(path.join(generatedDirectory, fileName), body.trim() + "\n");
+        + "-inline-" + scriptIndex + "-" + bodyHash + ".js";
+      fs.writeFileSync(path.join(generatedDirectory, fileName), bodySource);
       return '<script' + attributes + ' src="/assets/generated/' + fileName + '"></script>';
     });
     fs.writeFileSync(targetPath, html);

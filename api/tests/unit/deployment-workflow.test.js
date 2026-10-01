@@ -271,6 +271,6 @@ describe("deployment workflow", function () {
     expect(reservationPage).toContain('src="./skucha-logic.js"');
     expect(reservationPage).toContain("precompiled:skucha");
     expect(reservationPage).not.toContain("class Component extends DCLogic");
-    expect(paymentPage).toMatch(/src="\/assets\/generated\/skucha-payment-success-inline-\d+\.js"/);
+    expect(paymentPage).toMatch(/src="\/assets\/generated\/skucha-payment-success-inline-\d+-[a-f0-9]{12}\.js"/);
   });
 });
