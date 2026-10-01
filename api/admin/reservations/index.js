@@ -72,8 +72,10 @@ function createAdminReservationsHandler(customDependencies) {
         reservation = await dependencies.AdminReservationService.collectReservation(body);
       } else if (body.action === "complete" || body.action === "return") {
         reservation = await dependencies.AdminReservationService.completeReservation(body);
+      } else if (body.action === "mark-refunded") {
+        reservation = await dependencies.AdminReservationService.markRefundedReservation(body);
       } else {
-        response(context, 400, { message: "action must be collect or complete", code: "InvalidAction" });
+        response(context, 400, { message: "action must be collect, complete, or mark-refunded", code: "InvalidAction" });
         return;
       }
 

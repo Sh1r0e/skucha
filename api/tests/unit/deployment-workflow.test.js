@@ -2,6 +2,8 @@
 
 const fs = require("fs");
 const path = require("path");
+const vm = require("vm");
+const { URLSearchParams } = require("url");
 
 const workflowPath = path.resolve(
   __dirname,
@@ -23,6 +25,94 @@ const paymentSuccessPagePath = path.resolve(__dirname, "../../..", "skucha-payme
 const reservationCancelPagePath = path.resolve(__dirname, "../../..", "reservation-cancel.html");
 const adminReservationsConfigPath = path.resolve(__dirname, "../../admin/reservations/function.json");
 const adminHousekeepingConfigPath = path.resolve(__dirname, "../../admin/housekeeping/function.json");
+
+function createFakeElement(options) {
+  const settings = options || {};
+  const listeners = {};
+  const element = {
+    value: settings.value || "",
+    innerHTML: "",
+    textContent: "",
+    className: "",
+    childNodes: [],
+    disabled: false,
+    addEventListener: function addEventListener(eventName, handler) {
+      listeners[eventName] = handler;
+    },
+    appendChild: function appendChild(child) {
+      this.childNodes.push(child);
+      return child;
+    },
+    querySelector: function querySelector(selector) {
+      return selector === "button[type=submit]" ? settings.submitButton : null;
+    },
+    reset: function reset() {
+      this.value = "";
+    },
+    listeners
+  };
+
+  return element;
+}
+
+function createAdminPageHarness() {
+  const submitButton = createFakeElement();
+  const elements = {
+    reservationsBody: createFakeElement(),
+    status: createFakeElement(),
+    statusFilter: createFakeElement(),
+    activeFilter: createFakeElement(),
+    blackoutFrom: createFakeElement(),
+    blackoutTo: createFakeElement(),
+    blackoutReason: createFakeElement(),
+    blackoutStatus: createFakeElement(),
+    blackoutsBody: createFakeElement(),
+    refreshButton: createFakeElement(),
+    housekeepingButton: createFakeElement()
+  };
+  elements.blackoutForm = createFakeElement({ submitButton });
+  const requests = [];
+
+  const document = {
+    getElementById: function getElementById(id) {
+      return elements[id];
+    },
+    createElement: function createElement() {
+      return createFakeElement();
+    },
+    createTextNode: function createTextNode(text) {
+      return { textContent: text };
+    }
+  };
+
+  function fetch(url, options) {
+    const request = {
+      url,
+      options: options || {},
+      method: String((options && options.method) || "GET").toUpperCase()
+    };
+    requests.push(request);
+
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      text: function text() {
+        return Promise.resolve(JSON.stringify({ reservations: [], blackouts: [] }));
+      }
+    });
+  }
+
+  return {
+    elements,
+    requests,
+    context: {
+      document,
+      fetch,
+      URLSearchParams,
+      console
+    }
+  };
+}
 
 describe("deployment workflow", function () {
   it("should deploy only main to production and development-preview to a preview environment", function () {
@@ -118,6 +208,60 @@ describe("deployment workflow", function () {
         return file === forbiddenPath || file.startsWith(forbiddenPath + "/");
       })).toBe(false);
     });
+  });
+
+  it("should_intercept_blackout_form_submission_and_post_the_selected_period", async function () {
+    buildSite({ deploymentEnvironment: "production" });
+
+    const pagePath = path.join(outputRoot, "admin", "reservations.html");
+    const page = fs.readFileSync(pagePath, "utf8");
+    expect(page).toContain('<form id="blackoutForm" class="blackout-form" novalidate>');
+    expect(page).toContain('<option value="Refunded">Refunded</option>');
+
+    const scriptMatch = page.match(/<script src="(\/assets\/generated\/admin-reservations-inline-1-[a-f0-9]{12}\.js)"><\/script>/);
+    expect(scriptMatch).not.toBeNull();
+
+    const scriptPath = path.join(outputRoot, scriptMatch[1].replace(/^\//, ""));
+    const script = fs.readFileSync(scriptPath, "utf8");
+    expect(script).toContain('action: "mark-refunded"');
+    expect(script).toContain("Reservation marked as refunded.");
+    const harness = createAdminPageHarness();
+    vm.runInNewContext(script, harness.context, { filename: scriptPath });
+
+    const submitHandler = harness.elements.blackoutForm.listeners.submit;
+    expect(submitHandler).toEqual(expect.any(Function));
+
+    harness.requests.length = 0;
+    harness.elements.blackoutFrom.value = "";
+    harness.elements.blackoutTo.value = "";
+    const invalidEvent = { preventDefault: vi.fn() };
+    submitHandler(invalidEvent);
+
+    expect(invalidEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(harness.requests).toHaveLength(0);
+    expect(harness.elements.blackoutStatus.textContent).toBe("Select both start and end dates.");
+
+    harness.elements.blackoutFrom.value = "2026-10-10";
+    harness.elements.blackoutTo.value = "2026-10-12";
+    harness.elements.blackoutReason.value = "Weekend closure";
+    const validEvent = { preventDefault: vi.fn() };
+    submitHandler(validEvent);
+
+    expect(validEvent.preventDefault).toHaveBeenCalledTimes(1);
+    expect(harness.requests).toContainEqual(expect.objectContaining({
+      method: "POST",
+      url: "/api/backoffice/availability",
+      options: expect.objectContaining({
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          fromDate: "2026-10-10",
+          toDate: "2026-10-12",
+          reason: "Weekend closure"
+        })
+      })
+    }));
+
+    await Promise.resolve();
   });
 
   it("should_redirect_entry_urls_to_the_canonical_rental_page", function () {

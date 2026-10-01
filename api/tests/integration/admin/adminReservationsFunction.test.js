@@ -61,4 +61,30 @@ describe("admin reservations function", function () {
     expect(collectReservation).toHaveBeenCalledWith(expect.objectContaining({ reservationId: "res-1" }));
     expect(context.res.status).toBe(200);
   });
+
+  it("should_dispatch_mark_refunded_action_for_admins()", async function () {
+    const markRefundedReservation = vi.fn().mockResolvedValue({ id: "res-1", status: "Refunded" });
+    handler.__setDependencies({
+      AdminReservationService: {
+        markRefundedReservation: markRefundedReservation
+      }
+    });
+    const context = createMockContext();
+
+    await handler(context, {
+      method: "POST",
+      headers: { "x-ms-client-principal": principalHeader(["admin"]) },
+      body: {
+        action: "mark-refunded",
+        reservationId: "res-1"
+      }
+    });
+
+    expect(markRefundedReservation).toHaveBeenCalledWith({
+      action: "mark-refunded",
+      reservationId: "res-1"
+    });
+    expect(context.res.status).toBe(200);
+    expect(context.res.body.reservation.status).toBe("Refunded");
+  });
 });

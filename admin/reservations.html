@@ -78,6 +78,7 @@
         <option value="Completed">Completed</option>
         <option value="Cancelled">Cancelled</option>
         <option value="Expired">Expired</option>
+        <option value="Refunded">Refunded</option>
       </select>
       <button id="activeFilter" type="button" aria-pressed="false">Active only</button>
       <button id="refreshButton" class="primary" type="button">Refresh</button>
@@ -190,6 +191,13 @@
             complete.textContent = "Mark returned";
             complete.addEventListener("click", function () { completeReservation(reservation); });
             actions.appendChild(complete);
+          }
+          if (reservation.status !== "Refunded"
+            && ["paid", "refundpending", "refundfailed", "refunded"].indexOf(String(reservation.paymentStatus || "").toLowerCase()) !== -1) {
+            var refund = document.createElement("button");
+            refund.textContent = "Mark refunded";
+            refund.addEventListener("click", function () { markRefundedReservation(reservation); });
+            actions.appendChild(refund);
           }
           if (!actions.childNodes.length) { actions.textContent = "-"; }
 
@@ -317,6 +325,12 @@
 
       function completeReservation(reservation) {
         if (window.confirm("Mark all pads returned for this reservation?")) { postAction({ action: "complete", reservationId: reservation.id }, "Reservation completed."); }
+      }
+
+      function markRefundedReservation(reservation) {
+        if (window.confirm("Confirm that Stripe refunded this reservation before marking it as refunded?")) {
+          postAction({ action: "mark-refunded", reservationId: reservation.id }, "Reservation marked as refunded.");
+        }
       }
 
       activeFilter.addEventListener("click", function () {

@@ -65,6 +65,37 @@ describe("AdminReservationService", function () {
     );
   });
 
+  it("should_mark_a_paid_reservation_as_refunded_without_calling_stripe()", async function () {
+    const updateReservation = vi.fn().mockResolvedValue({ id: "res-1", status: "Refunded", paymentStatus: "Refunded" });
+
+    AdminReservationService.__setDependencies({
+      ReservationRepository: {
+        getReservation: vi.fn().mockResolvedValue({
+          id: "res-1",
+          status: "Completed",
+          paymentStatus: "Paid",
+          etag: "etag-refund"
+        }),
+        updateReservation
+      },
+      now: vi.fn().mockReturnValue(new Date("2026-10-01T12:00:00.000Z"))
+    });
+
+    const result = await AdminReservationService.markRefundedReservation({ reservationId: "res-1" });
+
+    expect(result.status).toBe("Refunded");
+    expect(updateReservation).toHaveBeenCalledWith(
+      "res-1",
+      {
+        status: "Refunded",
+        paymentStatus: "Refunded",
+        refundRequestedAt: "2026-10-01T12:00:00.000Z",
+        refundCompletedAt: "2026-10-01T12:00:00.000Z"
+      },
+      { expectedStatus: "Completed", expectedEtag: "etag-refund" }
+    );
+  });
+
   it("should_reject_collection_of_cancelled_reservations()", async function () {
     AdminReservationService.__setDependencies({
       ReservationRepository: {

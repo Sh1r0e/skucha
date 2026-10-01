@@ -10,7 +10,8 @@ const ALLOWED_STATUSES = [
   "Expired",
   "CancellationPending",
   "InProgress",
-  "Completed"
+  "Completed",
+  "Refunded"
 ];
 
 const FIELD_MAP = {

@@ -142,7 +142,57 @@ function createAdminReservationService(customDependencies) {
     return updated;
   }
 
-  return { listReservations, collectReservation, completeReservation };
+  async function markRefundedReservation(payload) {
+    const input = payload || {};
+    const reservationId = String(input.reservationId || "").trim();
+    if (!reservationId) {
+      throw badRequest("reservationId is required", "MissingReservationId");
+    }
+
+    const reservation = await dependencies.ReservationRepository.getReservation(reservationId);
+    if (!reservation) {
+      throw conflict("Reservation not found", "NotFound");
+    }
+
+    const paymentStatus = String(reservation.paymentStatus || "").toLowerCase();
+    if (reservation.status === Lifecycle.RESERVATION_STATUS.REFUNDED && paymentStatus === "refunded") {
+      return reservation;
+    }
+
+    if (["paid", "refundpending", "refundfailed", "refunded"].indexOf(paymentStatus) === -1) {
+      throw conflict("Only paid reservations can be marked as refunded", "PaymentNotRefundable");
+    }
+
+    Lifecycle.assertTransition(
+      reservation.status,
+      Lifecycle.RESERVATION_STATUS.REFUNDED,
+      Lifecycle.ACTOR.ADMIN
+    );
+
+    const refundCompletedAt = reservation.refundCompletedAt || dependencies.now().toISOString();
+    const refundRequestedAt = reservation.refundRequestedAt || refundCompletedAt;
+    const updated = await dependencies.ReservationRepository.updateReservation(
+      reservationId,
+      {
+        status: Lifecycle.RESERVATION_STATUS.REFUNDED,
+        paymentStatus: "Refunded",
+        refundRequestedAt: refundRequestedAt,
+        refundCompletedAt: refundCompletedAt
+      },
+      {
+        expectedStatus: reservation.status,
+        expectedEtag: reservation.etag
+      }
+    );
+
+    if (!updated) {
+      throw conflict("Reservation changed before refund reconciliation", "StorageConflict");
+    }
+
+    return updated;
+  }
+
+  return { listReservations, collectReservation, completeReservation, markRefundedReservation };
 }
 
 let activeService = createAdminReservationService();
@@ -164,6 +214,9 @@ module.exports = {
   },
   completeReservation: function completeReservationProxy(payload) {
     return activeService.completeReservation(payload);
+  },
+  markRefundedReservation: function markRefundedReservationProxy(payload) {
+    return activeService.markRefundedReservation(payload);
   },
   createAdminReservationService,
   __setDependencies,

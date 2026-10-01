@@ -165,6 +165,31 @@ describe("ReservationRepository", function () {
     expect(updated.status).toBe("Confirmed");
   });
 
+  it("should_allow_refunded_as_a_persisted_reservation_status()", async function () {
+    mockClient.listEntities.mockReturnValue(
+      createAsyncIterable([
+        {
+          partitionKey: "2026-08",
+          rowKey: "res-refunded",
+          Status: "Completed",
+          PaymentStatus: "Paid"
+        }
+      ])
+    );
+
+    const updated = await ReservationRepository.updateStatus("res-refunded", "Refunded");
+
+    expect(mockClient.updateEntity).toHaveBeenCalledWith(
+      {
+        partitionKey: "2026-08",
+        rowKey: "res-refunded",
+        Status: "Refunded"
+      },
+      "Merge"
+    );
+    expect(updated.status).toBe("Refunded");
+  });
+
   it("should_use_the_entity_etag_for_conditional_updates()", async function () {
     mockClient.listEntities.mockReturnValue(
       createAsyncIterable([

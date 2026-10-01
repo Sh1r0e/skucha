@@ -216,7 +216,8 @@ async function handleCheckoutSessionCompleted(context, session, dependencies) {
     Lifecycle.RESERVATION_STATUS.CANCELLED,
     Lifecycle.RESERVATION_STATUS.EXPIRED,
     Lifecycle.RESERVATION_STATUS.IN_PROGRESS,
-    Lifecycle.RESERVATION_STATUS.COMPLETED
+    Lifecycle.RESERVATION_STATUS.COMPLETED,
+    Lifecycle.RESERVATION_STATUS.REFUNDED
   ].includes(reservation.status)) {
     if (internalPaymentStatus === "Paid"
       && String(reservation.paymentStatus || "").toLowerCase() !== "refunded") {

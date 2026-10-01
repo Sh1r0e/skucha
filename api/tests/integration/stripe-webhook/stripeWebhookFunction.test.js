@@ -184,6 +184,38 @@ describe("stripe-webhook function", function () {
     expect(deps.MailService.sendPaymentConfirmationNotification).not.toHaveBeenCalled();
   });
 
+  it("should_not_resurrect_a_manually_refunded_reservation_from_a_late_checkout_event()", async function () {
+    const context = createMockContext();
+    const deps = buildMockDependencies({
+      StripeService: {
+        verifyWebhookSignature: vi.fn().mockReturnValue({
+          type: "checkout.session.completed",
+          id: "evt_refunded_late",
+          data: { object: buildCompletedSession() }
+        })
+      }
+    });
+    deps.ReservationRepository.getReservation.mockResolvedValue({
+      id: "res-1",
+      status: "Refunded",
+      paymentSessionId: "cs_test_123",
+      paymentStatus: "Refunded",
+      paymentAmountMinor: 12000,
+      paymentCurrency: "PLN"
+    });
+    handler.__setDependencies(deps);
+
+    await handler(context, {
+      headers: { "stripe-signature": "t=1,v1=abc" },
+      rawBody: "{}"
+    });
+
+    expect(context.res.status).toBe(200);
+    expect(deps.ReservationRepository.attachPayment).not.toHaveBeenCalled();
+    expect(deps.ReservationRepository.updateStatus).not.toHaveBeenCalled();
+    expect(deps.MailService.sendPaymentConfirmationNotification).not.toHaveBeenCalled();
+  });
+
   it("should_reject_conflicting_reservation_identifiers_without_mutation()", async function () {
     const context = createMockContext();
     const deps = buildMockDependencies({

@@ -692,6 +692,10 @@ function createReservationService(customDependencies) {
       throw conflict("Expired reservations cannot be cancelled", "AlreadyExpired");
     }
 
+    if (reservation.status === RESERVATION_STATUS.REFUNDED) {
+      throw conflict("Refunded reservations cannot be cancelled", "AlreadyRefunded");
+    }
+
     if (reservation.status === RESERVATION_STATUS.IN_PROGRESS) {
       throw conflict("Collected reservations cannot be cancelled", "AlreadyCollected");
     }

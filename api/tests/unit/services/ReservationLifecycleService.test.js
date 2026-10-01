@@ -15,6 +15,14 @@ describe("ReservationLifecycleService", function () {
     expect(Lifecycle.isBlockingStatus("Cancelled")).toBe(false);
     expect(Lifecycle.isBlockingStatus("Expired")).toBe(false);
     expect(Lifecycle.isBlockingStatus("Completed")).toBe(false);
+    expect(Lifecycle.isBlockingStatus("Refunded")).toBe(false);
+    expect(Lifecycle.isTerminalStatus("Refunded")).toBe(true);
+  });
+
+  it("should_allow_an_admin_to_mark_a_paid_reservation_as_refunded_from_any_terminal_state", function () {
+    expect(Lifecycle.canTransition("Completed", "Refunded", Lifecycle.ACTOR.ADMIN)).toBe(true);
+    expect(Lifecycle.canTransition("Cancelled", "Refunded", Lifecycle.ACTOR.ADMIN)).toBe(true);
+    expect(Lifecycle.canTransition("Refunded", "Completed", Lifecycle.ACTOR.ADMIN)).toBe(false);
   });
 
   it("should_reject_invalid_transitions_with_a_conflict()", function () {
