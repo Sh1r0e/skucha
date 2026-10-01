@@ -31,7 +31,20 @@
     #activeFilter[aria-pressed="true"] { border-color: var(--ok); color: #fff; background: var(--ok); }
     #activeFilter[aria-pressed="true"]:hover { border-color: #176b46; background: #176b46; }
     .empty { padding: 30px; color: var(--muted); text-align: center; }
-    @media (max-width: 620px) { header { align-items: flex-start; flex-direction: column; } main { width: min(100% - 20px, 1180px); margin-top: 16px; } }
+    .blackout-panel { margin-bottom: 24px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+    .blackout-panel h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+    .blackout-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 10px; margin-top: 16px; }
+    .field { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    input { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: #fff; font: inherit; }
+    .blackout-status { min-height: 22px; margin-top: 12px; color: var(--muted); }
+    .blackout-status.error { color: var(--error); }
+    .blackout-list { overflow-x: auto; margin-top: 4px; border: 1px solid var(--line); border-radius: 10px; }
+    .blackout-list table { min-width: 560px; }
+    .blackout-list td, .blackout-list th { padding: 10px 12px; }
+    .blackout-list .actions-cell { text-align: right; }
+    .blackout-list .actions-cell button { min-height: 32px; padding: 6px 9px; }
+    @media (max-width: 760px) { .blackout-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .blackout-form button { grid-column: 1 / -1; } }
+    @media (max-width: 620px) { header { align-items: flex-start; flex-direction: column; } main { width: min(100% - 20px, 1180px); margin-top: 16px; } .blackout-form { grid-template-columns: 1fr; } .blackout-form button { grid-column: auto; } }
   </style>
 </head>
 <body>
@@ -40,6 +53,22 @@
     <a href="/.auth/logout">Sign out</a>
   </header>
   <main>
+    <section class="blackout-panel" aria-labelledby="blackoutHeading">
+      <h2 id="blackoutHeading">Blocked rental dates</h2>
+      <form id="blackoutForm" class="blackout-form">
+        <label class="field" for="blackoutFrom">From <input id="blackoutFrom" type="date" required></label>
+        <label class="field" for="blackoutTo">To <input id="blackoutTo" type="date" required></label>
+        <label class="field" for="blackoutReason">Reason <input id="blackoutReason" type="text" maxlength="200" placeholder="Optional"></label>
+        <button class="primary" type="submit">Block dates</button>
+      </form>
+      <div id="blackoutStatus" class="blackout-status" role="status" aria-live="polite"></div>
+      <div class="blackout-list">
+        <table>
+          <thead><tr><th>Dates</th><th>Reason</th><th>Actions</th></tr></thead>
+          <tbody id="blackoutsBody"><tr><td class="empty" colspan="3">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
     <div class="toolbar">
       <select id="statusFilter" aria-label="Status filter">
         <option value="">All statuses</option>
@@ -68,11 +97,22 @@
       var status = document.getElementById("status");
       var statusFilter = document.getElementById("statusFilter");
       var activeFilter = document.getElementById("activeFilter");
+      var blackoutForm = document.getElementById("blackoutForm");
+      var blackoutFrom = document.getElementById("blackoutFrom");
+      var blackoutTo = document.getElementById("blackoutTo");
+      var blackoutReason = document.getElementById("blackoutReason");
+      var blackoutStatus = document.getElementById("blackoutStatus");
+      var blackoutsBody = document.getElementById("blackoutsBody");
       var activeOnly = false;
 
       function setStatus(message, isError) {
         status.textContent = message || "";
         status.className = "status" + (isError ? " error" : "");
+      }
+
+      function setBlackoutStatus(message, isError) {
+        blackoutStatus.textContent = message || "";
+        blackoutStatus.className = "blackout-status" + (isError ? " error" : "");
       }
 
       function readApiResponse(response) {
@@ -158,6 +198,96 @@
         });
       }
 
+      function renderBlackouts(blackouts) {
+        blackoutsBody.innerHTML = "";
+        if (!blackouts.length) {
+          blackoutsBody.innerHTML = '<tr><td class="empty" colspan="3">No blocked dates.</td></tr>';
+          return;
+        }
+
+        blackouts.forEach(function (blackout) {
+          var row = document.createElement("tr");
+          var dates = document.createElement("td");
+          dates.textContent = blackout.fromDate + " - " + blackout.toDate;
+          var reason = document.createElement("td");
+          reason.textContent = blackout.reason || "-";
+          var actions = document.createElement("td");
+          actions.className = "actions-cell";
+          var remove = document.createElement("button");
+          remove.type = "button";
+          remove.textContent = "Remove";
+          remove.addEventListener("click", function () { removeBlackout(blackout); });
+          actions.appendChild(remove);
+          row.appendChild(dates);
+          row.appendChild(reason);
+          row.appendChild(actions);
+          blackoutsBody.appendChild(row);
+        });
+      }
+
+      function loadBlackouts() {
+        setBlackoutStatus("Loading...");
+        fetch("/api/backoffice/availability", { credentials: "same-origin", headers: { Accept: "application/json" } })
+          .then(readApiResponse)
+          .then(function (result) {
+            if (!result.ok) { throw new Error(result.payload.message || "Unable to load blocked dates."); }
+            renderBlackouts(result.payload.blackouts || []);
+            setBlackoutStatus("");
+          })
+          .catch(function (error) { setBlackoutStatus(error.message, true); });
+      }
+
+      function removeBlackout(blackout) {
+        if (!window.confirm("Remove the blocked period " + blackout.fromDate + " - " + blackout.toDate + "?")) {
+          return;
+        }
+
+        setBlackoutStatus("Removing...");
+        fetch("/api/backoffice/availability?id=" + encodeURIComponent(blackout.id), {
+          method: "DELETE",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" }
+        })
+          .then(readApiResponse)
+          .then(function (result) {
+            if (!result.ok) { throw new Error(result.payload.message || "Unable to remove blocked dates."); }
+            setBlackoutStatus("Blocked dates removed.");
+            loadBlackouts();
+          })
+          .catch(function (error) { setBlackoutStatus(error.message, true); });
+      }
+
+      blackoutForm.addEventListener("submit", function (event) {
+        event.preventDefault();
+        if (!blackoutFrom.value || !blackoutTo.value) {
+          setBlackoutStatus("Select both start and end dates.", true);
+          return;
+        }
+        if (blackoutFrom.value > blackoutTo.value) {
+          setBlackoutStatus("The end date must be on or after the start date.", true);
+          return;
+        }
+
+        var submitButton = blackoutForm.querySelector("button[type=submit]");
+        submitButton.disabled = true;
+        setBlackoutStatus("Saving...");
+        fetch("/api/backoffice/availability", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ fromDate: blackoutFrom.value, toDate: blackoutTo.value, reason: blackoutReason.value })
+        })
+          .then(readApiResponse)
+          .then(function (result) {
+            if (!result.ok) { throw new Error(result.payload.message || "Unable to block dates."); }
+            blackoutForm.reset();
+            setBlackoutStatus("Rental dates blocked.");
+            loadBlackouts();
+          })
+          .catch(function (error) { setBlackoutStatus(error.message, true); })
+          .then(function () { submitButton.disabled = false; });
+      });
+
       function loadReservations() {
         var query = new URLSearchParams();
         if (statusFilter.value) { query.set("status", statusFilter.value); }
@@ -203,6 +333,7 @@
       });
       statusFilter.addEventListener("change", loadReservations);
       loadReservations();
+      loadBlackouts();
     })();
   </script>
 </body>

@@ -3,12 +3,14 @@ const ReservationRepository = require("../repositories/ReservationRepository");
 const ConfigurationService = require("./ConfigurationService");
 const TimeService = require("./ReservationTimeService");
 const Lifecycle = require("./ReservationLifecycleService");
+const BlackoutRepository = require("../repositories/BlackoutRepository");
 
 const MAX_AVAILABILITY_RANGE_DAYS = 366;
 
 const defaultDependencies = {
   ConfigService,
   ReservationRepository,
+  BlackoutRepository,
   ConfigurationService,
   TimeService,
   now: function now() {
@@ -55,6 +57,18 @@ function toIsoDate(date) {
 
 function isIsoDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isBlackoutOnDate(date, blackouts) {
+  return blackouts.some(function (blackout) {
+    if (!isIsoDate(blackout.fromDate) || !isIsoDate(blackout.toDate)) {
+      return false;
+    }
+
+    const blackoutFrom = asDate(blackout.fromDate, "blackout.fromDate");
+    const blackoutTo = asDate(blackout.toDate, "blackout.toDate");
+    return overlaps(date, date, blackoutFrom, blackoutTo);
+  });
 }
 
 function isStalePending(reservation, dependencies) {
@@ -131,9 +145,15 @@ function createAvailabilityService(customDependencies) {
 
     const config = await dependencies.ConfigService.loadConfig();
     let reservations = [];
+    let blackouts = [];
 
     try {
-      reservations = await dependencies.ReservationRepository.getReservations();
+      const loaded = await Promise.all([
+        dependencies.ReservationRepository.getReservations(),
+        dependencies.BlackoutRepository.getBlackouts()
+      ]);
+      reservations = loaded[0];
+      blackouts = loaded[1];
     } catch (error) {
       const availabilityError = new Error("Availability storage is temporarily unavailable");
       availabilityError.statusCode = 503;
@@ -153,24 +173,26 @@ function createAvailabilityService(customDependencies) {
       };
     }
 
-    let maxReservedOnAnyDay = 0;
+    let minimumRemainingPads = maxPads;
     const days = {};
     const cursor = new Date(from);
 
     while (cursor.getTime() <= to.getTime()) {
       const reservedOnDay = reservedPadsOnDate(cursor, reservations, dependencies);
-      const remainingOnDay = Math.max(0, maxPads - reservedOnDay);
+      const remainingOnDay = isBlackoutOnDate(cursor, blackouts)
+        ? 0
+        : Math.max(0, maxPads - reservedOnDay);
 
       days[toIsoDate(cursor)] = remainingOnDay;
 
-      if (reservedOnDay > maxReservedOnAnyDay) {
-        maxReservedOnAnyDay = reservedOnDay;
+      if (remainingOnDay < minimumRemainingPads) {
+        minimumRemainingPads = remainingOnDay;
       }
 
       cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
 
-    const remainingPads = Math.max(0, maxPads - maxReservedOnAnyDay);
+    const remainingPads = Math.max(0, minimumRemainingPads);
 
     return {
       available: remainingPads > 0,

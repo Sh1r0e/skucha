@@ -10,8 +10,17 @@ describe("AvailabilityService", function () {
     vi.clearAllMocks();
   });
 
+  function noBlackouts() {
+    return {
+      BlackoutRepository: {
+        getBlackouts: vi.fn().mockResolvedValue([])
+      }
+    };
+  }
+
   it("should_return_available_when_remaining_pads_exist()", async function () {
     AvailabilityService.__setDependencies({
+      ...noBlackouts(),
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
       },
@@ -90,6 +99,7 @@ describe("AvailabilityService", function () {
 
   it("should_handle_overlapping_reservations_by_day()", async function () {
     AvailabilityService.__setDependencies({
+      ...noBlackouts(),
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
       },
@@ -121,6 +131,7 @@ describe("AvailabilityService", function () {
 
   it("should_fail_closed_when_repository_is_unavailable()", async function () {
     AvailabilityService.__setDependencies({
+      ...noBlackouts(),
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
       },
@@ -139,6 +150,7 @@ describe("AvailabilityService", function () {
 
   it("should_ignore_stale_unpaid_pending_reservations_before_housekeeping_runs()", async function () {
     AvailabilityService.__setDependencies({
+      ...noBlackouts(),
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
       },
@@ -164,6 +176,7 @@ describe("AvailabilityService", function () {
 
   it("should_return_not_configured_when_total_pads_is_missing()", async function () {
     AvailabilityService.__setDependencies({
+      ...noBlackouts(),
       ConfigService: {
         loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 0 } })
       },
@@ -176,5 +189,29 @@ describe("AvailabilityService", function () {
 
     expect(result.available).toBe(false);
     expect(result.message).toBe("Availability is not configured");
+  });
+
+  it("should_block_every_pad_on_blackout_days()", async function () {
+    AvailabilityService.__setDependencies({
+      ConfigService: {
+        loadConfig: vi.fn().mockResolvedValue({ availability: { totalPads: 4 } })
+      },
+      ReservationRepository: {
+        getReservations: vi.fn().mockResolvedValue([])
+      },
+      BlackoutRepository: {
+        getBlackouts: vi.fn().mockResolvedValue([
+          { id: "blackout-1", fromDate: "2026-08-11", toDate: "2026-08-12" }
+        ])
+      }
+    });
+
+    const result = await AvailabilityService.getAvailability(createAvailabilityParams());
+
+    expect(result.days["2026-08-10"]).toBe(4);
+    expect(result.days["2026-08-11"]).toBe(0);
+    expect(result.days["2026-08-12"]).toBe(0);
+    expect(result.available).toBe(false);
+    expect(result.remainingPads).toBe(0);
   });
 });
