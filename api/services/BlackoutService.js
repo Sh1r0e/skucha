@@ -79,6 +79,7 @@ function createBlackoutService(customDependencies) {
       try {
         await dependencies.InventoryLeaseRepository.releaseLease(lease);
       } catch (_error) {
+        void _error;
       }
     }
   }
